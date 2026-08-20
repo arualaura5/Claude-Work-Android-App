@@ -222,7 +222,7 @@ private fun CardEditDialog(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "*asterisks* for bold, _underscores_ for italic",
+                    "*bold*, _italic_, or *_both_* nested",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )

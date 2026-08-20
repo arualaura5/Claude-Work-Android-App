@@ -11,9 +11,14 @@ import androidx.compose.ui.text.withStyle
  * Lightweight inline markup for card text:
  *  - *asterisks* render bold, e.g. "C*A*LR" bolds just the root letters.
  *  - _underscores_ render italic, e.g. "_lit._ street".
+ *  - Nest them for both, e.g. "*_Female_*" renders bold AND italic.
  * An unmatched trailing marker is treated as plain text rather than an error.
  */
 fun parseCardMarkup(text: String): AnnotatedString = buildAnnotatedString {
+    appendMarkedUp(text)
+}
+
+private fun AnnotatedString.Builder.appendMarkedUp(text: String) {
     var index = 0
     while (index < text.length) {
         val nextBold = text.indexOf('*', index)
@@ -25,13 +30,13 @@ fun parseCardMarkup(text: String): AnnotatedString = buildAnnotatedString {
         }
         if (start == -1) {
             append(text.substring(index))
-            break
+            return
         }
         val marker = text[start]
         val end = text.indexOf(marker, start + 1)
         if (end == -1) {
             append(text.substring(index))
-            break
+            return
         }
         append(text.substring(index, start))
         val style = if (marker == '*') {
@@ -40,7 +45,7 @@ fun parseCardMarkup(text: String): AnnotatedString = buildAnnotatedString {
             SpanStyle(fontStyle = FontStyle.Italic)
         }
         withStyle(style) {
-            append(text.substring(start + 1, end))
+            appendMarkedUp(text.substring(start + 1, end))
         }
         index = end + 1
     }
