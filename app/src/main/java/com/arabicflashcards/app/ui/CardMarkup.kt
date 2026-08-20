@@ -7,6 +7,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.em
 
 /**
  * Lightweight inline markup for card text:
@@ -15,12 +16,12 @@ import androidx.compose.ui.text.withStyle
  *  - Nest them for both, e.g. "*_Female_*" renders bold AND italic.
  * An unmatched trailing marker is treated as plain text rather than an error.
  *
- * [boldColor] is applied to bold spans in addition to font weight: many
- * transliteration characters (ū, ḥ, š, etc.) aren't covered by the bundled
- * font, so Android silently substitutes a system fallback glyph that may
- * not honor the requested weight. Color renders correctly regardless of
- * which font ends up drawing the glyph, so it guarantees bold is visible
- * even when weight synthesis silently fails.
+ * Bold spans also get a color accent and a slight size bump on top of the
+ * font weight: many transliteration characters (ū, ḥ, š, etc.) aren't
+ * covered by the bundled font, so Android silently substitutes a system
+ * fallback glyph that may not honor the requested weight. Color and size
+ * apply correctly regardless of which font ends up drawing the glyph, so
+ * bold stays visible even when weight synthesis silently fails.
  */
 fun parseCardMarkup(text: String, boldColor: Color = Color.Unspecified): AnnotatedString =
     buildAnnotatedString {
@@ -49,7 +50,7 @@ private fun AnnotatedString.Builder.appendMarkedUp(text: String, boldColor: Colo
         }
         append(text.substring(index, start))
         val style = if (marker == '*') {
-            SpanStyle(fontWeight = FontWeight.Black, color = boldColor)
+            SpanStyle(fontWeight = FontWeight.Black, color = boldColor, fontSize = 1.12.em)
         } else {
             SpanStyle(fontStyle = FontStyle.Italic)
         }
