@@ -1,0 +1,51 @@
+# Arabic Flashcards — project rules
+
+## Canonical rule: protect the user's flashcard data
+
+The user's flashcard notebook (cards, tags, study progress, gamification
+stats) lives in on-device storage (Jetpack DataStore) and is the entire
+point of this app. It is **irreplaceable** — there is no cloud backup, no
+export. Losing it is a real loss for the user, not just an inconvenience.
+
+**Always instruct the user to install updates over the existing app —
+never to uninstall first — unless there is a specific, unavoidable reason,
+and if there is, say so explicitly and warn them their data will be wiped
+before they do it.**
+
+Android only preserves an app's private storage across an **update**
+(same `applicationId`, same signing key). Uninstalling — or the OS
+refusing to install because the signing key changed — wipes it.
+
+Before telling the user to install any new build, actively check:
+
+1. **Signing key is unchanged.** `app/build.gradle.kts` pins the debug
+   signing config to the committed `debug.keystore` at the repo root
+   (fixed after an incident where CI generated a fresh random debug
+   keystore on every run, silently breaking updates and forcing repeated
+   uninstalls). Do not remove this, regenerate `debug.keystore`, or let a
+   build fall back to an auto-generated keystore.
+2. **`applicationId` is unchanged** (`com.arabicflashcards.app`). Changing
+   it makes Android treat the new build as a different app entirely — a
+   fresh install, with the old app's data left behind and inaccessible.
+3. **Storage keys/format are backward-compatible.** Data is stored as a
+   JSON-serialized list under the `cards_json` DataStore key (see
+   `AppRepository.kt` / `UserCard.kt`). When adding fields, make them
+   optional-with-default on read (see how `tags` was added: missing key →
+   empty list) so older saved cards still parse. Never rename or remove
+   an existing DataStore key without writing an explicit migration that
+   reads the old key and rewrites it under the new one first.
+
+If a change genuinely requires a storage-format migration, write and test
+the migration path (read old format → write new format) before shipping —
+don't ask the user to re-enter their cards.
+
+## Where things live
+
+- `app/src/main/java/com/arabicflashcards/app/data/` — `UserCard`,
+  `AppRepository` (DataStore-backed persistence), `GameStats`,
+  `StudyDirection`.
+- `app/src/main/java/com/arabicflashcards/app/ui/` — Compose screens
+  (`FlashcardScreen.kt`) and `FlashcardViewModel.kt`.
+- Debug builds are auto-published on every push to a stable link:
+  `https://github.com/arualaura5/Claude-Work-Android-App/releases/download/latest-debug/app-debug.apk`
+  (see `.github/workflows/android-build.yml`).
