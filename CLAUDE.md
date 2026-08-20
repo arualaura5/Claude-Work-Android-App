@@ -3,14 +3,32 @@
 ## Canonical rule: protect the user's flashcard data
 
 The user's flashcard notebook (cards, tags, study progress, gamification
-stats) lives in on-device storage (Jetpack DataStore) and is the entire
-point of this app. It is **irreplaceable** — there is no cloud backup, no
-export. Losing it is a real loss for the user, not just an inconvenience.
+stats) lives in on-device storage (Jetpack DataStore). It is the entire
+point of this app, it is hand-entered by the user, and there is no cloud
+copy — the only backup that exists is one the user explicitly created with
+the in-app Export feature. Losing it is a real loss for the user, not just
+an inconvenience. **This has already happened once** (an uninstall the
+assistant advised wiped the user's cards with no working backup) — treat
+every future uninstall recommendation as a live risk of repeating that,
+not a formality.
 
 **Always instruct the user to install updates over the existing app —
 never to uninstall first — unless there is a specific, unavoidable reason,
 and if there is, say so explicitly and warn them their data will be wiped
 before they do it.**
+
+**Before ever advising an uninstall, for any reason, this is a hard gate,
+not a suggestion:**
+
+1. Tell the user to open the app and tap **Export** (top bar, download
+   icon), pick a save location, and confirm the file was actually written
+   (check it exists, check it's non-trivial in size if they have cards).
+2. Only after that export is confirmed to exist may you tell them to
+   uninstall.
+3. Do not assume the notebook is empty or that "there's probably nothing
+   in there yet" — verify, or have the user confirm, before skipping the
+   export step. Do not skip this step because the conversation is moving
+   fast or the fix seems urgent.
 
 Android only preserves an app's private storage across an **update**
 (same `applicationId`, same signing key). Uninstalling — or the OS
@@ -43,9 +61,10 @@ don't ask the user to re-enter their cards.
 
 - `app/src/main/java/com/arabicflashcards/app/data/` — `UserCard`,
   `AppRepository` (DataStore-backed persistence), `GameStats`,
-  `StudyDirection`.
-- `app/src/main/java/com/arabicflashcards/app/ui/` — Compose screens
-  (`FlashcardScreen.kt`) and `FlashcardViewModel.kt`.
+  `StudyDirection`, `NotebookBackup` (export/import JSON format).
+- `app/src/main/java/com/arabicflashcards/app/ui/` — `FlashcardApp.kt`
+  (top-level scaffold, stats bar, export/import wiring), `StudyScreen.kt`,
+  `ManageCardsScreen.kt`, `TagPill.kt`, and `FlashcardViewModel.kt`.
 - Debug builds are auto-published on every push to a stable link:
   `https://github.com/arualaura5/Claude-Work-Android-App/releases/download/latest-debug/app-debug.apk`
   (see `.github/workflows/android-build.yml`).
