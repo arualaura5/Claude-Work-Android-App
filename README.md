@@ -29,11 +29,12 @@ are stored on-device via Jetpack DataStore — nothing is uploaded anywhere.
 A warm Egyptian-inspired palette (Nile teal, terracotta, sand/gold) and the
 [Tajawal](https://fonts.google.com/specimen/Tajawal) typeface (SIL Open Font
 License, see `licenses/tajawal_OFL.txt`), which renders both Arabic and
-Latin text natively. The bundled Tajawal files also have a small set of
-transliteration diacritics (ū, ḥ, š, etc.) merged in from
-[Noto Sans](https://fonts.google.com/noto/specimen/Noto+Sans) (SIL Open Font
-License, see `licenses/noto_sans_OFL.txt`), which Tajawal itself doesn't
-include glyphs for.
+Latin text natively. Tajawal itself doesn't include glyphs for some
+transliteration diacritics used in Egyptian Arabic transliteration (ū, ḥ,
+ġ, ṣ, ṭ, etc.), so the bundled font files add them by composing Tajawal's
+own base letters with Tajawal's own accent marks (its macron, dot, and
+quote-mark shapes) — no outside typeface involved, so they stay visually
+consistent with the rest of the font.
 
 ## Getting the app onto your phone
 

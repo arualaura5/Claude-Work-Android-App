@@ -16,10 +16,10 @@ import androidx.compose.ui.text.withStyle
  * An unmatched trailing marker is treated as plain text rather than an error.
  *
  * Bold spans also get a color accent on top of the font weight, purely for
- * visual pop (transliteration diacritics like ū/ḥ/š now render at real
- * weight too — their glyphs are merged into the bundled Tajawal font files
- * from Noto Sans, since Tajawal itself doesn't include them; see
- * licenses/noto_sans_OFL.txt).
+ * visual pop (transliteration diacritics like ū/ḥ/š render at real weight
+ * too — their glyphs are composed into the bundled Tajawal font files from
+ * Tajawal's own letterforms and accent marks, since Tajawal itself doesn't
+ * include them; see the font-file note in README.md).
  */
 fun parseCardMarkup(text: String, boldColor: Color = Color.Unspecified): AnnotatedString =
     buildAnnotatedString {
