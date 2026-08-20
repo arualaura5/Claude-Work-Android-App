@@ -162,7 +162,7 @@ internal fun StudyScreen(
                     onFlip = onFlip,
                     onSwipeLeft = onSwipeLeft,
                     onSwipeRight = onSwipeRight,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
             CelebrationOverlay(show = state.justScoredPoints, onDone = onCelebrationDone)
