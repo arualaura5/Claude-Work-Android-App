@@ -8,22 +8,28 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -122,13 +128,18 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
                     onDirectionChange = viewModel::setDirection,
                     onGrade = viewModel::gradeCurrent,
                     onCelebrationDone = viewModel::consumeCelebration,
+                    onToggleTag = viewModel::toggleTagFilter,
+                    onClearTagFilter = viewModel::clearTagFilter,
                     onGoToCards = { selectedTab = 1 }
                 )
                 else -> ManageCardsScreen(
                     cards = state.cards,
+                    allTags = state.allTags,
                     onAdd = viewModel::addCard,
                     onEdit = viewModel::updateCard,
-                    onDelete = viewModel::deleteCard
+                    onDelete = viewModel::deleteCard,
+                    onCreateTag = viewModel::addTag,
+                    onDeleteTag = viewModel::deleteTag
                 )
             }
         }
@@ -164,6 +175,17 @@ private fun StatChip(icon: ImageVector, label: String) {
 }
 
 @Composable
+private fun TagPill(text: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f), RoundedCornerShape(50))
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    ) {
+        Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+    }
+}
+
+@Composable
 private fun StudyScreen(
     state: FlashcardUiState,
     onFlip: () -> Unit,
@@ -172,6 +194,8 @@ private fun StudyScreen(
     onDirectionChange: (StudyDirection) -> Unit,
     onGrade: (Boolean) -> Unit,
     onCelebrationDone: () -> Unit,
+    onToggleTag: (String) -> Unit,
+    onClearTagFilter: () -> Unit,
     onGoToCards: () -> Unit
 ) {
     Column(
@@ -192,6 +216,19 @@ private fun StudyScreen(
             )
         }
 
+        if (state.allTags.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(state.allTags.toList().sorted()) { tag ->
+                    FilterChip(
+                        selected = tag in state.selectedTagFilter,
+                        onClick = { onToggleTag(tag) },
+                        label = { Text(tag) }
+                    )
+                }
+            }
+        }
+
         Spacer(Modifier.height(12.dp))
 
         if (state.cards.isEmpty()) {
@@ -209,6 +246,21 @@ private fun StudyScreen(
                     )
                     Spacer(Modifier.height(16.dp))
                     Button(onClick = onGoToCards) { Text("Add your first card") }
+                }
+            }
+            return
+        }
+
+        if (state.studyDeck.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "No cards match the selected tags",
+                        style = MaterialTheme.typography.titleLarge,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = onClearTagFilter) { Text("Clear tag filter") }
                 }
             }
             return
@@ -406,71 +458,102 @@ private fun CardFace(primary: String, secondary: String, primarySize: TextUnit) 
 @Composable
 private fun ManageCardsScreen(
     cards: List<UserCard>,
-    onAdd: (String, String) -> Unit,
-    onEdit: (String, String, String) -> Unit,
-    onDelete: (String) -> Unit
+    allTags: Set<String>,
+    onAdd: (String, String, List<String>) -> Unit,
+    onEdit: (String, String, String, List<String>) -> Unit,
+    onDelete: (String) -> Unit,
+    onCreateTag: (String) -> Unit,
+    onDeleteTag: (String) -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var editingCard by remember { mutableStateOf<UserCard?>(null) }
     var deletingCard by remember { mutableStateOf<UserCard?>(null) }
+    var showTagManager by remember { mutableStateOf(false) }
 
-    Box(Modifier.fillMaxSize()) {
-        if (cards.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    "No cards yet — tap + to add one",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(cards, key = { it.id }) { card ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(card.english, fontWeight = FontWeight.Bold)
-                                Text(
-                                    card.egyptian,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                )
-                            }
-                            IconButton(onClick = { editingCard = card }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit")
-                            }
-                            IconButton(onClick = { deletingCard = card }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete")
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${cards.size} card${if (cards.size == 1) "" else "s"}",
+                style = MaterialTheme.typography.labelLarge
+            )
+            TextButton(onClick = { showTagManager = true }) { Text("Manage tags") }
+        }
+
+        Box(Modifier.fillMaxSize().weight(1f)) {
+            if (cards.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "No cards yet — tap + to add one",
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(cards, key = { it.id }) { card ->
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(card.english, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        card.egyptian,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    )
+                                    if (card.tags.isNotEmpty()) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            card.tags.forEach { tag -> TagPill(tag) }
+                                        }
+                                    }
+                                }
+                                IconButton(onClick = { editingCard = card }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                                }
+                                IconButton(onClick = { deletingCard = card }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        FloatingActionButton(
-            onClick = { showAddDialog = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Add card")
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add card")
+            }
         }
     }
 
     if (showAddDialog) {
         CardEditDialog(
             initial = null,
+            allTags = allTags,
+            onCreateTag = onCreateTag,
             onDismiss = { showAddDialog = false },
-            onSave = { english, egyptian ->
-                onAdd(english, egyptian)
+            onSave = { english, egyptian, tags ->
+                onAdd(english, egyptian, tags)
                 showAddDialog = false
             }
         )
@@ -479,9 +562,11 @@ private fun ManageCardsScreen(
     editingCard?.let { card ->
         CardEditDialog(
             initial = card,
+            allTags = allTags,
+            onCreateTag = onCreateTag,
             onDismiss = { editingCard = null },
-            onSave = { english, egyptian ->
-                onEdit(card.id, english, egyptian)
+            onSave = { english, egyptian, tags ->
+                onEdit(card.id, english, egyptian, tags)
                 editingCard = null
             }
         )
@@ -503,22 +588,35 @@ private fun ManageCardsScreen(
             }
         )
     }
+
+    if (showTagManager) {
+        TagManagerDialog(
+            allTags = allTags,
+            onCreateTag = onCreateTag,
+            onDeleteTag = onDeleteTag,
+            onDismiss = { showTagManager = false }
+        )
+    }
 }
 
 @Composable
 private fun CardEditDialog(
     initial: UserCard?,
+    allTags: Set<String>,
+    onCreateTag: (String) -> Unit,
     onDismiss: () -> Unit,
-    onSave: (english: String, egyptian: String) -> Unit
+    onSave: (english: String, egyptian: String, tags: List<String>) -> Unit
 ) {
     var english by remember { mutableStateOf(initial?.english ?: "") }
     var egyptian by remember { mutableStateOf(initial?.egyptian ?: "") }
+    var selectedTags by remember { mutableStateOf(initial?.tags?.toSet() ?: emptySet()) }
+    var newTagText by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (initial == null) "Add a card" else "Edit card") },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = english,
                     onValueChange = { english = it },
@@ -532,16 +630,116 @@ private fun CardEditDialog(
                     label = { Text("Egyptian Arabic") },
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(Modifier.height(12.dp))
+                Text("Tags", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(4.dp))
+                if (allTags.isNotEmpty()) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(allTags.toList().sorted()) { tag ->
+                            FilterChip(
+                                selected = tag in selectedTags,
+                                onClick = {
+                                    selectedTags = if (tag in selectedTags) selectedTags - tag else selectedTags + tag
+                                },
+                                label = { Text(tag) }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newTagText,
+                        onValueChange = { newTagText = it },
+                        label = { Text("New tag") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = {
+                        val tag = newTagText.trim()
+                        if (tag.isNotEmpty()) {
+                            onCreateTag(tag)
+                            selectedTags = selectedTags + tag
+                            newTagText = ""
+                        }
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add tag")
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(english, egyptian) },
+                onClick = { onSave(english, egyptian, selectedTags.toList()) },
                 enabled = english.isNotBlank() && egyptian.isNotBlank()
             ) { Text("Save") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+private fun TagManagerDialog(
+    allTags: Set<String>,
+    onCreateTag: (String) -> Unit,
+    onDeleteTag: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var newTagText by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Manage tags") },
+        text = {
+            Column {
+                if (allTags.isEmpty()) {
+                    Text(
+                        "No tags yet. Create one below, or add one while editing a card.",
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    )
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
+                        items(allTags.toList().sorted()) { tag ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(tag)
+                                IconButton(onClick = { onDeleteTag(tag) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete tag \"$tag\"")
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newTagText,
+                        onValueChange = { newTagText = it },
+                        label = { Text("New tag") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = {
+                        val tag = newTagText.trim()
+                        if (tag.isNotEmpty()) {
+                            onCreateTag(tag)
+                            newTagText = ""
+                        }
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add tag")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Done") }
         }
     )
 }

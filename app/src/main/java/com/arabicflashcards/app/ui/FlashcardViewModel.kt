@@ -18,22 +18,26 @@ import kotlinx.coroutines.launch
 
 data class FlashcardUiState(
     val cards: List<UserCard> = emptyList(),
+    val studyDeck: List<UserCard> = emptyList(),
     val currentIndex: Int = 0,
     val isFlipped: Boolean = false,
     val direction: StudyDirection = StudyDirection.EGYPTIAN_FIRST,
     val stats: GameStats = GameStats(),
-    val justScoredPoints: Boolean = false
+    val justScoredPoints: Boolean = false,
+    val allTags: Set<String> = emptySet(),
+    val selectedTagFilter: Set<String> = emptySet()
 ) {
-    val currentCard: UserCard? get() = cards.getOrNull(currentIndex)
-    val total: Int get() = cards.size
-    val positionLabel: String get() = if (cards.isEmpty()) "0 / 0" else "${currentIndex + 1} / $total"
-    val masteredCount: Int get() = cards.count { it.mastered }
+    val currentCard: UserCard? get() = studyDeck.getOrNull(currentIndex)
+    val total: Int get() = studyDeck.size
+    val positionLabel: String get() = if (studyDeck.isEmpty()) "0 / 0" else "${currentIndex + 1} / $total"
+    val masteredCount: Int get() = studyDeck.count { it.mastered }
 }
 
 private data class LoadedData(
     val cards: List<UserCard>,
     val direction: StudyDirection,
-    val stats: GameStats
+    val stats: GameStats,
+    val knownTags: Set<String>
 )
 
 class FlashcardViewModel(application: Application) : AndroidViewModel(application) {
@@ -43,27 +47,38 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
     private val _currentIndex = MutableStateFlow(0)
     private val _isFlipped = MutableStateFlow(false)
     private val _celebrate = MutableStateFlow(false)
+    private val _selectedTagFilter = MutableStateFlow<Set<String>>(emptySet())
 
     private val loadedData: Flow<LoadedData> = combine(
         repository.cards,
         repository.direction,
-        repository.stats
-    ) { cards, direction, stats -> LoadedData(cards, direction, stats) }
+        repository.stats,
+        repository.knownTags
+    ) { cards, direction, stats, knownTags -> LoadedData(cards, direction, stats, knownTags) }
 
     val uiState: StateFlow<FlashcardUiState> = combine(
         loadedData,
         _currentIndex,
         _isFlipped,
-        _celebrate
-    ) { loaded, index, flipped, celebrate ->
-        val clampedIndex = if (loaded.cards.isEmpty()) 0 else index.coerceIn(0, loaded.cards.size - 1)
+        _celebrate,
+        _selectedTagFilter
+    ) { loaded, index, flipped, celebrate, tagFilter ->
+        val studyDeck = if (tagFilter.isEmpty()) {
+            loaded.cards
+        } else {
+            loaded.cards.filter { card -> card.tags.any { it in tagFilter } }
+        }
+        val clampedIndex = if (studyDeck.isEmpty()) 0 else index.coerceIn(0, studyDeck.size - 1)
         FlashcardUiState(
             cards = loaded.cards,
+            studyDeck = studyDeck,
             currentIndex = clampedIndex,
             isFlipped = flipped,
             direction = loaded.direction,
             stats = loaded.stats,
-            justScoredPoints = celebrate
+            justScoredPoints = celebrate,
+            allTags = loaded.knownTags,
+            selectedTagFilter = tagFilter
         )
     }.stateIn(
         scope = viewModelScope,
@@ -76,14 +91,14 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun next() {
-        val size = uiState.value.cards.size
+        val size = uiState.value.studyDeck.size
         if (size == 0) return
         _isFlipped.value = false
         _currentIndex.update { (it + 1) % size }
     }
 
     fun previous() {
-        val size = uiState.value.cards.size
+        val size = uiState.value.studyDeck.size
         if (size == 0) return
         _isFlipped.value = false
         _currentIndex.update { (it - 1 + size) % size }
@@ -94,18 +109,41 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch { repository.setDirection(direction) }
     }
 
-    fun addCard(english: String, egyptian: String) {
+    fun addCard(english: String, egyptian: String, tags: List<String> = emptyList()) {
         if (english.isBlank() || egyptian.isBlank()) return
-        viewModelScope.launch { repository.addCard(english, egyptian) }
+        viewModelScope.launch { repository.addCard(english, egyptian, tags) }
     }
 
-    fun updateCard(id: String, english: String, egyptian: String) {
+    fun updateCard(id: String, english: String, egyptian: String, tags: List<String> = emptyList()) {
         if (english.isBlank() || egyptian.isBlank()) return
-        viewModelScope.launch { repository.updateCard(id, english, egyptian) }
+        viewModelScope.launch { repository.updateCard(id, english, egyptian, tags) }
     }
 
     fun deleteCard(id: String) {
         viewModelScope.launch { repository.deleteCard(id) }
+    }
+
+    fun addTag(tag: String) {
+        viewModelScope.launch { repository.addTag(tag) }
+    }
+
+    fun deleteTag(tag: String) {
+        viewModelScope.launch { repository.deleteTag(tag) }
+        _selectedTagFilter.update { it - tag }
+    }
+
+    fun toggleTagFilter(tag: String) {
+        _isFlipped.value = false
+        _currentIndex.value = 0
+        _selectedTagFilter.update { current ->
+            if (tag in current) current - tag else current + tag
+        }
+    }
+
+    fun clearTagFilter() {
+        _isFlipped.value = false
+        _currentIndex.value = 0
+        _selectedTagFilter.value = emptySet()
     }
 
     fun gradeCurrent(knewIt: Boolean) {

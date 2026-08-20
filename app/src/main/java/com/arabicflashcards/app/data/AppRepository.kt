@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -20,9 +21,14 @@ class AppRepository(private val context: Context) {
     private val currentStreakKey = intPreferencesKey("current_streak")
     private val longestStreakKey = intPreferencesKey("longest_streak")
     private val lastStudyDayKey = longPreferencesKey("last_study_epoch_day")
+    private val knownTagsKey = stringSetPreferencesKey("known_tags")
 
     val cards: Flow<List<UserCard>> = context.dataStore.data.map { prefs ->
         prefs[cardsKey]?.toUserCards() ?: emptyList()
+    }
+
+    val knownTags: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[knownTagsKey] ?: emptySet()
     }
 
     val direction: Flow<StudyDirection> = context.dataStore.data.map { prefs ->
@@ -39,21 +45,33 @@ class AppRepository(private val context: Context) {
         )
     }
 
-    suspend fun addCard(english: String, egyptian: String) {
+    suspend fun addCard(english: String, egyptian: String, tags: List<String> = emptyList()) {
+        val cleanTags = tags.map { it.trim() }.filter { it.isNotBlank() }.distinct()
         context.dataStore.edit { prefs ->
             val current = prefs[cardsKey]?.toUserCards() ?: emptyList()
-            val updated = current + UserCard(english = english.trim(), egyptian = egyptian.trim())
+            val updated = current + UserCard(
+                english = english.trim(),
+                egyptian = egyptian.trim(),
+                tags = cleanTags
+            )
             prefs[cardsKey] = updated.toJsonString()
+            if (cleanTags.isNotEmpty()) {
+                prefs[knownTagsKey] = (prefs[knownTagsKey] ?: emptySet()) + cleanTags
+            }
         }
     }
 
-    suspend fun updateCard(id: String, english: String, egyptian: String) {
+    suspend fun updateCard(id: String, english: String, egyptian: String, tags: List<String> = emptyList()) {
+        val cleanTags = tags.map { it.trim() }.filter { it.isNotBlank() }.distinct()
         context.dataStore.edit { prefs ->
             val current = prefs[cardsKey]?.toUserCards() ?: emptyList()
             val updated = current.map {
-                if (it.id == id) it.copy(english = english.trim(), egyptian = egyptian.trim()) else it
+                if (it.id == id) it.copy(english = english.trim(), egyptian = egyptian.trim(), tags = cleanTags) else it
             }
             prefs[cardsKey] = updated.toJsonString()
+            if (cleanTags.isNotEmpty()) {
+                prefs[knownTagsKey] = (prefs[knownTagsKey] ?: emptySet()) + cleanTags
+            }
         }
     }
 
@@ -61,6 +79,23 @@ class AppRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             val current = prefs[cardsKey]?.toUserCards() ?: emptyList()
             prefs[cardsKey] = current.filterNot { it.id == id }.toJsonString()
+        }
+    }
+
+    suspend fun addTag(tag: String) {
+        val clean = tag.trim()
+        if (clean.isBlank()) return
+        context.dataStore.edit { prefs ->
+            prefs[knownTagsKey] = (prefs[knownTagsKey] ?: emptySet()) + clean
+        }
+    }
+
+    suspend fun deleteTag(tag: String) {
+        context.dataStore.edit { prefs ->
+            prefs[knownTagsKey] = (prefs[knownTagsKey] ?: emptySet()) - tag
+            val current = prefs[cardsKey]?.toUserCards() ?: emptyList()
+            val updated = current.map { it.copy(tags = it.tags - tag) }
+            prefs[cardsKey] = updated.toJsonString()
         }
     }
 

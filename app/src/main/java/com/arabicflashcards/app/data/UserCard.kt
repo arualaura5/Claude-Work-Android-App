@@ -8,6 +8,7 @@ data class UserCard(
     val id: String = UUID.randomUUID().toString(),
     val english: String,
     val egyptian: String,
+    val tags: List<String> = emptyList(),
     val createdAt: Long = System.currentTimeMillis(),
     val timesReviewed: Int = 0,
     val timesCorrect: Int = 0,
@@ -18,6 +19,7 @@ fun UserCard.toJson(): JSONObject = JSONObject().apply {
     put("id", id)
     put("english", english)
     put("egyptian", egyptian)
+    put("tags", JSONArray(tags))
     put("createdAt", createdAt)
     put("timesReviewed", timesReviewed)
     put("timesCorrect", timesCorrect)
@@ -28,6 +30,9 @@ fun JSONObject.toUserCard(): UserCard = UserCard(
     id = getString("id"),
     english = getString("english"),
     egyptian = getString("egyptian"),
+    tags = optJSONArray("tags")?.let { array ->
+        (0 until array.length()).map { array.getString(it) }
+    } ?: emptyList(),
     createdAt = optLong("createdAt", System.currentTimeMillis()),
     timesReviewed = optInt("timesReviewed", 0),
     timesCorrect = optInt("timesCorrect", 0),
