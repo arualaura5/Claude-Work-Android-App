@@ -11,11 +11,12 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -249,7 +250,6 @@ private fun FlipStudyCard(
 
     Box(
         modifier = modifier
-            .aspectRatio(0.8f)
             .pointerInput(Unit) {
                 var totalDrag = 0f
                 detectHorizontalDragGestures(
@@ -281,10 +281,10 @@ private fun FlipStudyCard(
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (rotation <= 90f) {
-                    CardFace(primary = frontText, secondary = frontLabel, primarySize = 32.sp)
+                    CardFace(primary = frontText, secondary = frontLabel, primarySize = 22.sp)
                 } else {
                     Box(modifier = Modifier.graphicsLayer { rotationY = 180f }) {
-                        CardFace(primary = backText, secondary = backLabel, primarySize = 32.sp)
+                        CardFace(primary = backText, secondary = backLabel, primarySize = 22.sp)
                     }
                 }
             }
@@ -296,7 +296,9 @@ private fun FlipStudyCard(
 private fun CardFace(primary: String, secondary: String, primarySize: TextUnit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(24.dp)
+        modifier = Modifier
+            .padding(20.dp)
+            .verticalScroll(rememberScrollState())
     ) {
         Text(
             text = primary,
@@ -305,14 +307,14 @@ private fun CardFace(primary: String, secondary: String, primarySize: TextUnit) 
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
         Text(
             text = secondary,
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
             text = "Tap to flip",
             style = MaterialTheme.typography.labelLarge,
