@@ -35,7 +35,7 @@ fun parseCardMarkup(text: String): AnnotatedString = buildAnnotatedString {
         }
         append(text.substring(index, start))
         val style = if (marker == '*') {
-            SpanStyle(fontWeight = FontWeight.Bold)
+            SpanStyle(fontWeight = FontWeight.Black)
         } else {
             SpanStyle(fontStyle = FontStyle.Italic)
         }

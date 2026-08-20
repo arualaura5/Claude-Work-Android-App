@@ -11,7 +11,8 @@ import com.arabicflashcards.app.R
 val Tajawal = FontFamily(
     Font(R.font.tajawal_regular, FontWeight.Normal),
     Font(R.font.tajawal_medium, FontWeight.Medium),
-    Font(R.font.tajawal_bold, FontWeight.Bold)
+    Font(R.font.tajawal_bold, FontWeight.Bold),
+    Font(R.font.tajawal_black, FontWeight.Black)
 )
 
 val Typography = Typography(
