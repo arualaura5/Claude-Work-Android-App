@@ -99,6 +99,27 @@ class AppRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Merge-only import: never overwrites or removes an existing card.
+     * Returns how many cards were actually added (imported cards whose id
+     * already exists in the notebook are skipped, not overwritten).
+     */
+    suspend fun importBackup(cards: List<UserCard>, tags: Set<String>): Int {
+        var addedCount = 0
+        context.dataStore.edit { prefs ->
+            val current = prefs[cardsKey]?.toUserCards() ?: emptyList()
+            val existingIds = current.map { it.id }.toSet()
+            val newCards = cards.filterNot { it.id in existingIds }
+            addedCount = newCards.size
+            prefs[cardsKey] = (current + newCards).toJsonString()
+            val importedTags = tags + cards.flatMap { it.tags }
+            if (importedTags.isNotEmpty()) {
+                prefs[knownTagsKey] = (prefs[knownTagsKey] ?: emptySet()) + importedTags
+            }
+        }
+        return addedCount
+    }
+
     suspend fun setDirection(direction: StudyDirection) {
         context.dataStore.edit { prefs ->
             prefs[directionKey] = direction.name

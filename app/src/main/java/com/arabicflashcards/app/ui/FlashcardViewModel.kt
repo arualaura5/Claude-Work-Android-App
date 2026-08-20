@@ -5,8 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.arabicflashcards.app.data.AppRepository
 import com.arabicflashcards.app.data.GameStats
+import com.arabicflashcards.app.data.NotebookBackup
 import com.arabicflashcards.app.data.StudyDirection
 import com.arabicflashcards.app.data.UserCard
+import com.arabicflashcards.app.data.toJsonString
+import com.arabicflashcards.app.data.toNotebookBackup
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -48,6 +51,8 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
     private val _isFlipped = MutableStateFlow(false)
     private val _celebrate = MutableStateFlow(false)
     private val _selectedTagFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _statusMessage = MutableStateFlow<String?>(null)
+    val statusMessage: StateFlow<String?> = _statusMessage
 
     private val loadedData: Flow<LoadedData> = combine(
         repository.cards,
@@ -157,5 +162,38 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun consumeCelebration() {
         _celebrate.value = false
+    }
+
+    fun exportBackupJson(): String {
+        val state = uiState.value
+        return NotebookBackup(state.cards, state.allTags).toJsonString()
+    }
+
+    fun importBackup(json: String) {
+        viewModelScope.launch {
+            val backup = runCatching { json.toNotebookBackup() }.getOrNull()
+            if (backup == null) {
+                _statusMessage.value = "Import failed — that doesn't look like a valid backup file."
+                return@launch
+            }
+            val added = repository.importBackup(backup.cards, backup.tags)
+            _statusMessage.value = when {
+                added == 0 -> "No new cards to import — everything in that file is already in your notebook."
+                added == 1 -> "Imported 1 new card."
+                else -> "Imported $added new cards."
+            }
+        }
+    }
+
+    fun notifyBackupSaved() {
+        _statusMessage.value = "Backup saved."
+    }
+
+    fun notifyBackupFailed() {
+        _statusMessage.value = "Couldn't save the backup file."
+    }
+
+    fun consumeStatusMessage() {
+        _statusMessage.value = null
     }
 }

@@ -1,0 +1,335 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
+package com.arabicflashcards.app.ui
+
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Card
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.arabicflashcards.app.data.UserCard
+
+@Composable
+internal fun ManageCardsScreen(
+    cards: List<UserCard>,
+    allTags: Set<String>,
+    onAdd: (String, String, List<String>) -> Unit,
+    onEdit: (String, String, String, List<String>) -> Unit,
+    onDelete: (String) -> Unit,
+    onCreateTag: (String) -> Unit,
+    onDeleteTag: (String) -> Unit
+) {
+    var showAddDialog by remember { mutableStateOf(false) }
+    var editingCard by remember { mutableStateOf<UserCard?>(null) }
+    var deletingCard by remember { mutableStateOf<UserCard?>(null) }
+    var showTagManager by remember { mutableStateOf(false) }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${cards.size} card${if (cards.size == 1) "" else "s"}",
+                style = MaterialTheme.typography.labelLarge
+            )
+            TextButton(onClick = { showTagManager = true }) { Text("Manage tags") }
+        }
+
+        Box(Modifier.fillMaxSize().weight(1f)) {
+            if (cards.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "No cards yet — tap + to add one",
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(cards, key = { it.id }) { card ->
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(card.english, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        card.egyptian,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    )
+                                    if (card.tags.isNotEmpty()) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            card.tags.forEach { tag -> TagPill(tag) }
+                                        }
+                                    }
+                                }
+                                IconButton(onClick = { editingCard = card }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                                }
+                                IconButton(onClick = { deletingCard = card }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add card")
+            }
+        }
+    }
+
+    if (showAddDialog) {
+        CardEditDialog(
+            initial = null,
+            allTags = allTags,
+            onCreateTag = onCreateTag,
+            onDismiss = { showAddDialog = false },
+            onSave = { english, egyptian, tags ->
+                onAdd(english, egyptian, tags)
+                showAddDialog = false
+            }
+        )
+    }
+
+    editingCard?.let { card ->
+        CardEditDialog(
+            initial = card,
+            allTags = allTags,
+            onCreateTag = onCreateTag,
+            onDismiss = { editingCard = null },
+            onSave = { english, egyptian, tags ->
+                onEdit(card.id, english, egyptian, tags)
+                editingCard = null
+            }
+        )
+    }
+
+    deletingCard?.let { card ->
+        AlertDialog(
+            onDismissRequest = { deletingCard = null },
+            title = { Text("Delete this card?") },
+            text = { Text("\"${card.english}\" will be removed from your notebook.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete(card.id)
+                    deletingCard = null
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingCard = null }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showTagManager) {
+        TagManagerDialog(
+            allTags = allTags,
+            onCreateTag = onCreateTag,
+            onDeleteTag = onDeleteTag,
+            onDismiss = { showTagManager = false }
+        )
+    }
+}
+
+@Composable
+private fun CardEditDialog(
+    initial: UserCard?,
+    allTags: Set<String>,
+    onCreateTag: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onSave: (english: String, egyptian: String, tags: List<String>) -> Unit
+) {
+    var english by remember { mutableStateOf(initial?.english ?: "") }
+    var egyptian by remember { mutableStateOf(initial?.egyptian ?: "") }
+    var selectedTags by remember { mutableStateOf(initial?.tags?.toSet() ?: emptySet()) }
+    var newTagText by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initial == null) "Add a card" else "Edit card") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = english,
+                    onValueChange = { english = it },
+                    label = { Text("English") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = egyptian,
+                    onValueChange = { egyptian = it },
+                    label = { Text("Egyptian Arabic") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                Text("Tags", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(4.dp))
+                if (allTags.isNotEmpty()) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(allTags.toList().sorted()) { tag ->
+                            FilterChip(
+                                selected = tag in selectedTags,
+                                onClick = {
+                                    selectedTags = if (tag in selectedTags) selectedTags - tag else selectedTags + tag
+                                },
+                                label = { Text(tag) }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newTagText,
+                        onValueChange = { newTagText = it },
+                        label = { Text("New tag") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = {
+                        val tag = newTagText.trim()
+                        if (tag.isNotEmpty()) {
+                            onCreateTag(tag)
+                            selectedTags = selectedTags + tag
+                            newTagText = ""
+                        }
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add tag")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(english, egyptian, selectedTags.toList()) },
+                enabled = english.isNotBlank() && egyptian.isNotBlank()
+            ) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+private fun TagManagerDialog(
+    allTags: Set<String>,
+    onCreateTag: (String) -> Unit,
+    onDeleteTag: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var newTagText by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Manage tags") },
+        text = {
+            Column {
+                if (allTags.isEmpty()) {
+                    Text(
+                        "No tags yet. Create one below, or add one while editing a card.",
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    )
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
+                        items(allTags.toList().sorted()) { tag ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(tag)
+                                IconButton(onClick = { onDeleteTag(tag) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete tag \"$tag\"")
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newTagText,
+                        onValueChange = { newTagText = it },
+                        label = { Text("New tag") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = {
+                        val tag = newTagText.trim()
+                        if (tag.isNotEmpty()) {
+                            onCreateTag(tag)
+                            newTagText = ""
+                        }
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add tag")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Done") }
+        }
+    )
+}
