@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,9 +19,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
@@ -32,6 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Card
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,12 +47,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.arabicflashcards.app.data.StudyDirection
 import com.arabicflashcards.app.data.UserCard
 
 @Composable
 internal fun ManageCardsScreen(
     cards: List<UserCard>,
     allTags: Set<String>,
+    direction: StudyDirection,
     onAdd: (String, String, List<String>) -> Unit,
     onEdit: (String, String, String, List<String>) -> Unit,
     onDelete: (String) -> Unit,
@@ -59,6 +67,7 @@ internal fun ManageCardsScreen(
     var editingCard by remember { mutableStateOf<UserCard?>(null) }
     var deletingCard by remember { mutableStateOf<UserCard?>(null) }
     var showTagManager by remember { mutableStateOf(false) }
+    var previewCard by remember { mutableStateOf<UserCard?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -90,7 +99,10 @@ internal fun ManageCardsScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(cards, key = { it.id }) { card ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(
+                            onClick = { previewCard = card },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -186,6 +198,61 @@ internal fun ManageCardsScreen(
             onDeleteTag = onDeleteTag,
             onDismiss = { showTagManager = false }
         )
+    }
+
+    previewCard?.let { card ->
+        CardPreviewDialog(
+            card = card,
+            direction = direction,
+            onDismiss = { previewCard = null }
+        )
+    }
+}
+
+@Composable
+private fun CardPreviewDialog(
+    card: UserCard,
+    direction: StudyDirection,
+    onDismiss: () -> Unit
+) {
+    var flipped by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .fillMaxHeight(0.75f),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close preview")
+                    }
+                }
+                FlipStudyCard(
+                    card = card,
+                    direction = direction,
+                    isFlipped = flipped,
+                    onFlip = { flipped = !flipped },
+                    onSwipeLeft = {},
+                    onSwipeRight = {},
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
+                if (card.tags.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        card.tags.forEach { tag -> TagPill(tag) }
+                    }
+                }
+            }
+        }
     }
 }
 

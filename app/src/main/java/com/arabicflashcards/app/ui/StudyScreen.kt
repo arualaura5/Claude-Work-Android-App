@@ -228,7 +228,7 @@ private fun CelebrationOverlay(show: Boolean, onDone: () -> Unit) {
 }
 
 @Composable
-private fun FlipStudyCard(
+internal fun FlipStudyCard(
     card: UserCard,
     direction: StudyDirection,
     isFlipped: Boolean,

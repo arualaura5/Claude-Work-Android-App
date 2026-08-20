@@ -159,6 +159,7 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
                 else -> ManageCardsScreen(
                     cards = state.cards,
                     allTags = state.allTags,
+                    direction = state.direction,
                     onAdd = viewModel::addCard,
                     onEdit = viewModel::updateCard,
                     onDelete = viewModel::deleteCard,
