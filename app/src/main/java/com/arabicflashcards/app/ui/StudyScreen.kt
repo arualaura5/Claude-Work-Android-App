@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arabicflashcards.app.data.StudyDirection
 import com.arabicflashcards.app.data.UserCard
+import com.arabicflashcards.app.ui.theme.Tajawal
 import kotlin.math.abs
 import kotlinx.coroutines.delay
 
@@ -274,6 +276,7 @@ private fun FlipStudyCard(
                 containerColor = if (card.mastered) MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)
                 else MaterialTheme.colorScheme.surface
             ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             onClick = onFlip
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -297,6 +300,7 @@ private fun CardFace(primary: String, secondary: String, primarySize: TextUnit) 
     ) {
         Text(
             text = primary,
+            fontFamily = Tajawal,
             fontSize = primarySize,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center

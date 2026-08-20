@@ -44,12 +44,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.arabicflashcards.app.data.GameStats
+import com.arabicflashcards.app.ui.theme.MashrabiyaBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -140,6 +142,7 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            MashrabiyaBackground(modifier = Modifier.fillMaxSize())
             when (selectedTab) {
                 0 -> StudyScreen(
                     state = state,
@@ -175,8 +178,8 @@ private fun StatsRow(stats: GameStats) {
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        StatChip(icon = Icons.Default.LocalFireDepartment, label = "${stats.currentStreak} day streak")
-        StatChip(icon = Icons.Default.Star, label = "${stats.totalPoints} pts")
+        StatChip(icon = Icons.Default.LocalFireDepartment, label = "${stats.currentStreak} day streak", tint = MaterialTheme.colorScheme.tertiary)
+        StatChip(icon = Icons.Default.Star, label = "${stats.totalPoints} pts", tint = MaterialTheme.colorScheme.secondary)
         Text(
             text = "Lv. ${stats.level}",
             style = MaterialTheme.typography.labelLarge,
@@ -187,9 +190,9 @@ private fun StatsRow(stats: GameStats) {
 }
 
 @Composable
-private fun StatChip(icon: ImageVector, label: String) {
+private fun StatChip(icon: ImageVector, label: String, tint: Color) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.height(18.dp))
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.height(18.dp))
         Spacer(Modifier.width(4.dp))
         Text(label, style = MaterialTheme.typography.labelLarge)
     }

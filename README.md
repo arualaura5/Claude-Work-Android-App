@@ -24,6 +24,13 @@ notebook and drilling it with active recall.
 Built with Kotlin and Jetpack Compose (Material 3). Your cards and progress
 are stored on-device via Jetpack DataStore — nothing is uploaded anywhere.
 
+## Design
+
+A warm Egyptian-inspired palette (Nile teal, terracotta, sand/gold) and the
+[Tajawal](https://fonts.google.com/specimen/Tajawal) typeface (SIL Open Font
+License, see `licenses/tajawal_OFL.txt`), which renders both Arabic and
+Latin text natively.
+
 ## Getting the app onto your phone
 
 Every push to this repo builds automatically and publishes the APK to a
