@@ -98,9 +98,9 @@ internal fun ManageCardsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(card.english, fontWeight = FontWeight.Bold)
+                                    Text(parseCardMarkup(card.english), fontWeight = FontWeight.Medium)
                                     Text(
-                                        card.egyptian,
+                                        parseCardMarkup(card.egyptian),
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                     )
                                     if (card.tags.isNotEmpty()) {
@@ -219,6 +219,12 @@ private fun CardEditDialog(
                     onValueChange = { egyptian = it },
                     label = { Text("Egyptian Arabic") },
                     modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Wrap text in *asterisks* to bold it, e.g. C*A*LR",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
                 Spacer(Modifier.height(12.dp))
                 Text("Tags", style = MaterialTheme.typography.labelLarge)
