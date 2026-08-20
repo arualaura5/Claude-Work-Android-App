@@ -222,7 +222,7 @@ private fun CardEditDialog(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Wrap text in *asterisks* to bold it, e.g. C*A*LR",
+                    "*asterisks* for bold, _underscores_ for italic",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
