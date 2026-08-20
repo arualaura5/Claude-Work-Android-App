@@ -110,9 +110,12 @@ internal fun ManageCardsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(parseCardMarkup(card.english), fontWeight = FontWeight.Medium)
                                     Text(
-                                        parseCardMarkup(card.egyptian),
+                                        parseCardMarkup(card.english, boldColor = MaterialTheme.colorScheme.tertiary),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        parseCardMarkup(card.egyptian, boldColor = MaterialTheme.colorScheme.tertiary),
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                     )
                                     if (card.tags.isNotEmpty()) {

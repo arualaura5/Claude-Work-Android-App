@@ -316,7 +316,7 @@ private fun CardFace(primary: String, secondary: String, primarySize: TextUnit) 
             .verticalScroll(rememberScrollState())
     ) {
         Text(
-            text = parseCardMarkup(primary),
+            text = parseCardMarkup(primary, boldColor = MaterialTheme.colorScheme.tertiary),
             fontFamily = Tajawal,
             fontSize = primarySize,
             fontWeight = FontWeight.Medium,

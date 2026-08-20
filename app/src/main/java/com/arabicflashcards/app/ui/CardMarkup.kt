@@ -1,5 +1,6 @@
 package com.arabicflashcards.app.ui
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -13,12 +14,20 @@ import androidx.compose.ui.text.withStyle
  *  - _underscores_ render italic, e.g. "_lit._ street".
  *  - Nest them for both, e.g. "*_Female_*" renders bold AND italic.
  * An unmatched trailing marker is treated as plain text rather than an error.
+ *
+ * [boldColor] is applied to bold spans in addition to font weight: many
+ * transliteration characters (ū, ḥ, š, etc.) aren't covered by the bundled
+ * font, so Android silently substitutes a system fallback glyph that may
+ * not honor the requested weight. Color renders correctly regardless of
+ * which font ends up drawing the glyph, so it guarantees bold is visible
+ * even when weight synthesis silently fails.
  */
-fun parseCardMarkup(text: String): AnnotatedString = buildAnnotatedString {
-    appendMarkedUp(text)
-}
+fun parseCardMarkup(text: String, boldColor: Color = Color.Unspecified): AnnotatedString =
+    buildAnnotatedString {
+        appendMarkedUp(text, boldColor)
+    }
 
-private fun AnnotatedString.Builder.appendMarkedUp(text: String) {
+private fun AnnotatedString.Builder.appendMarkedUp(text: String, boldColor: Color) {
     var index = 0
     while (index < text.length) {
         val nextBold = text.indexOf('*', index)
@@ -40,12 +49,12 @@ private fun AnnotatedString.Builder.appendMarkedUp(text: String) {
         }
         append(text.substring(index, start))
         val style = if (marker == '*') {
-            SpanStyle(fontWeight = FontWeight.Black)
+            SpanStyle(fontWeight = FontWeight.Black, color = boldColor)
         } else {
             SpanStyle(fontStyle = FontStyle.Italic)
         }
         withStyle(style) {
-            appendMarkedUp(text.substring(start + 1, end))
+            appendMarkedUp(text.substring(start + 1, end), boldColor)
         }
         index = end + 1
     }
