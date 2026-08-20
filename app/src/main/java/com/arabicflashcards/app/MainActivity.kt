@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.arabicflashcards.app.ui.FlashcardScreen
+import com.arabicflashcards.app.ui.FlashcardApp
 import com.arabicflashcards.app.ui.theme.ArabicFlashcardsTheme
 
 class MainActivity : ComponentActivity() {
@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
 fun ArabicFlashcardsApp() {
     ArabicFlashcardsTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            FlashcardScreen()
+            FlashcardApp()
         }
     }
 }
