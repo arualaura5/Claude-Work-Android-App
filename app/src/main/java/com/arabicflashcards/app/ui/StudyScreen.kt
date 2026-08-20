@@ -281,10 +281,10 @@ private fun FlipStudyCard(
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (rotation <= 90f) {
-                    CardFace(primary = frontText, secondary = frontLabel, primarySize = 22.sp)
+                    CardFace(primary = frontText, secondary = frontLabel, primarySize = fontSizeFor(frontText))
                 } else {
                     Box(modifier = Modifier.graphicsLayer { rotationY = 180f }) {
-                        CardFace(primary = backText, secondary = backLabel, primarySize = 22.sp)
+                        CardFace(primary = backText, secondary = backLabel, primarySize = fontSizeFor(backText))
                     }
                 }
             }
@@ -292,12 +292,27 @@ private fun FlipStudyCard(
     }
 }
 
+/**
+ * Shrinks the flashcard's primary text as content grows, so long entries
+ * (e.g. a full verb conjugation) fit on screen instead of overflowing and
+ * pushing the label/hint text out of view.
+ */
+private fun fontSizeFor(text: String): TextUnit {
+    val lines = text.count { it == '\n' } + 1
+    return when {
+        lines >= 6 || text.length > 150 -> 15.sp
+        lines >= 4 || text.length > 80 -> 18.sp
+        else -> 22.sp
+    }
+}
+
 @Composable
 private fun CardFace(primary: String, secondary: String, primarySize: TextUnit) {
+    val isLong = primary.count { it == '\n' } + 1 >= 4 || primary.length > 80
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .padding(20.dp)
+            .padding(if (isLong) 12.dp else 20.dp)
             .verticalScroll(rememberScrollState())
     ) {
         Text(
@@ -305,21 +320,24 @@ private fun CardFace(primary: String, secondary: String, primarySize: TextUnit) 
             fontFamily = Tajawal,
             fontSize = primarySize,
             fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            lineHeight = primarySize * 1.3f
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(if (isLong) 4.dp else 10.dp))
         Text(
             text = secondary,
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         )
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = "Tap to flip",
-            style = MaterialTheme.typography.labelLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-        )
+        if (!isLong) {
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "Tap to flip",
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            )
+        }
     }
 }
