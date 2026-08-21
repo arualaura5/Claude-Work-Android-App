@@ -150,6 +150,8 @@ private val progressAccent = Brush.horizontalGradient(listOf(Gold, GoldLight))
 /** Permanent last row in the lesson list — a short list should never trail off into dead space. */
 @Composable
 private fun AddLessonGhostRow(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val accent = MaterialTheme.colorScheme.primary
+    val borderColor = MaterialTheme.colorScheme.outline
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -157,7 +159,7 @@ private fun AddLessonGhostRow(onClick: () -> Unit, modifier: Modifier = Modifier
             .drawWithContent {
                 drawContent()
                 drawRoundRect(
-                    color = NileLight,
+                    color = borderColor,
                     style = Stroke(
                         width = 1.6.dp.toPx(),
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
@@ -170,9 +172,9 @@ private fun AddLessonGhostRow(onClick: () -> Unit, modifier: Modifier = Modifier
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.Add, contentDescription = null, tint = Nile, modifier = Modifier.size(15.dp))
+        Icon(Icons.Default.Add, contentDescription = null, tint = accent, modifier = Modifier.size(15.dp))
         Spacer(Modifier.width(8.dp))
-        Text("Add another lesson", color = Nile, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Text("Add another lesson", color = accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
     }
 }
 
@@ -234,18 +236,19 @@ private fun LessonsListScreen(
                     val progress = if (count > 0) masteredCount.toFloat() / count else 0f
                     var menuExpanded by remember { mutableStateOf(false) }
 
+                    val stripeColor = MaterialTheme.colorScheme.primary
+
                     Card(
                         onClick = { onOpenLesson(lesson.id) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Cream),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp, pressedElevation = 1.dp)
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .drawBehind {
-                                    drawRect(color = Nile, size = Size(3.dp.toPx(), size.height))
+                                    drawRect(color = stripeColor, size = Size(3.dp.toPx(), size.height))
                                 }
                                 .padding(16.dp)
                         ) {
