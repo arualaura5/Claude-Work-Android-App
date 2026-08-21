@@ -63,6 +63,7 @@ internal fun StudyScreen(
     onCelebrationDone: () -> Unit,
     onToggleTag: (String) -> Unit,
     onClearTagFilter: () -> Unit,
+    onSelectLesson: (String?) -> Unit,
     onGoToCards: () -> Unit
 ) {
     val soundPlayer = LocalSoundPlayer.current
@@ -97,6 +98,20 @@ internal fun StudyScreen(
             }
         }
 
+        if (state.lessons.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(state.lessons, key = { it.id }) { lesson ->
+                    val selected = state.selectedLessonFilter == lesson.id
+                    FilterChip(
+                        selected = selected,
+                        onClick = { onSelectLesson(if (selected) null else lesson.id) },
+                        label = { Text("📖 ${lesson.name}") }
+                    )
+                }
+            }
+        }
+
         Spacer(Modifier.height(12.dp))
 
         if (state.cards.isEmpty()) {
@@ -123,12 +138,12 @@ internal fun StudyScreen(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        "No cards match the selected tags",
+                        "No cards match the selected filter",
                         style = MaterialTheme.typography.titleLarge,
                         textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = onClearTagFilter) { Text("Clear tag filter") }
+                    Button(onClick = onClearTagFilter) { Text("Clear filter") }
                 }
             }
             return

@@ -31,7 +31,8 @@ data class FlashcardUiState(
     val allTags: Set<String> = emptySet(),
     val selectedTagFilter: Set<String> = emptySet(),
     val lessons: List<Lesson> = emptyList(),
-    val soundEnabled: Boolean = true
+    val soundEnabled: Boolean = true,
+    val selectedLessonFilter: String? = null
 ) {
     val currentCard: UserCard? get() = studyDeck.getOrNull(currentIndex)
     val total: Int get() = studyDeck.size
@@ -48,6 +49,14 @@ private data class LoadedData(
     val soundEnabled: Boolean = true
 )
 
+private data class PreFilterState(
+    val loaded: LoadedData,
+    val index: Int,
+    val flipped: Boolean,
+    val celebrate: Boolean,
+    val tagFilter: Set<String>
+)
+
 class FlashcardViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AppRepository(application)
@@ -56,6 +65,7 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
     private val _isFlipped = MutableStateFlow(false)
     private val _celebrate = MutableStateFlow(false)
     private val _selectedTagFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _selectedLessonFilter = MutableStateFlow<String?>(null)
     private val _statusMessage = MutableStateFlow<String?>(null)
     val statusMessage: StateFlow<String?> = _statusMessage
 
@@ -75,24 +85,29 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
         _celebrate,
         _selectedTagFilter
     ) { loaded, index, flipped, celebrate, tagFilter ->
-        val studyDeck = if (tagFilter.isEmpty()) {
-            loaded.cards
-        } else {
-            loaded.cards.filter { card -> card.tags.any { it in tagFilter } }
+        PreFilterState(loaded, index, flipped, celebrate, tagFilter)
+    }.combine(_selectedLessonFilter) { pre, lessonFilterId ->
+        val loaded = pre.loaded
+        val lesson = lessonFilterId?.let { id -> loaded.lessons.find { it.id == id } }
+        val studyDeck = when {
+            lesson != null -> lesson.cardIds.mapNotNull { id -> loaded.cards.find { it.id == id } }
+            pre.tagFilter.isEmpty() -> loaded.cards
+            else -> loaded.cards.filter { card -> card.tags.any { it in pre.tagFilter } }
         }
-        val clampedIndex = if (studyDeck.isEmpty()) 0 else index.coerceIn(0, studyDeck.size - 1)
+        val clampedIndex = if (studyDeck.isEmpty()) 0 else pre.index.coerceIn(0, studyDeck.size - 1)
         FlashcardUiState(
             cards = loaded.cards,
             studyDeck = studyDeck,
             currentIndex = clampedIndex,
-            isFlipped = flipped,
+            isFlipped = pre.flipped,
             direction = loaded.direction,
             stats = loaded.stats,
-            justScoredPoints = celebrate,
+            justScoredPoints = pre.celebrate,
             allTags = loaded.knownTags,
-            selectedTagFilter = tagFilter,
+            selectedTagFilter = pre.tagFilter,
             lessons = loaded.lessons,
-            soundEnabled = loaded.soundEnabled
+            soundEnabled = loaded.soundEnabled,
+            selectedLessonFilter = lesson?.id
         )
     }.stateIn(
         scope = viewModelScope,
@@ -149,6 +164,7 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
     fun toggleTagFilter(tag: String) {
         _isFlipped.value = false
         _currentIndex.value = 0
+        _selectedLessonFilter.value = null
         _selectedTagFilter.update { current ->
             if (tag in current) current - tag else current + tag
         }
@@ -158,6 +174,14 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
         _isFlipped.value = false
         _currentIndex.value = 0
         _selectedTagFilter.value = emptySet()
+        _selectedLessonFilter.value = null
+    }
+
+    fun selectLessonFilter(lessonId: String?) {
+        _isFlipped.value = false
+        _currentIndex.value = 0
+        _selectedTagFilter.value = emptySet()
+        _selectedLessonFilter.value = lessonId
     }
 
     fun gradeCard(cardId: String, knewIt: Boolean) {

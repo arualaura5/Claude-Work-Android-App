@@ -183,6 +183,7 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
                     onCelebrationDone = viewModel::consumeCelebration,
                     onToggleTag = viewModel::toggleTagFilter,
                     onClearTagFilter = viewModel::clearTagFilter,
+                    onSelectLesson = viewModel::selectLessonFilter,
                     onGoToCards = { selectedTab = 1 }
                 )
                 1 -> ManageCardsScreen(
