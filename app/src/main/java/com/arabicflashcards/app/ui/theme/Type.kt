@@ -35,5 +35,10 @@ val Typography = Typography(
         fontFamily = Tajawal,
         fontWeight = FontWeight.Medium,
         fontSize = 14.sp
+    ),
+    labelMedium = TextStyle(
+        fontFamily = Tajawal,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp
     )
 )

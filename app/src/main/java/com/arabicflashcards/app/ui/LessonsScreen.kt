@@ -487,12 +487,12 @@ private fun LessonPlayerScreen(
             FilterChip(
                 selected = direction == StudyDirection.EGYPTIAN_FIRST,
                 onClick = { flipped = false; onDirectionChange(StudyDirection.EGYPTIAN_FIRST) },
-                label = { Text("🇪🇬 Egyptian → English") }
+                label = { Text("🇪🇬 Egyptian → English", style = MaterialTheme.typography.labelMedium) }
             )
             FilterChip(
                 selected = direction == StudyDirection.ENGLISH_FIRST,
                 onClick = { flipped = false; onDirectionChange(StudyDirection.ENGLISH_FIRST) },
-                label = { Text("English → 🇪🇬 Egyptian") }
+                label = { Text("English → 🇪🇬 Egyptian", style = MaterialTheme.typography.labelMedium) }
             )
         }
 

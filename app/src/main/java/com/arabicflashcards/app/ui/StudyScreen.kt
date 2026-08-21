@@ -76,37 +76,31 @@ internal fun StudyScreen(
             FilterChip(
                 selected = state.direction == StudyDirection.EGYPTIAN_FIRST,
                 onClick = { onDirectionChange(StudyDirection.EGYPTIAN_FIRST) },
-                label = { Text("🇪🇬 Egyptian → English") }
+                label = { Text("🇪🇬 Egyptian → English", style = MaterialTheme.typography.labelMedium) }
             )
             FilterChip(
                 selected = state.direction == StudyDirection.ENGLISH_FIRST,
                 onClick = { onDirectionChange(StudyDirection.ENGLISH_FIRST) },
-                label = { Text("English → 🇪🇬 Egyptian") }
+                label = { Text("English → 🇪🇬 Egyptian", style = MaterialTheme.typography.labelMedium) }
             )
         }
 
-        if (state.allTags.isNotEmpty()) {
+        if (state.allTags.isNotEmpty() || state.lessons.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(state.allTags.toList().sorted()) { tag ->
+                items(state.allTags.toList().sorted(), key = { "tag_$it" }) { tag ->
                     FilterChip(
                         selected = tag in state.selectedTagFilter,
                         onClick = { onToggleTag(tag) },
-                        label = { Text(tag) }
+                        label = { Text(tag, style = MaterialTheme.typography.labelMedium) }
                     )
                 }
-            }
-        }
-
-        if (state.lessons.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(state.lessons, key = { it.id }) { lesson ->
+                items(state.lessons, key = { "lesson_${it.id}" }) { lesson ->
                     val selected = state.selectedLessonFilter == lesson.id
                     FilterChip(
                         selected = selected,
                         onClick = { onSelectLesson(if (selected) null else lesson.id) },
-                        label = { Text("📖 ${lesson.name}") }
+                        label = { Text("📖 ${lesson.name}", style = MaterialTheme.typography.labelMedium) }
                     )
                 }
             }
