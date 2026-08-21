@@ -64,8 +64,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -141,6 +146,35 @@ internal fun LessonsScreen(
 
 private val lessonAccent = Brush.linearGradient(listOf(Nile, NileLight))
 private val progressAccent = Brush.horizontalGradient(listOf(Gold, GoldLight))
+
+/** Permanent last row in the lesson list — a short list should never trail off into dead space. */
+@Composable
+private fun AddLessonGhostRow(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .drawWithContent {
+                drawContent()
+                drawRoundRect(
+                    color = NileLight,
+                    style = Stroke(
+                        width = 1.6.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
+                    ),
+                    cornerRadius = CornerRadius(18.dp.toPx())
+                )
+            }
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Default.Add, contentDescription = null, tint = Nile, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Add another lesson", color = Nile, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+    }
+}
 
 @Composable
 private fun LessonsListScreen(
@@ -370,13 +404,26 @@ private fun LessonsListScreen(
                         }
                     }
                 }
+
+                item(key = "add_lesson_ghost") {
+                    AddLessonGhostRow(onClick = { showCreateDialog = true })
+                }
             }
         }
 
-        FloatingActionButton(
-            onClick = { showCreateDialog = true },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-        ) { Icon(Icons.Default.Add, contentDescription = "Create lesson") }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .size(56.dp)
+                .shadow(elevation = 6.dp, shape = CircleShape)
+                .clip(CircleShape)
+                .background(lessonAccent)
+                .clickable { showCreateDialog = true },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Create lesson", tint = Cream)
+        }
     }
 
     if (showCreateDialog) {
