@@ -15,6 +15,9 @@ notebook and drilling it with active recall.
 - **Active recall flow.** Flip a card to check yourself, then grade it
   "Knew it" or "Didn't know it." A card is marked mastered after 3 correct
   reviews.
+- **Lessons.** Group any set of cards into a named, ordered series on the
+  Lessons tab and launch it as a focused study session that runs front to
+  back instead of drilling your whole notebook at once.
 - **Light gamification.** Points for every card you get right, a daily
   streak counter, a level that climbs with your points, and a little
   "+10 ⭐" pop animation on each correct answer.

@@ -22,9 +22,14 @@ class AppRepository(private val context: Context) {
     private val longestStreakKey = intPreferencesKey("longest_streak")
     private val lastStudyDayKey = longPreferencesKey("last_study_epoch_day")
     private val knownTagsKey = stringSetPreferencesKey("known_tags")
+    private val lessonsKey = stringPreferencesKey("lessons_json")
 
     val cards: Flow<List<UserCard>> = context.dataStore.data.map { prefs ->
         prefs[cardsKey]?.toUserCards() ?: emptyList()
+    }
+
+    val lessons: Flow<List<Lesson>> = context.dataStore.data.map { prefs ->
+        prefs[lessonsKey]?.toLessons() ?: emptyList()
     }
 
     val knownTags: Flow<Set<String>> = context.dataStore.data.map { prefs ->
@@ -79,6 +84,50 @@ class AppRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             val current = prefs[cardsKey]?.toUserCards() ?: emptyList()
             prefs[cardsKey] = current.filterNot { it.id == id }.toJsonString()
+            val currentLessons = prefs[lessonsKey]?.toLessons() ?: emptyList()
+            if (currentLessons.isNotEmpty()) {
+                prefs[lessonsKey] = currentLessons.map { it.copy(cardIds = it.cardIds - id) }.toJsonString()
+            }
+        }
+    }
+
+    suspend fun createLesson(name: String) {
+        val clean = name.trim()
+        if (clean.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val current = prefs[lessonsKey]?.toLessons() ?: emptyList()
+            prefs[lessonsKey] = (current + Lesson(name = clean)).toJsonString()
+        }
+    }
+
+    suspend fun renameLesson(id: String, name: String) {
+        val clean = name.trim()
+        if (clean.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val current = prefs[lessonsKey]?.toLessons() ?: emptyList()
+            prefs[lessonsKey] = current.map { if (it.id == id) it.copy(name = clean) else it }.toJsonString()
+        }
+    }
+
+    suspend fun deleteLesson(id: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[lessonsKey]?.toLessons() ?: emptyList()
+            prefs[lessonsKey] = current.filterNot { it.id == id }.toJsonString()
+        }
+    }
+
+    suspend fun setLessonCards(id: String, cardIds: List<String>) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[lessonsKey]?.toLessons() ?: emptyList()
+            prefs[lessonsKey] = current.map { if (it.id == id) it.copy(cardIds = cardIds) else it }.toJsonString()
+        }
+    }
+
+    suspend fun reorderLessons(orderedIds: List<String>) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[lessonsKey]?.toLessons() ?: emptyList()
+            val byId = current.associateBy { it.id }
+            prefs[lessonsKey] = orderedIds.mapNotNull { byId[it] }.toJsonString()
         }
     }
 
@@ -104,7 +153,7 @@ class AppRepository(private val context: Context) {
      * Returns how many cards were actually added (imported cards whose id
      * already exists in the notebook are skipped, not overwritten).
      */
-    suspend fun importBackup(cards: List<UserCard>, tags: Set<String>): Int {
+    suspend fun importBackup(cards: List<UserCard>, tags: Set<String>, lessons: List<Lesson> = emptyList()): Int {
         var addedCount = 0
         context.dataStore.edit { prefs ->
             val current = prefs[cardsKey]?.toUserCards() ?: emptyList()
@@ -115,6 +164,12 @@ class AppRepository(private val context: Context) {
             val importedTags = tags + cards.flatMap { it.tags }
             if (importedTags.isNotEmpty()) {
                 prefs[knownTagsKey] = (prefs[knownTagsKey] ?: emptySet()) + importedTags
+            }
+            if (lessons.isNotEmpty()) {
+                val currentLessons = prefs[lessonsKey]?.toLessons() ?: emptyList()
+                val existingLessonIds = currentLessons.map { it.id }.toSet()
+                val newLessons = lessons.filterNot { it.id in existingLessonIds }
+                prefs[lessonsKey] = (currentLessons + newLessons).toJsonString()
             }
         }
         return addedCount

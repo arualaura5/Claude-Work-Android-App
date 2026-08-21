@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.Upload
@@ -138,6 +139,12 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
                     icon = { Icon(Icons.Default.ViewList, contentDescription = "My Cards") },
                     label = { Text("My Cards") }
                 )
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    icon = { Icon(Icons.Default.MenuBook, contentDescription = "Lessons") },
+                    label = { Text("Lessons") }
+                )
             }
         }
     ) { padding ->
@@ -156,7 +163,7 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
                     onClearTagFilter = viewModel::clearTagFilter,
                     onGoToCards = { selectedTab = 1 }
                 )
-                else -> ManageCardsScreen(
+                1 -> ManageCardsScreen(
                     cards = state.cards,
                     allTags = state.allTags,
                     direction = state.direction,
@@ -165,6 +172,16 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
                     onDelete = viewModel::deleteCard,
                     onCreateTag = viewModel::addTag,
                     onDeleteTag = viewModel::deleteTag
+                )
+                else -> LessonsScreen(
+                    state = state,
+                    onCreateLesson = viewModel::createLesson,
+                    onRenameLesson = viewModel::renameLesson,
+                    onDeleteLesson = viewModel::deleteLesson,
+                    onSetLessonCards = viewModel::setLessonCards,
+                    onReorderLessons = viewModel::reorderLessons,
+                    onGradeCard = viewModel::gradeCard,
+                    onCelebrationDone = viewModel::consumeCelebration
                 )
             }
         }

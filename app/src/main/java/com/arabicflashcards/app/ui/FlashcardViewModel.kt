@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.arabicflashcards.app.data.AppRepository
 import com.arabicflashcards.app.data.GameStats
+import com.arabicflashcards.app.data.Lesson
 import com.arabicflashcards.app.data.NotebookBackup
 import com.arabicflashcards.app.data.StudyDirection
 import com.arabicflashcards.app.data.UserCard
@@ -28,7 +29,8 @@ data class FlashcardUiState(
     val stats: GameStats = GameStats(),
     val justScoredPoints: Boolean = false,
     val allTags: Set<String> = emptySet(),
-    val selectedTagFilter: Set<String> = emptySet()
+    val selectedTagFilter: Set<String> = emptySet(),
+    val lessons: List<Lesson> = emptyList()
 ) {
     val currentCard: UserCard? get() = studyDeck.getOrNull(currentIndex)
     val total: Int get() = studyDeck.size
@@ -40,7 +42,8 @@ private data class LoadedData(
     val cards: List<UserCard>,
     val direction: StudyDirection,
     val stats: GameStats,
-    val knownTags: Set<String>
+    val knownTags: Set<String>,
+    val lessons: List<Lesson>
 )
 
 class FlashcardViewModel(application: Application) : AndroidViewModel(application) {
@@ -58,8 +61,9 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
         repository.cards,
         repository.direction,
         repository.stats,
-        repository.knownTags
-    ) { cards, direction, stats, knownTags -> LoadedData(cards, direction, stats, knownTags) }
+        repository.knownTags,
+        repository.lessons
+    ) { cards, direction, stats, knownTags, lessons -> LoadedData(cards, direction, stats, knownTags, lessons) }
 
     val uiState: StateFlow<FlashcardUiState> = combine(
         loadedData,
@@ -83,7 +87,8 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
             stats = loaded.stats,
             justScoredPoints = celebrate,
             allTags = loaded.knownTags,
-            selectedTagFilter = tagFilter
+            selectedTagFilter = tagFilter,
+            lessons = loaded.lessons
         )
     }.stateIn(
         scope = viewModelScope,
@@ -151,12 +156,16 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
         _selectedTagFilter.value = emptySet()
     }
 
-    fun gradeCurrent(knewIt: Boolean) {
-        val card = uiState.value.currentCard ?: return
-        viewModelScope.launch { repository.recordReview(card.id, knewIt) }
+    fun gradeCard(cardId: String, knewIt: Boolean) {
+        viewModelScope.launch { repository.recordReview(cardId, knewIt) }
         if (knewIt) {
             _celebrate.value = true
         }
+    }
+
+    fun gradeCurrent(knewIt: Boolean) {
+        val card = uiState.value.currentCard ?: return
+        gradeCard(card.id, knewIt)
         next()
     }
 
@@ -164,9 +173,29 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
         _celebrate.value = false
     }
 
+    fun createLesson(name: String) {
+        viewModelScope.launch { repository.createLesson(name) }
+    }
+
+    fun renameLesson(id: String, name: String) {
+        viewModelScope.launch { repository.renameLesson(id, name) }
+    }
+
+    fun deleteLesson(id: String) {
+        viewModelScope.launch { repository.deleteLesson(id) }
+    }
+
+    fun setLessonCards(id: String, cardIds: List<String>) {
+        viewModelScope.launch { repository.setLessonCards(id, cardIds) }
+    }
+
+    fun reorderLessons(orderedIds: List<String>) {
+        viewModelScope.launch { repository.reorderLessons(orderedIds) }
+    }
+
     fun exportBackupJson(): String {
         val state = uiState.value
-        return NotebookBackup(state.cards, state.allTags).toJsonString()
+        return NotebookBackup(state.cards, state.allTags, state.lessons).toJsonString()
     }
 
     fun importBackup(json: String) {
@@ -176,7 +205,7 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
                 _statusMessage.value = "Import failed — that doesn't look like a valid backup file."
                 return@launch
             }
-            val added = repository.importBackup(backup.cards, backup.tags)
+            val added = repository.importBackup(backup.cards, backup.tags, backup.lessons)
             _statusMessage.value = when {
                 added == 0 -> "No new cards to import — everything in that file is already in your notebook."
                 added == 1 -> "Imported 1 new card."

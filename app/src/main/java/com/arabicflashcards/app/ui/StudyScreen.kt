@@ -205,7 +205,7 @@ internal fun StudyScreen(
 }
 
 @Composable
-private fun CelebrationOverlay(show: Boolean, onDone: () -> Unit) {
+internal fun CelebrationOverlay(show: Boolean, onDone: () -> Unit) {
     LaunchedEffect(show) {
         if (show) {
             delay(900)
