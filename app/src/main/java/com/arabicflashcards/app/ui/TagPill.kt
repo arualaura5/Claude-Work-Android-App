@@ -20,3 +20,19 @@ internal fun TagPill(text: String, modifier: Modifier = Modifier) {
         Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
     }
 }
+
+/**
+ * Shows which lesson a card belongs to. Always computed live from
+ * Lesson.cardIds at render time — never stored — so it can't drift out
+ * of sync with actual lesson membership.
+ */
+@Composable
+internal fun LessonPill(text: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(50))
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    ) {
+        Text("📖 $text", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+    }
+}

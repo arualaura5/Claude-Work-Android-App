@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.arabicflashcards.app.data.Lesson
 import com.arabicflashcards.app.data.StudyDirection
 import com.arabicflashcards.app.data.UserCard
 
@@ -56,6 +57,7 @@ import com.arabicflashcards.app.data.UserCard
 internal fun ManageCardsScreen(
     cards: List<UserCard>,
     allTags: Set<String>,
+    lessons: List<Lesson>,
     direction: StudyDirection,
     onAdd: (String, String, List<String>) -> Unit,
     onEdit: (String, String, String, List<String>) -> Unit,
@@ -99,6 +101,9 @@ internal fun ManageCardsScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(cards, key = { it.id }) { card ->
+                        val cardLessons = remember(card.id, lessons) {
+                            lessons.filter { card.id in it.cardIds }
+                        }
                         Card(
                             onClick = { previewCard = card },
                             modifier = Modifier.fillMaxWidth()
@@ -118,12 +123,13 @@ internal fun ManageCardsScreen(
                                         parseCardMarkup(card.egyptian, boldColor = MaterialTheme.colorScheme.tertiary),
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                     )
-                                    if (card.tags.isNotEmpty()) {
+                                    if (cardLessons.isNotEmpty() || card.tags.isNotEmpty()) {
                                         Spacer(Modifier.height(4.dp))
                                         Row(
                                             modifier = Modifier.horizontalScroll(rememberScrollState()),
                                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
+                                            cardLessons.forEach { lesson -> LessonPill(lesson.name) }
                                             card.tags.forEach { tag -> TagPill(tag) }
                                         }
                                     }
@@ -207,6 +213,7 @@ internal fun ManageCardsScreen(
         CardPreviewDialog(
             card = card,
             direction = direction,
+            lessons = lessons.filter { card.id in it.cardIds },
             onDismiss = { previewCard = null }
         )
     }
@@ -216,6 +223,7 @@ internal fun ManageCardsScreen(
 private fun CardPreviewDialog(
     card: UserCard,
     direction: StudyDirection,
+    lessons: List<Lesson>,
     onDismiss: () -> Unit
 ) {
     var flipped by remember { mutableStateOf(false) }
@@ -245,12 +253,13 @@ private fun CardPreviewDialog(
                         .fillMaxWidth()
                         .weight(1f)
                 )
-                if (card.tags.isNotEmpty()) {
+                if (lessons.isNotEmpty() || card.tags.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        lessons.forEach { lesson -> LessonPill(lesson.name) }
                         card.tags.forEach { tag -> TagPill(tag) }
                     }
                 }
