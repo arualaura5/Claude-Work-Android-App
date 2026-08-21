@@ -2,7 +2,6 @@
 
 package com.arabicflashcards.app.ui
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,12 +33,15 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -60,13 +63,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.arabicflashcards.app.audio.LocalSoundPlayer
 import com.arabicflashcards.app.data.Lesson
 import com.arabicflashcards.app.data.StudyDirection
@@ -77,9 +81,7 @@ import com.arabicflashcards.app.ui.theme.GoldLight
 import com.arabicflashcards.app.ui.theme.Nile
 import com.arabicflashcards.app.ui.theme.NileLight
 import com.arabicflashcards.app.ui.theme.Terracotta
-import com.arabicflashcards.app.ui.theme.TerracottaLight
-import kotlin.math.cos
-import kotlin.math.sin
+import com.arabicflashcards.app.ui.theme.Sand
 
 @Composable
 internal fun LessonsScreen(
@@ -126,7 +128,7 @@ internal fun LessonsScreen(
         else -> {
             LessonsListScreen(
                 lessons = state.lessons,
-                cardCountFor = { lesson -> lesson.cardIds.count { id -> state.cards.any { it.id == id } } },
+                allCards = state.cards,
                 onCreateLesson = onCreateLesson,
                 onOpenLesson = { openLessonId = it },
                 onStartLesson = { playingLessonId = it },
@@ -137,46 +139,13 @@ internal fun LessonsScreen(
     }
 }
 
-private data class LessonAccent(val gradient: Brush, val solid: Color)
-
-private val lessonAccents = listOf(
-    LessonAccent(Brush.linearGradient(listOf(Nile, NileLight)), Nile),
-    LessonAccent(Brush.linearGradient(listOf(Terracotta, TerracottaLight)), Terracotta),
-    LessonAccent(Brush.linearGradient(listOf(Gold, GoldLight)), Gold)
-)
-
-/** Faint rub-el-hizb style eight-point star, echoing Islamic geometric motifs. */
-@Composable
-private fun StarMotif(color: Color, modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val cx = size.width * 0.9f
-        val cy = size.height * 0.5f
-        val r = size.height * 0.85f
-        val square = Path()
-        val diamond = Path()
-        for (i in 0 until 4) {
-            val angle = Math.toRadians((90.0 * i))
-            val x = cx + r * cos(angle).toFloat()
-            val y = cy + r * sin(angle).toFloat()
-            if (i == 0) square.moveTo(x, y) else square.lineTo(x, y)
-        }
-        square.close()
-        for (i in 0 until 4) {
-            val angle = Math.toRadians((90.0 * i + 45.0))
-            val x = cx + r * cos(angle).toFloat()
-            val y = cy + r * sin(angle).toFloat()
-            if (i == 0) diamond.moveTo(x, y) else diamond.lineTo(x, y)
-        }
-        diamond.close()
-        drawPath(square, color = color, style = Stroke(width = 2.5.dp.toPx()))
-        drawPath(diamond, color = color, style = Stroke(width = 2.5.dp.toPx()))
-    }
-}
+private val lessonAccent = Brush.linearGradient(listOf(Nile, NileLight))
+private val progressAccent = Brush.horizontalGradient(listOf(Gold, GoldLight))
 
 @Composable
 private fun LessonsListScreen(
     lessons: List<Lesson>,
-    cardCountFor: (Lesson) -> Int,
+    allCards: List<UserCard>,
     onCreateLesson: (String) -> Unit,
     onOpenLesson: (String) -> Unit,
     onStartLesson: (String) -> Unit,
@@ -223,100 +192,179 @@ private fun LessonsListScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 itemsIndexed(lessons, key = { _, lesson -> lesson.id }) { index, lesson ->
-                    val accent = lessonAccents[index % lessonAccents.size]
-                    val count = cardCountFor(lesson)
+                    val cardsInLesson = remember(lesson.cardIds, allCards) {
+                        lesson.cardIds.mapNotNull { id -> allCards.find { it.id == id } }
+                    }
+                    val count = cardsInLesson.size
+                    val masteredCount = cardsInLesson.count { it.mastered }
+                    val progress = if (count > 0) masteredCount.toFloat() / count else 0f
+                    var menuExpanded by remember { mutableStateOf(false) }
+
                     Card(
                         onClick = { onOpenLesson(lesson.id) },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp, pressedElevation = 1.dp)
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Cream),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp, pressedElevation = 1.dp)
                     ) {
-                        Box {
-                            StarMotif(
-                                color = accent.solid.copy(alpha = 0.10f),
-                                modifier = Modifier.matchParentSize()
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .drawBehind {
+                                    drawRect(color = Nile, size = Size(3.dp.toPx(), size.height))
+                                }
+                                .padding(16.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.Top) {
                                 Box(
                                     modifier = Modifier
-                                        .size(52.dp)
+                                        .size(38.dp)
                                         .clip(CircleShape)
-                                        .background(accent.gradient),
+                                        .background(lessonAccent),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         "${index + 1}",
                                         color = Cream,
                                         fontWeight = FontWeight.Black,
-                                        style = MaterialTheme.typography.titleLarge
+                                        fontSize = 14.sp
                                     )
                                 }
-                                Spacer(Modifier.width(14.dp))
+                                Spacer(Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         lesson.name,
                                         fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.titleMedium
+                                        fontSize = 15.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
-                                    Spacer(Modifier.height(2.dp))
+                                    Spacer(Modifier.height(4.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
                                             Icons.Default.MenuBook,
                                             contentDescription = null,
-                                            tint = accent.solid,
-                                            modifier = Modifier.size(14.dp)
+                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                                            modifier = Modifier.size(12.dp)
                                         )
                                         Spacer(Modifier.width(4.dp))
                                         Text(
                                             "$count card${if (count == 1) "" else "s"}",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = accent.solid,
-                                            fontWeight = FontWeight.Medium
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                                        )
+                                        if (count > 0) {
+                                            Text(
+                                                "  ·  ",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+                                            )
+                                            Text(
+                                                if (masteredCount > 0) "${(progress * 100).toInt()}% mastered" else "not started",
+                                                fontSize = 11.sp,
+                                                fontWeight = if (masteredCount > 0) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (masteredCount > 0) Gold else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                                            )
+                                        }
+                                    }
+                                    if (count > 0) {
+                                        Spacer(Modifier.height(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(5.dp)
+                                                .clip(RoundedCornerShape(50))
+                                                .background(Sand)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxHeight()
+                                                    .fillMaxWidth(progress.coerceIn(0f, 1f))
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(progressAccent)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(12.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box {
+                                    IconButton(
+                                        onClick = { menuExpanded = true },
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                                    ) {
+                                        Icon(
+                                            Icons.Default.MoreVert,
+                                            contentDescription = "More options for ${lesson.name}",
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                        DropdownMenuItem(
+                                            text = { Text("Move up") },
+                                            enabled = index > 0,
+                                            leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null) },
+                                            onClick = {
+                                                val ids = lessons.map { it.id }.toMutableList()
+                                                ids.removeAt(index)
+                                                ids.add(index - 1, lesson.id)
+                                                onReorderLessons(ids)
+                                                menuExpanded = false
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Move down") },
+                                            enabled = index < lessons.lastIndex,
+                                            leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
+                                            onClick = {
+                                                val ids = lessons.map { it.id }.toMutableList()
+                                                ids.removeAt(index)
+                                                ids.add(index + 1, lesson.id)
+                                                onReorderLessons(ids)
+                                                menuExpanded = false
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Delete lesson") },
+                                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                                            onClick = {
+                                                deletingLesson = lesson
+                                                menuExpanded = false
+                                            }
                                         )
                                     }
                                 }
-                                Column {
-                                    IconButton(
-                                        onClick = {
-                                            val ids = lessons.map { it.id }.toMutableList()
-                                            ids.removeAt(index)
-                                            ids.add(index - 1, lesson.id)
-                                            onReorderLessons(ids)
-                                        },
-                                        enabled = index > 0,
-                                        modifier = Modifier.size(32.dp)
-                                    ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move lesson up") }
-                                    IconButton(
-                                        onClick = {
-                                            val ids = lessons.map { it.id }.toMutableList()
-                                            ids.removeAt(index)
-                                            ids.add(index + 1, lesson.id)
-                                            onReorderLessons(ids)
-                                        },
-                                        enabled = index < lessons.lastIndex,
-                                        modifier = Modifier.size(32.dp)
-                                    ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move lesson down") }
-                                }
-                                Spacer(Modifier.width(4.dp))
-                                IconButton(
-                                    onClick = { onStartLesson(lesson.id) },
-                                    enabled = count > 0,
+                                Spacer(Modifier.width(8.dp))
+                                Row(
                                     modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(if (count > 0) accent.solid.copy(alpha = 0.15f) else Color.Transparent)
+                                        .height(34.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .then(
+                                            if (count > 0) Modifier.background(lessonAccent)
+                                            else Modifier.background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f))
+                                        )
+                                        .clickable(enabled = count > 0) { onStartLesson(lesson.id) }
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         Icons.Default.PlayArrow,
-                                        contentDescription = "Start lesson",
-                                        tint = if (count > 0) accent.solid else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                        contentDescription = null,
+                                        tint = Cream,
+                                        modifier = Modifier.size(13.dp)
                                     )
-                                }
-                                IconButton(onClick = { deletingLesson = lesson }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete lesson")
+                                    Spacer(Modifier.width(5.dp))
+                                    Text("Start", color = Cream, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
                         }
