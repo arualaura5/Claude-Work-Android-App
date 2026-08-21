@@ -1,6 +1,7 @@
 package com.arabicflashcards.app.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -23,9 +24,20 @@ class AppRepository(private val context: Context) {
     private val lastStudyDayKey = longPreferencesKey("last_study_epoch_day")
     private val knownTagsKey = stringSetPreferencesKey("known_tags")
     private val lessonsKey = stringPreferencesKey("lessons_json")
+    private val soundEnabledKey = booleanPreferencesKey("sound_enabled")
 
     val cards: Flow<List<UserCard>> = context.dataStore.data.map { prefs ->
         prefs[cardsKey]?.toUserCards() ?: emptyList()
+    }
+
+    val soundEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[soundEnabledKey] ?: true
+    }
+
+    suspend fun setSoundEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[soundEnabledKey] = enabled
+        }
     }
 
     val lessons: Flow<List<Lesson>> = context.dataStore.data.map { prefs ->

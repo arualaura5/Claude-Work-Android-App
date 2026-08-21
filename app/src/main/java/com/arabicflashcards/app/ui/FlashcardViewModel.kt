@@ -30,7 +30,8 @@ data class FlashcardUiState(
     val justScoredPoints: Boolean = false,
     val allTags: Set<String> = emptySet(),
     val selectedTagFilter: Set<String> = emptySet(),
-    val lessons: List<Lesson> = emptyList()
+    val lessons: List<Lesson> = emptyList(),
+    val soundEnabled: Boolean = true
 ) {
     val currentCard: UserCard? get() = studyDeck.getOrNull(currentIndex)
     val total: Int get() = studyDeck.size
@@ -43,7 +44,8 @@ private data class LoadedData(
     val direction: StudyDirection,
     val stats: GameStats,
     val knownTags: Set<String>,
-    val lessons: List<Lesson>
+    val lessons: List<Lesson>,
+    val soundEnabled: Boolean = true
 )
 
 class FlashcardViewModel(application: Application) : AndroidViewModel(application) {
@@ -64,6 +66,7 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
         repository.knownTags,
         repository.lessons
     ) { cards, direction, stats, knownTags, lessons -> LoadedData(cards, direction, stats, knownTags, lessons) }
+        .combine(repository.soundEnabled) { loaded, soundEnabled -> loaded.copy(soundEnabled = soundEnabled) }
 
     val uiState: StateFlow<FlashcardUiState> = combine(
         loadedData,
@@ -88,7 +91,8 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
             justScoredPoints = celebrate,
             allTags = loaded.knownTags,
             selectedTagFilter = tagFilter,
-            lessons = loaded.lessons
+            lessons = loaded.lessons,
+            soundEnabled = loaded.soundEnabled
         )
     }.stateIn(
         scope = viewModelScope,
@@ -191,6 +195,10 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun reorderLessons(orderedIds: List<String>) {
         viewModelScope.launch { repository.reorderLessons(orderedIds) }
+    }
+
+    fun setSoundEnabled(enabled: Boolean) {
+        viewModelScope.launch { repository.setSoundEnabled(enabled) }
     }
 
     fun exportBackupJson(): String {

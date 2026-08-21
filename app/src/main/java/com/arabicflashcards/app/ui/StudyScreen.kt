@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.arabicflashcards.app.audio.LocalSoundPlayer
 import com.arabicflashcards.app.data.StudyDirection
 import com.arabicflashcards.app.data.UserCard
 import com.arabicflashcards.app.ui.theme.Tajawal
@@ -64,6 +65,7 @@ internal fun StudyScreen(
     onClearTagFilter: () -> Unit,
     onGoToCards: () -> Unit
 ) {
+    val soundPlayer = LocalSoundPlayer.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -191,12 +193,12 @@ internal fun StudyScreen(
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
-                onClick = { onGrade(false) },
+                onClick = { soundPlayer.playIncorrect(); onGrade(false) },
                 enabled = state.isFlipped,
                 modifier = Modifier.weight(1f)
             ) { Text("❌ Didn't know it") }
             Button(
-                onClick = { onGrade(true) },
+                onClick = { soundPlayer.playCorrect(); onGrade(true) },
                 enabled = state.isFlipped,
                 modifier = Modifier.weight(1f)
             ) { Text("✅ Knew it!") }
@@ -237,6 +239,7 @@ internal fun FlipStudyCard(
     onSwipeRight: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val soundPlayer = LocalSoundPlayer.current
     val rotation by animateFloatAsState(
         targetValue = if (isFlipped) 180f else 0f,
         animationSpec = tween(durationMillis = 350),
@@ -277,7 +280,7 @@ internal fun FlipStudyCard(
                 else MaterialTheme.colorScheme.surface
             ),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-            onClick = onFlip
+            onClick = { soundPlayer.playFlip(); onFlip() }
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (rotation <= 90f) {

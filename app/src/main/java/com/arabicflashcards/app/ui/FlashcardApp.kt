@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.ViewList
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,7 +36,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,6 +55,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.arabicflashcards.app.audio.LocalSoundPlayer
+import com.arabicflashcards.app.audio.SoundPlayer
 import com.arabicflashcards.app.data.GameStats
 import com.arabicflashcards.app.ui.theme.MashrabiyaBackground
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +72,14 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val soundPlayer = remember { SoundPlayer(context) }
+    DisposableEffect(Unit) {
+        onDispose { soundPlayer.release() }
+    }
+    LaunchedEffect(state.soundEnabled) {
+        soundPlayer.enabled = state.soundEnabled
+    }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -103,6 +117,7 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
         }
     }
 
+    CompositionLocalProvider(LocalSoundPlayer provides soundPlayer) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -114,6 +129,13 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
                         titleContentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     actions = {
+                        IconButton(onClick = { viewModel.setSoundEnabled(!state.soundEnabled) }) {
+                            Icon(
+                                if (state.soundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                                contentDescription = if (state.soundEnabled) "Mute sounds" else "Unmute sounds",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
                         IconButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }) {
                             Icon(Icons.Default.Upload, contentDescription = "Import backup", tint = MaterialTheme.colorScheme.onPrimary)
                         }
@@ -185,6 +207,7 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
                 )
             }
         }
+    }
     }
 }
 

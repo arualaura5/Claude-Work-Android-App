@@ -42,6 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.arabicflashcards.app.audio.LocalSoundPlayer
 import com.arabicflashcards.app.data.Lesson
 import com.arabicflashcards.app.data.StudyDirection
 import com.arabicflashcards.app.data.UserCard
@@ -466,6 +468,7 @@ private fun LessonPlayerScreen(
 ) {
     var index by rememberSaveable { mutableStateOf(0) }
     var flipped by rememberSaveable { mutableStateOf(false) }
+    val soundPlayer = LocalSoundPlayer.current
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -486,6 +489,7 @@ private fun LessonPlayerScreen(
         }
 
         if (index >= cards.size) {
+            LaunchedEffect(Unit) { soundPlayer.playLessonComplete() }
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Lesson complete! 🎉", style = MaterialTheme.typography.titleLarge)
@@ -542,6 +546,7 @@ private fun LessonPlayerScreen(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
                 onClick = {
+                    soundPlayer.playIncorrect()
                     onGrade(cards[index].id, false)
                     index++
                     flipped = false
@@ -551,6 +556,7 @@ private fun LessonPlayerScreen(
             ) { Text("❌ Didn't know it") }
             Button(
                 onClick = {
+                    soundPlayer.playCorrect()
                     onGrade(cards[index].id, true)
                     index++
                     flipped = false
