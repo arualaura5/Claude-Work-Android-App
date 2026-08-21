@@ -123,7 +123,7 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text("Arabic Flashcards", fontWeight = FontWeight.Bold) },
+                    title = { Text("Egyptian Flashcards", fontWeight = FontWeight.Bold) },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         titleContentColor = MaterialTheme.colorScheme.onPrimary

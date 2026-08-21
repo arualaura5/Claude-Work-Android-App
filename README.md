@@ -1,4 +1,4 @@
-# Arabic Flashcards
+# Egyptian Flashcards
 
 A native Android app for building your own Egyptian Arabic ⇄ English flashcard
 notebook and drilling it with active recall.
@@ -50,7 +50,7 @@ stable release. Download it directly (no login needed):
 2. Tap the downloaded `app-debug.apk`.
 3. If prompted "installation blocked," tap **Settings** on that prompt and
    turn on **Allow from this source**, then tap the file again.
-4. Tap **Install**, then open **Arabic Flashcards** from your home screen.
+4. Tap **Install**, then open **Egyptian Flashcards** from your home screen.
 
 ### Building from Android Studio instead
 

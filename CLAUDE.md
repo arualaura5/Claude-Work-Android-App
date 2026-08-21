@@ -1,4 +1,4 @@
-# Arabic Flashcards — project rules
+# Egyptian Flashcards — project rules
 
 ## Canonical rule: protect the user's flashcard data
 
