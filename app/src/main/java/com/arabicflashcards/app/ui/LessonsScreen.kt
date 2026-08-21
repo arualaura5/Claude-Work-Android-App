@@ -2,6 +2,8 @@
 
 package com.arabicflashcards.app.ui
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,22 +16,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -51,6 +59,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,6 +71,15 @@ import com.arabicflashcards.app.audio.LocalSoundPlayer
 import com.arabicflashcards.app.data.Lesson
 import com.arabicflashcards.app.data.StudyDirection
 import com.arabicflashcards.app.data.UserCard
+import com.arabicflashcards.app.ui.theme.Cream
+import com.arabicflashcards.app.ui.theme.Gold
+import com.arabicflashcards.app.ui.theme.GoldLight
+import com.arabicflashcards.app.ui.theme.Nile
+import com.arabicflashcards.app.ui.theme.NileLight
+import com.arabicflashcards.app.ui.theme.Terracotta
+import com.arabicflashcards.app.ui.theme.TerracottaLight
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 internal fun LessonsScreen(
@@ -115,6 +137,42 @@ internal fun LessonsScreen(
     }
 }
 
+private data class LessonAccent(val gradient: Brush, val solid: Color)
+
+private val lessonAccents = listOf(
+    LessonAccent(Brush.linearGradient(listOf(Nile, NileLight)), Nile),
+    LessonAccent(Brush.linearGradient(listOf(Terracotta, TerracottaLight)), Terracotta),
+    LessonAccent(Brush.linearGradient(listOf(Gold, GoldLight)), Gold)
+)
+
+/** Faint rub-el-hizb style eight-point star, echoing Islamic geometric motifs. */
+@Composable
+private fun StarMotif(color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val cx = size.width * 0.9f
+        val cy = size.height * 0.5f
+        val r = size.height * 0.85f
+        val square = Path()
+        val diamond = Path()
+        for (i in 0 until 4) {
+            val angle = Math.toRadians((90.0 * i))
+            val x = cx + r * cos(angle).toFloat()
+            val y = cy + r * sin(angle).toFloat()
+            if (i == 0) square.moveTo(x, y) else square.lineTo(x, y)
+        }
+        square.close()
+        for (i in 0 until 4) {
+            val angle = Math.toRadians((90.0 * i + 45.0))
+            val x = cx + r * cos(angle).toFloat()
+            val y = cy + r * sin(angle).toFloat()
+            if (i == 0) diamond.moveTo(x, y) else diamond.lineTo(x, y)
+        }
+        diamond.close()
+        drawPath(square, color = color, style = Stroke(width = 2.5.dp.toPx()))
+        drawPath(diamond, color = color, style = Stroke(width = 2.5.dp.toPx()))
+    }
+}
+
 @Composable
 private fun LessonsListScreen(
     lessons: List<Lesson>,
@@ -132,7 +190,22 @@ private fun LessonsListScreen(
         if (lessons.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No lessons yet", style = MaterialTheme.typography.titleLarge)
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(Brush.linearGradient(listOf(Nile, Terracotta))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.AutoStories,
+                            contentDescription = null,
+                            tint = Cream,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text("No lessons yet", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "Group your cards into an ordered series you can study front to back.",
@@ -150,50 +223,101 @@ private fun LessonsListScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 itemsIndexed(lessons, key = { _, lesson -> lesson.id }) { index, lesson ->
-                    Card(onClick = { onOpenLesson(lesson.id) }, modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    lesson.name,
-                                    fontWeight = FontWeight.Medium,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                val count = cardCountFor(lesson)
-                                Text(
-                                    "$count card${if (count == 1) "" else "s"}",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                )
-                            }
-                            Column {
+                    val accent = lessonAccents[index % lessonAccents.size]
+                    val count = cardCountFor(lesson)
+                    Card(
+                        onClick = { onOpenLesson(lesson.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp, pressedElevation = 1.dp)
+                    ) {
+                        Box {
+                            StarMotif(
+                                color = accent.solid.copy(alpha = 0.10f),
+                                modifier = Modifier.matchParentSize()
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(52.dp)
+                                        .clip(CircleShape)
+                                        .background(accent.gradient),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "${index + 1}",
+                                        color = Cream,
+                                        fontWeight = FontWeight.Black,
+                                        style = MaterialTheme.typography.titleLarge
+                                    )
+                                }
+                                Spacer(Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        lesson.name,
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.MenuBook,
+                                            contentDescription = null,
+                                            tint = accent.solid,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            "$count card${if (count == 1) "" else "s"}",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = accent.solid,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                                Column {
+                                    IconButton(
+                                        onClick = {
+                                            val ids = lessons.map { it.id }.toMutableList()
+                                            ids.removeAt(index)
+                                            ids.add(index - 1, lesson.id)
+                                            onReorderLessons(ids)
+                                        },
+                                        enabled = index > 0,
+                                        modifier = Modifier.size(32.dp)
+                                    ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move lesson up") }
+                                    IconButton(
+                                        onClick = {
+                                            val ids = lessons.map { it.id }.toMutableList()
+                                            ids.removeAt(index)
+                                            ids.add(index + 1, lesson.id)
+                                            onReorderLessons(ids)
+                                        },
+                                        enabled = index < lessons.lastIndex,
+                                        modifier = Modifier.size(32.dp)
+                                    ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move lesson down") }
+                                }
+                                Spacer(Modifier.width(4.dp))
                                 IconButton(
-                                    onClick = {
-                                        val ids = lessons.map { it.id }.toMutableList()
-                                        ids.removeAt(index)
-                                        ids.add(index - 1, lesson.id)
-                                        onReorderLessons(ids)
-                                    },
-                                    enabled = index > 0
-                                ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move lesson up") }
-                                IconButton(
-                                    onClick = {
-                                        val ids = lessons.map { it.id }.toMutableList()
-                                        ids.removeAt(index)
-                                        ids.add(index + 1, lesson.id)
-                                        onReorderLessons(ids)
-                                    },
-                                    enabled = index < lessons.lastIndex
-                                ) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move lesson down") }
-                            }
-                            IconButton(
-                                onClick = { onStartLesson(lesson.id) },
-                                enabled = cardCountFor(lesson) > 0
-                            ) { Icon(Icons.Default.PlayArrow, contentDescription = "Start lesson") }
-                            IconButton(onClick = { deletingLesson = lesson }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete lesson")
+                                    onClick = { onStartLesson(lesson.id) },
+                                    enabled = count > 0,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(if (count > 0) accent.solid.copy(alpha = 0.15f) else Color.Transparent)
+                                ) {
+                                    Icon(
+                                        Icons.Default.PlayArrow,
+                                        contentDescription = "Start lesson",
+                                        tint = if (count > 0) accent.solid else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                    )
+                                }
+                                IconButton(onClick = { deletingLesson = lesson }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete lesson")
+                                }
                             }
                         }
                     }

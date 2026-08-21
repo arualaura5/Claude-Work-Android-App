@@ -17,28 +17,48 @@ import androidx.core.view.WindowCompat
 private val LightColors = lightColorScheme(
     primary = Nile,
     onPrimary = Cream,
+    primaryContainer = NileLight,
+    onPrimaryContainer = Cream,
     secondary = Gold,
     onSecondary = Charcoal,
+    secondaryContainer = GoldLight,
+    onSecondaryContainer = Charcoal,
     tertiary = Terracotta,
     onTertiary = Cream,
+    tertiaryContainer = TerracottaLight,
+    onTertiaryContainer = Charcoal,
     background = Cream,
     onBackground = Charcoal,
     surface = Sand,
     onSurface = Charcoal,
+    surfaceVariant = Sand,
+    onSurfaceVariant = Charcoal.copy(alpha = 0.7f),
+    outline = NileLight,
+    outlineVariant = Sand,
     error = ErrorRed
 )
 
 private val DarkColors = darkColorScheme(
     primary = GoldLight,
     onPrimary = NileDark,
+    primaryContainer = Nile,
+    onPrimaryContainer = GoldLight,
     secondary = Gold,
     onSecondary = NileDark,
+    secondaryContainer = NileLight,
+    onSecondaryContainer = Cream,
     tertiary = TerracottaLight,
     onTertiary = NileDark,
+    tertiaryContainer = Terracotta,
+    onTertiaryContainer = Cream,
     background = NileDark,
     onBackground = Cream,
     surface = Nile,
     onSurface = Cream,
+    surfaceVariant = Nile,
+    onSurfaceVariant = Cream.copy(alpha = 0.7f),
+    outline = TerracottaLight,
+    outlineVariant = Nile,
     error = ErrorRed
 )
 
