@@ -32,6 +32,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,7 +68,8 @@ internal fun LessonsScreen(
     onSetLessonCards: (String, List<String>) -> Unit,
     onReorderLessons: (List<String>) -> Unit,
     onGradeCard: (String, Boolean) -> Unit,
-    onCelebrationDone: () -> Unit
+    onCelebrationDone: () -> Unit,
+    onDirectionChange: (StudyDirection) -> Unit
 ) {
     var openLessonId by rememberSaveable { mutableStateOf<String?>(null) }
     var playingLessonId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -82,6 +84,7 @@ internal fun LessonsScreen(
                 lessonName = playingLesson.name,
                 cards = orderedCards,
                 direction = state.direction,
+                onDirectionChange = onDirectionChange,
                 justScoredPoints = state.justScoredPoints,
                 onCelebrationDone = onCelebrationDone,
                 onGrade = onGradeCard,
@@ -461,6 +464,7 @@ private fun LessonPlayerScreen(
     lessonName: String,
     cards: List<UserCard>,
     direction: StudyDirection,
+    onDirectionChange: (StudyDirection) -> Unit,
     justScoredPoints: Boolean,
     onCelebrationDone: () -> Unit,
     onGrade: (String, Boolean) -> Unit,
@@ -476,6 +480,20 @@ private fun LessonPlayerScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Exit lesson")
             }
             Text(lessonName, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        }
+
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = direction == StudyDirection.EGYPTIAN_FIRST,
+                onClick = { flipped = false; onDirectionChange(StudyDirection.EGYPTIAN_FIRST) },
+                label = { Text("🇪🇬 Egyptian → English") }
+            )
+            FilterChip(
+                selected = direction == StudyDirection.ENGLISH_FIRST,
+                onClick = { flipped = false; onDirectionChange(StudyDirection.ENGLISH_FIRST) },
+                label = { Text("English → 🇪🇬 Egyptian") }
+            )
         }
 
         if (cards.isEmpty()) {

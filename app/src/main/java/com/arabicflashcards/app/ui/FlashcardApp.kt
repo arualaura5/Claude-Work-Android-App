@@ -203,7 +203,8 @@ fun FlashcardApp(viewModel: FlashcardViewModel = viewModel()) {
                     onSetLessonCards = viewModel::setLessonCards,
                     onReorderLessons = viewModel::reorderLessons,
                     onGradeCard = viewModel::gradeCard,
-                    onCelebrationDone = viewModel::consumeCelebration
+                    onCelebrationDone = viewModel::consumeCelebration,
+                    onDirectionChange = viewModel::setDirection
                 )
             }
         }
