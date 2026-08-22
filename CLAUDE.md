@@ -57,6 +57,29 @@ If a change genuinely requires a storage-format migration, write and test
 the migration path (read old format → write new format) before shipping —
 don't ask the user to re-enter their cards.
 
+## Transliteration convention (card content)
+
+When writing card text (rule cards, vocab, examples), use this hybrid
+system consistently — it's what the bundled Tajawal font's custom glyphs
+and the app's existing cards are built around:
+
+- Latin diacritics for sounds without a natural English letter: **ḥ, š,
+  ū, ṣ, ḍ, ġ, ṭ**. Always the single diacritic glyph — **never** the
+  plain-English digraph equivalent (e.g. always `š`, never `sh`; always
+  `ḥ`, never `h` or `kh`/`7`). Mixing the two for the same sound within a
+  set of cards (e.g. writing `tāšar` but `3ashara` for the same shared
+  root) is the exact mistake to avoid — it obscures shared roots between
+  related cards and reads as inconsistent.
+- Digit **3** for ع (borrowed from Arabizi).
+- Apostrophe **'** for the glottal stop/hamza.
+- This is distinct from full Arabizi chat-alphabet (`2,3,5,6,7,8/9`),
+  which the app's own cards don't use, though the Reading Guide lesson
+  teaches it separately as a bridge/recognition skill.
+
+Before finalizing new card text, scan it for any word that shares a root
+with another card and check both use the same diacritic spelling for that
+root's sounds.
+
 ## Where things live
 
 - `app/src/main/java/com/arabicflashcards/app/data/` — `UserCard`,
