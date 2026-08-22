@@ -2,6 +2,7 @@
 
 package com.arabicflashcards.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -45,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -95,25 +98,6 @@ internal fun ManageCardsScreen(
                     Icon(Icons.Default.Add, contentDescription = "Add card")
                 }
             }
-        }
-
-        if (allTags.isNotEmpty()) {
-            LazyRow(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                items(allTags.toList().sorted(), key = { it }) { tag ->
-                    FilterChip(
-                        selected = tag in selectedTagFilter,
-                        onClick = {
-                            selectedTagFilter =
-                                if (tag in selectedTagFilter) selectedTagFilter - tag else selectedTagFilter + tag
-                        },
-                        label = { Text(tag, style = MaterialTheme.typography.labelMedium) }
-                    )
-                }
-            }
-            Spacer(Modifier.height(8.dp))
         }
 
         Box(Modifier.fillMaxSize().weight(1f)) {
@@ -226,11 +210,13 @@ internal fun ManageCardsScreen(
     if (showTagManager) {
         TagManagerDialog(
             allTags = allTags,
+            selectedTagFilter = selectedTagFilter,
             onCreateTag = onCreateTag,
             onDeleteTag = { tag ->
                 onDeleteTag(tag)
                 selectedTagFilter = selectedTagFilter - tag
             },
+            onApplyFilter = { selectedTagFilter = it },
             onDismiss = { showTagManager = false }
         )
     }
@@ -384,11 +370,14 @@ private fun CardEditDialog(
 @Composable
 private fun TagManagerDialog(
     allTags: Set<String>,
+    selectedTagFilter: Set<String>,
     onCreateTag: (String) -> Unit,
     onDeleteTag: (String) -> Unit,
+    onApplyFilter: (Set<String>) -> Unit,
     onDismiss: () -> Unit
 ) {
     var newTagText by remember { mutableStateOf("") }
+    var localFilter by remember { mutableStateOf(selectedTagFilter) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -401,17 +390,36 @@ private fun TagManagerDialog(
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
                 } else {
+                    Text(
+                        "Select which tags to filter My Cards by. Leave none selected to show every card.",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Spacer(Modifier.height(4.dp))
                     LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
                         items(allTags.toList().sorted()) { tag ->
+                            val selected = tag in localFilter
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        localFilter = if (selected) localFilter - tag else localFilter + tag
+                                    }
                                     .padding(vertical = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(tag)
-                                IconButton(onClick = { onDeleteTag(tag) }) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = selected, onCheckedChange = {
+                                        localFilter = if (selected) localFilter - tag else localFilter + tag
+                                    })
+                                    Text(tag)
+                                }
+                                IconButton(onClick = {
+                                    onDeleteTag(tag)
+                                    localFilter = localFilter - tag
+                                }) {
                                     Icon(Icons.Default.Delete, contentDescription = "Delete tag \"$tag\"")
                                 }
                             }
@@ -440,7 +448,10 @@ private fun TagManagerDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Done") }
+            TextButton(onClick = {
+                onApplyFilter(localFilter)
+                onDismiss()
+            }) { Text("Done") }
         }
     )
 }
