@@ -30,7 +30,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -90,7 +89,12 @@ internal fun ManageCardsScreen(
                 text = "${filteredCards.size} card${if (filteredCards.size == 1) "" else "s"}",
                 style = MaterialTheme.typography.labelLarge
             )
-            TextButton(onClick = { showTagManager = true }) { Text("Manage tags") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { showTagManager = true }) { Text("Manage tags") }
+                IconButton(onClick = { showAddDialog = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "Add card")
+                }
+            }
         }
 
         if (allTags.isNotEmpty()) {
@@ -125,7 +129,7 @@ internal fun ManageCardsScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 88.dp),
+                    contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(filteredCards, key = { it.id }) { card ->
@@ -172,15 +176,6 @@ internal fun ManageCardsScreen(
                         }
                     }
                 }
-            }
-
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add card")
             }
         }
     }
