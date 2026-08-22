@@ -63,13 +63,20 @@ When writing card text (rule cards, vocab, examples), use this hybrid
 system consistently — it's what the bundled Tajawal font's custom glyphs
 and the app's existing cards are built around:
 
-- Latin diacritics for sounds without a natural English letter: **ḥ, š,
-  ū, ṣ, ḍ, ġ, ṭ**. Always the single diacritic glyph — **never** the
-  plain-English digraph equivalent (e.g. always `š`, never `sh`; always
-  `ḥ`, never `h` or `kh`/`7`). Mixing the two for the same sound within a
-  set of cards (e.g. writing `tāšar` but `3ashara` for the same shared
-  root) is the exact mistake to avoid — it obscures shared roots between
-  related cards and reads as inconsistent.
+- Latin diacritics **only for sounds that would otherwise collide with a
+  plain English letter already in use**: **ḥ, ṣ, ḍ, ū, ġ, ṭ**. Each of
+  these exists specifically to distinguish an emphatic/throaty sound from
+  its plain counterpart already spelled with an ordinary letter (ḥ vs h,
+  ṣ vs s, ḍ vs d) — that collision risk is the only reason a diacritic
+  belongs here. Always the single diacritic glyph, never a plain-English
+  substitute for these specific sounds.
+- Plain English digraph **`sh`** for ش — deliberately *not* a diacritic
+  (`š`). Unlike ḥ/ṣ/ḍ, ش has no competing plain sound in Arabic that "sh"
+  could be confused with, and real Arabizi (what Egyptians actually text)
+  writes it as "sh" too — a dedicated mark would just be inventing
+  complexity a genuinely ambiguous sound doesn't need. (This app used š
+  for a while; it was walked back for exactly this reason — see git
+  history around the "sh-fix" commits if the reasoning is needed again.)
 - Digit **3** for ع (borrowed from Arabizi).
 - Apostrophe **'** for the glottal stop/hamza.
 - This is distinct from full Arabizi chat-alphabet (`2,3,5,6,7,8/9`),
@@ -77,8 +84,9 @@ and the app's existing cards are built around:
   teaches it separately as a bridge/recognition skill.
 
 Before finalizing new card text, scan it for any word that shares a root
-with another card and check both use the same diacritic spelling for that
-root's sounds.
+with another card and check both use the same spelling for that root's
+sounds — this exact mistake (mixing `š`/`sh` or a diacritic/digraph pair
+for the same sound within one set of cards) has happened before.
 
 ## Card content fixes — test small first
 
