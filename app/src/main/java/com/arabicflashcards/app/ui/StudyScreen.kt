@@ -3,7 +3,7 @@
 package com.arabicflashcards.app.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -36,6 +36,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -249,11 +252,21 @@ internal fun FlipStudyCard(
     modifier: Modifier = Modifier
 ) {
     val soundPlayer = LocalSoundPlayer.current
-    val rotation by animateFloatAsState(
-        targetValue = if (isFlipped) 180f else 0f,
-        animationSpec = tween(durationMillis = 350),
-        label = "cardFlip"
-    )
+    val rotationAnim = remember { Animatable(0f) }
+    var lastCardId by remember { mutableStateOf(card.id) }
+
+    LaunchedEffect(card.id, isFlipped) {
+        if (card.id != lastCardId) {
+            // A different card — snap straight to its front face instead of
+            // animating the flip-back, which would briefly show this new
+            // card's answer side mid-rotation before settling on its front.
+            lastCardId = card.id
+            rotationAnim.snapTo(0f)
+        } else {
+            rotationAnim.animateTo(if (isFlipped) 180f else 0f, tween(durationMillis = 350))
+        }
+    }
+    val rotation = rotationAnim.value
 
     val frontText = if (direction == StudyDirection.EGYPTIAN_FIRST) card.egyptian else card.english
     val frontLabel = if (direction == StudyDirection.EGYPTIAN_FIRST) "Egyptian Arabic" else "English"
