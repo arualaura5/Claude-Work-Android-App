@@ -64,14 +64,21 @@ system consistently — it's what the bundled Tajawal font's custom glyphs
 and the app's existing cards are built around:
 
 - Latin diacritics **only for sounds that would otherwise collide with a
-  plain English letter already in use**: **ḥ, ṣ, ḍ, ū, ġ, ṭ**. Each of
+  plain English letter already in use**: **ṣ, ḍ, ū, ġ, ṭ**. Each of
   these exists specifically to distinguish an emphatic/throaty sound from
-  its plain counterpart already spelled with an ordinary letter (ḥ vs h,
-  ṣ vs s, ḍ vs d) — that collision risk is the only reason a diacritic
-  belongs here. Always the single diacritic glyph, never a plain-English
+  its plain counterpart already spelled with an ordinary letter (ṣ vs s,
+  ḍ vs d) — that collision risk is the only reason a diacritic belongs
+  here. Always the single diacritic glyph, never a plain-English
   substitute for these specific sounds.
+- Digit **7** for ح — same reasoning as ḥ used to get: writing it as
+  plain "h" would collide with the lighter ه sound, so it needs marking
+  somehow. Unlike ṣ/ḍ, it borrows the Arabizi digit rather than a
+  diacritic (matches ع/3 below) — real Arabizi already writes it this
+  way, and the Reading Guide already taught 7 as equivalent to the old ḥ
+  mark. (This app used the ḥ diacritic for a while; switched to 7 to
+  match real-world usage.)
 - Plain English digraph **`sh`** for ش — deliberately *not* a diacritic
-  (`š`). Unlike ḥ/ṣ/ḍ, ش has no competing plain sound in Arabic that "sh"
+  (`š`). Unlike ṣ/ḍ, ش has no competing plain sound in Arabic that "sh"
   could be confused with, and real Arabizi (what Egyptians actually text)
   writes it as "sh" too — a dedicated mark would just be inventing
   complexity a genuinely ambiguous sound doesn't need. (This app used š
