@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -70,6 +71,12 @@ internal fun ManageCardsScreen(
     var deletingCard by remember { mutableStateOf<UserCard?>(null) }
     var showTagManager by remember { mutableStateOf(false) }
     var previewCard by remember { mutableStateOf<UserCard?>(null) }
+    var selectedTagFilter by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    val filteredCards = remember(cards, selectedTagFilter) {
+        if (selectedTagFilter.isEmpty()) cards
+        else cards.filter { card -> card.tags.any { it in selectedTagFilter } }
+    }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -80,17 +87,38 @@ internal fun ManageCardsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "${cards.size} card${if (cards.size == 1) "" else "s"}",
+                text = "${filteredCards.size} card${if (filteredCards.size == 1) "" else "s"}",
                 style = MaterialTheme.typography.labelLarge
             )
             TextButton(onClick = { showTagManager = true }) { Text("Manage tags") }
         }
 
+        if (allTags.isNotEmpty()) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(allTags.toList().sorted(), key = { it }) { tag ->
+                    FilterChip(
+                        selected = tag in selectedTagFilter,
+                        onClick = {
+                            selectedTagFilter =
+                                if (tag in selectedTagFilter) selectedTagFilter - tag else selectedTagFilter + tag
+                        },
+                        label = { Text(tag, style = MaterialTheme.typography.labelMedium) }
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+
         Box(Modifier.fillMaxSize().weight(1f)) {
-            if (cards.isEmpty()) {
+            if (filteredCards.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        "No cards yet — tap + to add one",
+                        if (cards.isEmpty()) "No cards yet — tap + to add one"
+                        else "No cards match the selected tags",
+                        textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
                 }
@@ -100,7 +128,7 @@ internal fun ManageCardsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(cards, key = { it.id }) { card ->
+                    items(filteredCards, key = { it.id }) { card ->
                         val cardLessons = remember(card.id, lessons) {
                             lessons.filter { card.id in it.cardIds }
                         }
@@ -204,7 +232,10 @@ internal fun ManageCardsScreen(
         TagManagerDialog(
             allTags = allTags,
             onCreateTag = onCreateTag,
-            onDeleteTag = onDeleteTag,
+            onDeleteTag = { tag ->
+                onDeleteTag(tag)
+                selectedTagFilter = selectedTagFilter - tag
+            },
             onDismiss = { showTagManager = false }
         )
     }
