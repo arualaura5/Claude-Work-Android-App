@@ -131,6 +131,16 @@ internal fun ManageCardsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
+                                    if (cardLessons.isNotEmpty()) {
+                                        Row(
+                                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            cardLessons.forEach { lesson -> LessonPill(lesson.name) }
+                                        }
+                                        Spacer(Modifier.height(4.dp))
+                                    }
                                     Text(
                                         parseCardMarkup(card.english, boldColor = MaterialTheme.colorScheme.tertiary),
                                         fontWeight = FontWeight.Medium
@@ -139,14 +149,13 @@ internal fun ManageCardsScreen(
                                         parseCardMarkup(card.egyptian, boldColor = MaterialTheme.colorScheme.tertiary),
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                     )
-                                    if (cardLessons.isNotEmpty() || card.tags.isNotEmpty()) {
+                                    if (card.tags.isNotEmpty()) {
                                         Spacer(Modifier.height(4.dp))
                                         Row(
                                             modifier = Modifier.horizontalScroll(rememberScrollState()),
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            cardLessons.forEach { lesson -> LessonPill(lesson.name) }
                                             card.tags.forEach { tag -> TagPill(tag) }
                                         }
                                     }
@@ -255,6 +264,16 @@ private fun CardPreviewDialog(
                         Icon(Icons.Default.Close, contentDescription = "Close preview")
                     }
                 }
+                if (lessons.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        lessons.forEach { lesson -> LessonPill(lesson.name) }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
                 FlipStudyCard(
                     card = card,
                     direction = direction,
@@ -266,14 +285,13 @@ private fun CardPreviewDialog(
                         .fillMaxWidth()
                         .weight(1f)
                 )
-                if (lessons.isNotEmpty() || card.tags.isNotEmpty()) {
+                if (card.tags.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        lessons.forEach { lesson -> LessonPill(lesson.name) }
                         card.tags.forEach { tag -> TagPill(tag) }
                     }
                 }
