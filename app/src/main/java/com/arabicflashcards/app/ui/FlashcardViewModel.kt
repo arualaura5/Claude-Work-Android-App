@@ -237,11 +237,16 @@ class FlashcardViewModel(application: Application) : AndroidViewModel(applicatio
                 _statusMessage.value = "Import failed — that doesn't look like a valid backup file."
                 return@launch
             }
-            val added = repository.importBackup(backup.cards, backup.tags, backup.lessons)
+            val result = repository.importBackup(backup.cards, backup.tags, backup.lessons)
             _statusMessage.value = when {
-                added == 0 -> "No new cards to import — everything in that file is already in your notebook."
-                added == 1 -> "Imported 1 new card."
-                else -> "Imported $added new cards."
+                result.added == 0 && result.updated == 0 ->
+                    "No changes — everything in that file already matches your notebook."
+                result.added > 0 && result.updated > 0 ->
+                    "Imported ${result.added} new card${if (result.added == 1) "" else "s"}, updated ${result.updated}."
+                result.added > 0 ->
+                    if (result.added == 1) "Imported 1 new card." else "Imported ${result.added} new cards."
+                else ->
+                    if (result.updated == 1) "Updated 1 card." else "Updated ${result.updated} cards."
             }
         }
     }

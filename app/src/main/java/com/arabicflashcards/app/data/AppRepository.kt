@@ -14,6 +14,8 @@ import java.time.LocalDate
 
 private val Context.dataStore by preferencesDataStore(name = "flashcard_notebook")
 
+data class ImportResult(val added: Int, val updated: Int)
+
 class AppRepository(private val context: Context) {
 
     private val cardsKey = stringPreferencesKey("cards_json")
@@ -161,18 +163,39 @@ class AppRepository(private val context: Context) {
     }
 
     /**
-     * Merge-only import: never overwrites or removes an existing card.
-     * Returns how many cards were actually added (imported cards whose id
-     * already exists in the notebook are skipped, not overwritten).
+     * Cards: upserts by id. An id already in the notebook has its content
+     * (english/egyptian/tags) refreshed from the import, but study progress
+     * (timesReviewed/timesCorrect/mastered/createdAt) is always preserved
+     * from the existing card, never reset by a re-import. A new id is added
+     * as a new card.
+     *
+     * Lessons: merge-only, unchanged — never overwrites or removes an
+     * existing lesson, since its cardIds may have been hand-edited/reordered
+     * in-app after import and a silent overwrite would discard that.
      */
-    suspend fun importBackup(cards: List<UserCard>, tags: Set<String>, lessons: List<Lesson> = emptyList()): Int {
+    suspend fun importBackup(cards: List<UserCard>, tags: Set<String>, lessons: List<Lesson> = emptyList()): ImportResult {
         var addedCount = 0
+        var updatedCount = 0
         context.dataStore.edit { prefs ->
             val current = prefs[cardsKey]?.toUserCards() ?: emptyList()
-            val existingIds = current.map { it.id }.toSet()
-            val newCards = cards.filterNot { it.id in existingIds }
+            val importedById = cards.associateBy { it.id }
+            val currentIds = current.map { it.id }.toSet()
+
+            val refreshed = current.map { existing ->
+                val imported = importedById[existing.id]
+                if (imported != null &&
+                    (imported.english != existing.english ||
+                        imported.egyptian != existing.egyptian ||
+                        imported.tags != existing.tags)
+                ) {
+                    updatedCount++
+                    existing.copy(english = imported.english, egyptian = imported.egyptian, tags = imported.tags)
+                } else existing
+            }
+            val newCards = cards.filterNot { it.id in currentIds }
             addedCount = newCards.size
-            prefs[cardsKey] = (current + newCards).toJsonString()
+            prefs[cardsKey] = (refreshed + newCards).toJsonString()
+
             val importedTags = tags + cards.flatMap { it.tags }
             if (importedTags.isNotEmpty()) {
                 prefs[knownTagsKey] = (prefs[knownTagsKey] ?: emptySet()) + importedTags
@@ -184,7 +207,7 @@ class AppRepository(private val context: Context) {
                 prefs[lessonsKey] = (currentLessons + newLessons).toJsonString()
             }
         }
-        return addedCount
+        return ImportResult(addedCount, updatedCount)
     }
 
     suspend fun setDirection(direction: StudyDirection) {
