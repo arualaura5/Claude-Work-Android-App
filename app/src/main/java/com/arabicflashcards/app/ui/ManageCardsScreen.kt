@@ -143,7 +143,8 @@ internal fun ManageCardsScreen(
                                         Spacer(Modifier.height(4.dp))
                                         Row(
                                             modifier = Modifier.horizontalScroll(rememberScrollState()),
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             cardLessons.forEach { lesson -> LessonPill(lesson.name) }
                                             card.tags.forEach { tag -> TagPill(tag) }
@@ -269,7 +270,8 @@ private fun CardPreviewDialog(
                     Spacer(Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         lessons.forEach { lesson -> LessonPill(lesson.name) }
                         card.tags.forEach { tag -> TagPill(tag) }
