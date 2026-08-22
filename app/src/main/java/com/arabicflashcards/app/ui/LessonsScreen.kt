@@ -33,7 +33,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -244,6 +244,7 @@ private fun LessonsListScreen(
                         shape = RoundedCornerShape(18.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp, pressedElevation = 1.dp)
                     ) {
+                        Box {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -268,7 +269,7 @@ private fun LessonsListScreen(
                                     )
                                 }
                                 Spacer(Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 28.dp)) {
                                     Text(
                                         lesson.name,
                                         fontWeight = FontWeight.Bold,
@@ -332,56 +333,6 @@ private fun LessonsListScreen(
                                 horizontalArrangement = Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box {
-                                    IconButton(
-                                        onClick = { menuExpanded = true },
-                                        modifier = Modifier
-                                            .size(34.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
-                                    ) {
-                                        Icon(
-                                            Icons.Default.MoreVert,
-                                            contentDescription = "More options for ${lesson.name}",
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                                        DropdownMenuItem(
-                                            text = { Text("Move up") },
-                                            enabled = index > 0,
-                                            leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null) },
-                                            onClick = {
-                                                val ids = lessons.map { it.id }.toMutableList()
-                                                ids.removeAt(index)
-                                                ids.add(index - 1, lesson.id)
-                                                onReorderLessons(ids)
-                                                menuExpanded = false
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Move down") },
-                                            enabled = index < lessons.lastIndex,
-                                            leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
-                                            onClick = {
-                                                val ids = lessons.map { it.id }.toMutableList()
-                                                ids.removeAt(index)
-                                                ids.add(index + 1, lesson.id)
-                                                onReorderLessons(ids)
-                                                menuExpanded = false
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("Delete lesson") },
-                                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
-                                            onClick = {
-                                                deletingLesson = lesson
-                                                menuExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.width(8.dp))
                                 Row(
                                     modifier = Modifier
                                         .height(34.dp)
@@ -404,6 +355,57 @@ private fun LessonsListScreen(
                                     Text("Start", color = Cream, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
+                        }
+
+                        Box(modifier = Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 10.dp)) {
+                            IconButton(
+                                onClick = { menuExpanded = true },
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                            ) {
+                                Icon(
+                                    Icons.Default.MoreHoriz,
+                                    contentDescription = "More options for ${lesson.name}",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Move up") },
+                                    enabled = index > 0,
+                                    leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null) },
+                                    onClick = {
+                                        val ids = lessons.map { it.id }.toMutableList()
+                                        ids.removeAt(index)
+                                        ids.add(index - 1, lesson.id)
+                                        onReorderLessons(ids)
+                                        menuExpanded = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Move down") },
+                                    enabled = index < lessons.lastIndex,
+                                    leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
+                                    onClick = {
+                                        val ids = lessons.map { it.id }.toMutableList()
+                                        ids.removeAt(index)
+                                        ids.add(index + 1, lesson.id)
+                                        onReorderLessons(ids)
+                                        menuExpanded = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete lesson") },
+                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                                    onClick = {
+                                        deletingLesson = lesson
+                                        menuExpanded = false
+                                    }
+                                )
+                            }
+                        }
                         }
                     }
                 }
