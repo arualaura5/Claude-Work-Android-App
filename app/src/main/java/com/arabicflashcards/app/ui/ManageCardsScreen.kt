@@ -139,7 +139,7 @@ internal fun ManageCardsScreen(
                                         ) {
                                             cardLessons.forEach { lesson -> LessonPill(lesson.name) }
                                         }
-                                        Spacer(Modifier.height(4.dp))
+                                        Spacer(Modifier.height(10.dp))
                                     }
                                     Text(
                                         parseCardMarkup(card.english, boldColor = MaterialTheme.colorScheme.tertiary),
@@ -272,7 +272,7 @@ private fun CardPreviewDialog(
                     ) {
                         lessons.forEach { lesson -> LessonPill(lesson.name) }
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
                 FlipStudyCard(
                     card = card,
