@@ -127,7 +127,8 @@ internal fun LessonsScreen(
                 onRename = { newName -> onRenameLesson(openLesson.id, newName) },
                 onSetCards = { cardIds -> onSetLessonCards(openLesson.id, cardIds) },
                 onStart = { playingLessonId = openLesson.id },
-                onBack = { openLessonId = null }
+                onBack = { openLessonId = null },
+                onDelete = { onDeleteLesson(openLesson.id); openLessonId = null }
             )
         }
         else -> {
@@ -137,7 +138,6 @@ internal fun LessonsScreen(
                 onCreateLesson = onCreateLesson,
                 onOpenLesson = { openLessonId = it },
                 onStartLesson = { playingLessonId = it },
-                onDeleteLesson = onDeleteLesson,
                 onReorderLessons = onReorderLessons
             )
         }
@@ -185,11 +185,9 @@ private fun LessonsListScreen(
     onCreateLesson: (String) -> Unit,
     onOpenLesson: (String) -> Unit,
     onStartLesson: (String) -> Unit,
-    onDeleteLesson: (String) -> Unit,
     onReorderLessons: (List<String>) -> Unit
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
-    var deletingLesson by remember { mutableStateOf<Lesson?>(null) }
 
     Box(Modifier.fillMaxSize()) {
         if (lessons.isEmpty()) {
@@ -396,14 +394,6 @@ private fun LessonsListScreen(
                                         menuExpanded = false
                                     }
                                 )
-                                DropdownMenuItem(
-                                    text = { Text("Delete lesson") },
-                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
-                                    onClick = {
-                                        deletingLesson = lesson
-                                        menuExpanded = false
-                                    }
-                                )
                             }
                         }
                         }
@@ -437,20 +427,6 @@ private fun LessonsListScreen(
             initial = "",
             onDismiss = { showCreateDialog = false },
             onSave = { name -> onCreateLesson(name); showCreateDialog = false }
-        )
-    }
-
-    deletingLesson?.let { lesson ->
-        AlertDialog(
-            onDismissRequest = { deletingLesson = null },
-            title = { Text("Delete this lesson?") },
-            text = { Text("\"${lesson.name}\" will be removed. Your cards themselves won't be deleted.") },
-            confirmButton = {
-                TextButton(onClick = { onDeleteLesson(lesson.id); deletingLesson = null }) { Text("Delete") }
-            },
-            dismissButton = {
-                TextButton(onClick = { deletingLesson = null }) { Text("Cancel") }
-            }
         )
     }
 }
@@ -489,10 +465,12 @@ private fun LessonDetailScreen(
     onRename: (String) -> Unit,
     onSetCards: (List<String>) -> Unit,
     onStart: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onDelete: () -> Unit
 ) {
     var showRenameDialog by remember { mutableStateOf(false) }
     var showAddCardsDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     val orderedCards = remember(lesson.cardIds, allCards) {
         lesson.cardIds.mapNotNull { id -> allCards.find { it.id == id } }
@@ -509,6 +487,9 @@ private fun LessonDetailScreen(
             Text(lesson.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             IconButton(onClick = { showRenameDialog = true }) {
                 Icon(Icons.Default.Edit, contentDescription = "Rename lesson")
+            }
+            IconButton(onClick = { showDeleteDialog = true }) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete lesson")
             }
         }
 
@@ -619,6 +600,20 @@ private fun LessonDetailScreen(
             onConfirm = { selectedIds ->
                 onSetCards(lesson.cardIds + selectedIds.filterNot { it in lesson.cardIds })
                 showAddCardsDialog = false
+            }
+        )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete this lesson?") },
+            text = { Text("\"${lesson.name}\" will be removed. Your cards themselves won't be deleted.") },
+            confirmButton = {
+                TextButton(onClick = { showDeleteDialog = false; onDelete() }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
             }
         )
     }
