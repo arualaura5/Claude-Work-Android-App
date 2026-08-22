@@ -80,6 +80,20 @@ Before finalizing new card text, scan it for any word that shares a root
 with another card and check both use the same diacritic spelling for that
 root's sounds.
 
+## Card content fixes — test small first
+
+Import upserts by id: re-importing a card with an id already on-device
+now updates its `english`/`egyptian`/`tags` in place while preserving
+`timesReviewed`/`timesCorrect`/`mastered`/`createdAt` (see
+`AppRepository.importBackup`). This makes bulk content fixes (e.g. a
+transliteration correction across many cards) practical via a single
+re-import instead of manual per-card edits — but before generating a
+large batch file, generate and send a **one-card test file first** using
+the same id/fix pattern, and have the user confirm it actually updated
+the live card correctly after installing the build that carries the fix.
+Only then generate the full batch. This catches a wrong id, a bad field
+name, or an unbuilt app version before it's applied notebook-wide.
+
 ## Where things live
 
 - `app/src/main/java/com/arabicflashcards/app/data/` — `UserCard`,
