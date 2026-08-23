@@ -94,9 +94,12 @@ Two deliberate simplifications, both worth knowing about:
   screen afterward.
 - **The Health Connect client library version in `app/build.gradle.kts` is pinned from memory** — this
   sandbox couldn't reach `dl.google.com` to confirm the current release. Check/bump it in Android
-  Studio if it fails to resolve. For a sideloaded personal app (not Play Store distribution) the
-  permission flow used here is sufficient; publishing to Play would additionally need a permissions-
-  rationale activity, which isn't built here since it isn't needed for your use case.
+  Studio if it fails to resolve.
+- **A permissions-rationale activity is required, and not just for Play Store distribution as
+  originally assumed here.** Android 14+ enforces this at the OS level for any app requesting health
+  permissions — without it, the system can silently refuse to show the permission dialog at all, with
+  no visible error. `HealthConnectRationaleActivity.kt` plus the matching manifest entries fix this;
+  real-device testing is what actually surfaced the gap, since it isn't something CI can catch.
 
 ### Nutrition (Cronometer)
 

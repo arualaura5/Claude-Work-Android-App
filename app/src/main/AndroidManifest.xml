@@ -26,6 +26,27 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Health Connect permissions rationale: required for the system permission dialog to
+             work at all on Android 14+, and for the "why does this app want this" link Health
+             Connect itself shows on its own permissions screen. -->
+        <activity
+            android:name=".HealthConnectRationaleActivity"
+            android:exported="true"
+            android:theme="@style/Theme.RoyalMiles">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+        <activity-alias
+            android:name=".HealthConnectPermissionsRationaleAlias"
+            android:exported="true"
+            android:targetActivity=".HealthConnectRationaleActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
     </application>
 
 </manifest>
