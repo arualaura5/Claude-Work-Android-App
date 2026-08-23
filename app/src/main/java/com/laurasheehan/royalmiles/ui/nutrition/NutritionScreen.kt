@@ -1,6 +1,8 @@
 package com.laurasheehan.royalmiles.ui.nutrition
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -32,18 +35,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.laurasheehan.royalmiles.core.model.TrainingPhase
 import com.laurasheehan.royalmiles.core.plan.NutritionTargets
 import com.laurasheehan.royalmiles.data.health.NutritionSummary
+import com.laurasheehan.royalmiles.ui.theme.BlushPink
+import com.laurasheehan.royalmiles.ui.theme.ComebackGold
 import com.laurasheehan.royalmiles.ui.theme.RoyalPurple
 import com.laurasheehan.royalmiles.ui.theme.ShimmerSilverDim
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NutritionScreen(viewModel: NutritionViewModel) {
+fun NutritionScreen(viewModel: NutritionViewModel, onOpenLearn: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -63,57 +70,92 @@ fun NutritionScreen(viewModel: NutritionViewModel) {
             )
         },
     ) { padding ->
-        when {
-            state.loading -> {}
-            !state.available -> {
-                Column(modifier = Modifier.padding(padding).padding(24.dp)) {
-                    Text(
-                        "Health Connect isn't available on this device. It ships with Android 14+ and " +
-                            "can be installed from the Play Store on most phones back to Android 9.",
-                        color = ShimmerSilverDim,
-                    )
-                }
-            }
-            !state.hasPermission -> {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Text(
-                        "Connect Health Connect to see the food you log in Cronometer here, alongside " +
-                            "supportive, phase-aware guidance for this stage of training.",
-                        color = ShimmerSilverDim,
-                    )
-                    Button(onClick = { permissionLauncher.launch(viewModel.permissionsToRequest) }) {
-                        Text("Connect Health Connect")
-                    }
-                }
-            }
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    item { TodayCard(nutrition = state.today) }
-                    item {
-                        BodyWeightCard(
-                            bodyWeightKg = state.bodyWeightKg,
-                            onSave = { viewModel.setBodyWeightKg(it) },
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            LearnButtonCard(
+                onClick = onOpenLearn,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+            when {
+                state.loading -> {}
+                !state.available -> {
+                    Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+                        Text(
+                            "Health Connect isn't available on this device. It ships with Android 14+ and " +
+                                "can be installed from the Play Store on most phones back to Android 9.",
+                            color = ShimmerSilverDim,
                         )
                     }
-                    if (state.targets != null) {
+                }
+                !state.hasPermission -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text(
+                            "Connect Health Connect to see the food you log in Cronometer here, alongside " +
+                                "supportive, phase-aware guidance for this stage of training.",
+                            color = ShimmerSilverDim,
+                        )
+                        Button(onClick = { permissionLauncher.launch(viewModel.permissionsToRequest) }) {
+                            Text("Connect Health Connect")
+                        }
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        item { TodayCard(nutrition = state.today) }
                         item {
-                            PhaseGuidanceCard(
-                                phase = state.phase,
-                                targets = state.targets!!,
+                            BodyWeightCard(
                                 bodyWeightKg = state.bodyWeightKg,
-                                today = state.today,
+                                onSave = { viewModel.setBodyWeightKg(it) },
                             )
+                        }
+                        if (state.targets != null) {
+                            item {
+                                PhaseGuidanceCard(
+                                    phase = state.phase,
+                                    targets = state.targets!!,
+                                    bodyWeightKg = state.bodyWeightKg,
+                                    today = state.today,
+                                )
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LearnButtonCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Brush.horizontalGradient(listOf(RoyalPurple, BlushPink)))
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Column {
+                Text("Learn: macros & performance", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Text(
+                    "Flashcards on the reasoning behind these numbers",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.85f),
+                )
+            }
+            Icon(Icons.Filled.MenuBook, contentDescription = null, tint = ComebackGold)
         }
     }
 }

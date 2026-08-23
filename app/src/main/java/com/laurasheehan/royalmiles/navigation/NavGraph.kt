@@ -17,6 +17,7 @@ import com.laurasheehan.royalmiles.ui.calendar.CalendarScreen
 import com.laurasheehan.royalmiles.ui.calendar.CalendarViewModel
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardScreen
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardViewModel
+import com.laurasheehan.royalmiles.ui.nutrition.FlashcardScreen
 import com.laurasheehan.royalmiles.ui.nutrition.NutritionScreen
 import com.laurasheehan.royalmiles.ui.nutrition.NutritionViewModel
 import com.laurasheehan.royalmiles.ui.session.SessionEditScreen
@@ -28,6 +29,7 @@ object Routes {
     const val DASHBOARD = "dashboard"
     const val CALENDAR = "calendar"
     const val NUTRITION = "nutrition"
+    const val NUTRITION_LEARN = "nutrition/learn"
     const val SESSION = "session/{sessionId}"
     const val SYNC = "sync"
     const val NEW_SESSION_ID = -1L
@@ -70,7 +72,13 @@ fun RoyalMilesNavHost(
                     }
                 },
             )
-            NutritionScreen(viewModel = viewModel)
+            NutritionScreen(
+                viewModel = viewModel,
+                onOpenLearn = { navController.navigate(Routes.NUTRITION_LEARN) },
+            )
+        }
+        composable(Routes.NUTRITION_LEARN) {
+            FlashcardScreen(onDone = { navController.popBackStack() })
         }
         composable(Routes.CALENDAR) {
             val viewModel: CalendarViewModel = viewModel(
