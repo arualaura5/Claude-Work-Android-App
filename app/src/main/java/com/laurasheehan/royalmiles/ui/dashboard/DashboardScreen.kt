@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.laurasheehan.royalmiles.core.gamification.Badge
+import com.laurasheehan.royalmiles.data.health.NutritionSummary
 import com.laurasheehan.royalmiles.ui.components.BadgeChip
 import com.laurasheehan.royalmiles.ui.components.EffortTrend
 import com.laurasheehan.royalmiles.ui.components.SessionCard
@@ -50,7 +51,10 @@ fun DashboardScreen(
     onOpenSync: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val nutritionToday by viewModel.nutritionToday.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(viewModel) { viewModel.refreshNutrition() }
 
     LaunchedEffect(viewModel) {
         viewModel.affirmations.collect { message -> snackbarHostState.showSnackbar(message) }
@@ -145,9 +149,55 @@ fun DashboardScreen(
                     onClick = { onOpenSession(session.id) },
                 )
             }
+
+            nutritionToday?.let { nutrition ->
+                item {
+                    NutritionCard(
+                        nutrition = nutrition,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
         }
     }
 }
+
+/**
+ * Deliberately plain: no colors tied to a target, no progress bar, no XP. Just what was logged.
+ */
+@Composable
+private fun NutritionCard(nutrition: NutritionSummary, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Today's nutrition", style = MaterialTheme.typography.titleMedium)
+            Text("via Cronometer", style = MaterialTheme.typography.bodySmall, color = ShimmerSilverDim)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                NutritionStat(label = "kcal", value = nutrition.kcal.roundToDisplay())
+                NutritionStat(label = "protein g", value = nutrition.proteinG.roundToDisplay())
+                NutritionStat(label = "carbs g", value = nutrition.carbsG.roundToDisplay())
+                NutritionStat(label = "fat g", value = nutrition.fatG.roundToDisplay())
+            }
+        }
+    }
+}
+
+@Composable
+private fun NutritionStat(label: String, value: String) {
+    Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.titleLarge)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = ShimmerSilverDim)
+    }
+}
+
+private fun Double.roundToDisplay(): String = kotlin.math.round(this).toInt().toString()
 
 @Composable
 private fun HeroHeader(daysToRace: Long, phaseMessage: String, onOpenSync: () -> Unit) {

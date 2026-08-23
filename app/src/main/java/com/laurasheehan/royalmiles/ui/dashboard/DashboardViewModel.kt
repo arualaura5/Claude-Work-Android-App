@@ -6,10 +6,13 @@ import com.laurasheehan.royalmiles.core.model.TrainingPhase
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.data.Stats
+import com.laurasheehan.royalmiles.data.health.HealthConnectRepository
+import com.laurasheehan.royalmiles.data.health.NutritionSummary
 import com.laurasheehan.royalmiles.ui.components.Affirmations
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -26,10 +29,17 @@ data class DashboardUiState(
     val phaseMessage: String = "",
 )
 
-class DashboardViewModel(private val repository: PlanRepository, private val raceDate: LocalDate) : ViewModel() {
+class DashboardViewModel(
+    private val repository: PlanRepository,
+    private val raceDate: LocalDate,
+    private val healthConnect: HealthConnectRepository,
+) : ViewModel() {
 
     private val _affirmations = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val affirmations: SharedFlow<String> = _affirmations.asSharedFlow()
+
+    private val _nutritionToday = MutableStateFlow<NutritionSummary?>(null)
+    val nutritionToday: StateFlow<NutritionSummary?> = _nutritionToday
 
     val uiState: StateFlow<DashboardUiState> = combine(
         repository.observeStats(),
@@ -49,6 +59,20 @@ class DashboardViewModel(private val repository: PlanRepository, private val rac
             phaseMessage = phaseMessage(currentWeek?.phase, planStarted),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
+
+    init {
+        refreshNutrition()
+    }
+
+    fun refreshNutrition() {
+        viewModelScope.launch {
+            _nutritionToday.value = if (healthConnect.isAvailable() && healthConnect.hasPermissions()) {
+                healthConnect.nutritionSummaryForToday()
+            } else {
+                null
+            }
+        }
+    }
 
     fun toggleComplete(session: SessionEntity) {
         viewModelScope.launch {

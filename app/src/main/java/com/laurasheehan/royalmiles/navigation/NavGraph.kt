@@ -35,8 +35,13 @@ object Routes {
 fun RoyalMilesNavHost(navController: NavHostController, repository: PlanRepository) {
     NavHost(navController = navController, startDestination = Routes.DASHBOARD) {
         composable(Routes.DASHBOARD) {
+            val context = androidx.compose.ui.platform.LocalContext.current
             val viewModel: DashboardViewModel = viewModel(
-                factory = viewModelFactory { initializer { DashboardViewModel(repository, RaceConfig.RACE_DATE) } },
+                factory = viewModelFactory {
+                    initializer {
+                        DashboardViewModel(repository, RaceConfig.RACE_DATE, HealthConnectRepository(context.applicationContext))
+                    }
+                },
             )
             DashboardScreen(
                 viewModel = viewModel,

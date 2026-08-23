@@ -89,6 +89,15 @@ Two deliberate simplifications, both worth knowing about:
   permission flow used here is sufficient; publishing to Play would additionally need a permissions-
   rationale activity, which isn't built here since it isn't needed for your use case.
 
+### Nutrition (Cronometer)
+
+The dashboard also reads today's logged calories/protein/carbs/fat straight from Health Connect if
+Cronometer is set to write there (`HealthConnectRepository.nutritionSummaryForToday()`). This is
+**deliberately kept separate from everything else in the app**: it's not wired into XP, streaks, or
+badges, has no calorie target or "remaining" framing, and isn't color-coded as good/bad — it's just a
+plain readout of what was logged, shown only when something has actually been logged that day. That
+was an explicit request, not an oversight — worth respecting if this gets extended later.
+
 ### A note on verification
 
 This was built in a sandbox without an Android SDK and without network access to `dl.google.com`
