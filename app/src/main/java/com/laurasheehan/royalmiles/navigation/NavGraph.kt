@@ -1,0 +1,64 @@
+package com.laurasheehan.royalmiles.navigation
+
+import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import com.laurasheehan.royalmiles.RaceConfig
+import com.laurasheehan.royalmiles.data.PlanRepository
+import com.laurasheehan.royalmiles.ui.calendar.CalendarScreen
+import com.laurasheehan.royalmiles.ui.calendar.CalendarViewModel
+import com.laurasheehan.royalmiles.ui.dashboard.DashboardScreen
+import com.laurasheehan.royalmiles.ui.dashboard.DashboardViewModel
+import com.laurasheehan.royalmiles.ui.session.SessionEditScreen
+import com.laurasheehan.royalmiles.ui.session.SessionEditViewModel
+
+object Routes {
+    const val DASHBOARD = "dashboard"
+    const val CALENDAR = "calendar"
+    const val SESSION = "session/{sessionId}"
+    const val NEW_SESSION_ID = -1L
+
+    fun session(id: Long) = "session/$id"
+}
+
+@Composable
+fun RoyalMilesNavHost(navController: NavHostController, repository: PlanRepository) {
+    NavHost(navController = navController, startDestination = Routes.DASHBOARD) {
+        composable(Routes.DASHBOARD) {
+            val viewModel: DashboardViewModel = viewModel(
+                factory = viewModelFactory { initializer { DashboardViewModel(repository, RaceConfig.RACE_DATE) } },
+            )
+            DashboardScreen(
+                viewModel = viewModel,
+                onOpenSession = { navController.navigate(Routes.session(it)) },
+            )
+        }
+        composable(Routes.CALENDAR) {
+            val viewModel: CalendarViewModel = viewModel(
+                factory = viewModelFactory { initializer { CalendarViewModel(repository) } },
+            )
+            CalendarScreen(
+                viewModel = viewModel,
+                onOpenSession = { navController.navigate(Routes.session(it)) },
+                onAddSession = { navController.navigate(Routes.session(Routes.NEW_SESSION_ID)) },
+            )
+        }
+        composable(
+            route = Routes.SESSION,
+            arguments = listOf(navArgument("sessionId") { type = NavType.LongType }),
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getLong("sessionId") ?: Routes.NEW_SESSION_ID
+            val resolvedId = if (sessionId == Routes.NEW_SESSION_ID) null else sessionId
+            val viewModel: SessionEditViewModel = viewModel(
+                factory = viewModelFactory { initializer { SessionEditViewModel(repository, resolvedId) } },
+            )
+            SessionEditScreen(viewModel = viewModel, onDone = { navController.popBackStack() })
+        }
+    }
+}
