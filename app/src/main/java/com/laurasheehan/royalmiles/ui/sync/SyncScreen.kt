@@ -50,7 +50,7 @@ fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit) {
     var pendingMatch by remember { mutableStateOf<ExternalWorkout?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        contract = viewModel.permissionContract(),
+        contract = remember { viewModel.permissionContract() },
         onResult = { viewModel.onPermissionGranted() },
     )
 
