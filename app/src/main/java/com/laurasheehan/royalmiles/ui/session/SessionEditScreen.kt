@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -184,7 +185,11 @@ private fun TypeDropdown(selected: SessionType, onSelected: (SessionType) -> Uni
                 .fillMaxWidth()
                 .menuAnchor(),
         )
-        ExposedDropdownMenuDefaults.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.exposedDropdownSize(),
+        ) {
             SessionType.entries.forEach { type ->
                 DropdownMenuItem(
                     text = { Text(type.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }) },
@@ -221,7 +226,11 @@ private fun WeekDropdown(
                 .fillMaxWidth()
                 .menuAnchor(),
         )
-        ExposedDropdownMenuDefaults.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.exposedDropdownSize(),
+        ) {
             weeks.forEach { week ->
                 DropdownMenuItem(
                     text = { Text("Week ${week.weekNumber} · ${week.phase.label}") },
