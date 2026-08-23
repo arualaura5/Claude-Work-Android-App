@@ -36,14 +36,16 @@ jobs:
           name: royal-miles-debug
           path: app/build/outputs/apk/debug/*.apk
 
-      # Only on main: publish the raw APK as a "latest" GitHub Release asset so it can be
-      # downloaded and tapped to install directly, no zip/extract step required.
+      # Only on main: publish the raw APK as a GitHub Release asset so it can be downloaded and
+      # tapped to install directly, no zip/extract step required. Tag is namespaced to this app —
+      # this repo holds more than one unrelated project, and a bare "latest" tag turned out to
+      # already exist from one of them, so reusing it would silently collide.
       - name: Publish latest debug APK as a release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: Latest debug build
+          tag_name: royal-miles-latest
+          name: Royal Miles — latest debug build
           body: |
             Automatically rebuilt from every push to `main` (commit ${{ github.sha }}).
             Unsigned debug build for sideloading only — not for distribution.
