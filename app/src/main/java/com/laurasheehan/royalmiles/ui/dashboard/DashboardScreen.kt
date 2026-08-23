@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -150,13 +151,12 @@ fun DashboardScreen(
                 )
             }
 
-            nutritionToday?.let { nutrition ->
-                item {
-                    NutritionCard(
-                        nutrition = nutrition,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
+            item {
+                NutritionCard(
+                    nutrition = nutritionToday,
+                    onRefresh = { viewModel.refreshNutrition() },
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
     }
@@ -164,26 +164,46 @@ fun DashboardScreen(
 
 /**
  * Deliberately plain: no colors tied to a target, no progress bar, no XP. Just what was logged.
+ * Always visible (not just when data exists) so there's somewhere to tap refresh from.
  */
 @Composable
-private fun NutritionCard(nutrition: NutritionSummary, modifier: Modifier = Modifier) {
+private fun NutritionCard(nutrition: NutritionSummary?, onRefresh: () -> Unit, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Today's nutrition", style = MaterialTheme.typography.titleMedium)
-            Text("via Cronometer", style = MaterialTheme.typography.bodySmall, color = ShimmerSilverDim)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                NutritionStat(label = "kcal", value = nutrition.kcal.roundToDisplay())
-                NutritionStat(label = "protein g", value = nutrition.proteinG.roundToDisplay())
-                NutritionStat(label = "carbs g", value = nutrition.carbsG.roundToDisplay())
-                NutritionStat(label = "fat g", value = nutrition.fatG.roundToDisplay())
+                Column {
+                    Text("Today's nutrition", style = MaterialTheme.typography.titleMedium)
+                    Text("via Cronometer", style = MaterialTheme.typography.bodySmall, color = ShimmerSilverDim)
+                }
+                IconButton(onClick = onRefresh) {
+                    Icon(Icons.Filled.Refresh, contentDescription = "Refresh nutrition", tint = ShimmerSilverDim)
+                }
+            }
+            if (nutrition == null) {
+                Text(
+                    "Nothing logged yet today, or it hasn't synced from Cronometer to Health Connect yet. " +
+                        "Tap refresh once you've logged something.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ShimmerSilverDim,
+                )
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    NutritionStat(label = "kcal", value = nutrition.kcal.roundToDisplay())
+                    NutritionStat(label = "protein g", value = nutrition.proteinG.roundToDisplay())
+                    NutritionStat(label = "carbs g", value = nutrition.carbsG.roundToDisplay())
+                    NutritionStat(label = "fat g", value = nutrition.fatG.roundToDisplay())
+                }
             }
         }
     }
