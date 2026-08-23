@@ -17,7 +17,23 @@ android {
         versionName = "1.0"
     }
 
+    // Pinned so every build — including CI, which runs on a fresh machine every time — signs
+    // with the same key. Without this, AGP auto-generates a new random debug key per machine,
+    // and Android refuses to install an update whose signature doesn't match what's already
+    // installed under the same applicationId ("App not installed").
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
         }

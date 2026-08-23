@@ -69,6 +69,15 @@ what "the peak long run" or "the base phase" means for badges even after you've 
   (`navigation/`). Dashboard shows today's session(s), XP/level, streak, and badges; Calendar lists
   every week; tapping a session opens an editable detail screen.
 
+## Signing
+
+`debug.keystore` (repo root) is a checked-in, non-secret debug signing key — debug keys are never
+meant to be secret, this is standard practice. It exists because CI runs on a fresh machine every
+time; without a pinned key, AGP auto-generates a new random one per machine, and every rebuild would
+be unable to install over the previous one (Android rejects an update whose signing key doesn't match
+what's already installed under the same package name — "App not installed"). `app/build.gradle.kts`
+points `signingConfigs.debug` at it explicitly.
+
 ## Health Connect sync — scope and caveats
 
 True Strava/Garmin API integration needs *you* to register a developer app with each of them and get
