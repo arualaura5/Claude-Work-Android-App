@@ -101,14 +101,20 @@ Two deliberate simplifications, both worth knowing about:
   no visible error. `HealthConnectRationaleActivity.kt` plus the matching manifest entries fix this;
   real-device testing is what actually surfaced the gap, since it isn't something CI can catch.
 
-### Nutrition (Cronometer)
+### Nutrition (Cronometer) — its own tab, not bolted onto the dashboard
 
-The dashboard also reads today's logged calories/protein/carbs/fat straight from Health Connect if
-Cronometer is set to write there (`HealthConnectRepository.nutritionSummaryForToday()`). This is
-**deliberately kept separate from everything else in the app**: it's not wired into XP, streaks, or
-badges, has no calorie target or "remaining" framing, and isn't color-coded as good/bad — it's just a
-plain readout of what was logged, shown only when something has actually been logged that day. That
-was an explicit request, not an oversight — worth respecting if this gets extended later.
+Nutrition lives in its own bottom-nav destination (`ui/nutrition/`), separate from the training
+dashboard by explicit request. It reads today's logged calories/protein/carbs/fat straight from
+Health Connect if Cronometer is set to write there (`HealthConnectRepository.nutritionSummaryForToday()`),
+and pairs that with supportive, phase-aware carb/protein guidance sourced from
+`NUTRITION_GUIDELINES.md` (an ACSM/IOC/ISSN consensus summary) via `core/plan/NutritionTargetsCalculator.kt`
+— a tested, pure-Kotlin function of training phase and days-to-race that scales g/kg targets to an
+optional body weight (`AthleteProfileEntity`, a single field, no weight history or trend tracking).
+
+This whole area is **deliberately kept separate from everything else in the app**: it's not wired
+into XP, streaks, or badges, has no calorie target or "remaining" framing, and isn't color-coded as
+good/bad — the guidance is framed as "ranges to inform you, not a scoreboard." That was an explicit
+request, not an oversight — worth respecting if this gets extended later.
 
 ### A note on verification
 

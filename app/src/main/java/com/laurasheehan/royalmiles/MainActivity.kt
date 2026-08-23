@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -33,21 +34,26 @@ import com.laurasheehan.royalmiles.ui.theme.RoyalMilesTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val repository = (application as RoyalMilesApp).repository
+        val app = application as RoyalMilesApp
+        val repository = app.repository
+        val athleteProfileRepository = app.athleteProfileRepository
 
         setContent {
             RoyalMilesTheme {
                 LaunchedEffect(Unit) {
                     repository.ensureSeeded(raceDate = RaceConfig.RACE_DATE, peakLongRunKm = RaceConfig.PEAK_LONG_RUN_KM)
                 }
-                RoyalMilesRoot(repository)
+                RoyalMilesRoot(repository, athleteProfileRepository)
             }
         }
     }
 }
 
 @Composable
-private fun RoyalMilesRoot(repository: com.laurasheehan.royalmiles.data.PlanRepository) {
+private fun RoyalMilesRoot(
+    repository: com.laurasheehan.royalmiles.data.PlanRepository,
+    athleteProfileRepository: com.laurasheehan.royalmiles.data.AthleteProfileRepository,
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.hierarchy?.firstOrNull()?.route
@@ -69,7 +75,7 @@ private fun RoyalMilesRoot(repository: com.laurasheehan.royalmiles.data.PlanRepo
 
     Scaffold(
         bottomBar = {
-            if (currentRoute == Routes.DASHBOARD || currentRoute == Routes.CALENDAR) {
+            if (currentRoute == Routes.DASHBOARD || currentRoute == Routes.CALENDAR || currentRoute == Routes.NUTRITION) {
                 NavigationBar {
                     NavigationBarItem(
                         selected = currentRoute == Routes.DASHBOARD,
@@ -87,12 +93,22 @@ private fun RoyalMilesRoot(repository: com.laurasheehan.royalmiles.data.PlanRepo
                         icon = { Icon(Icons.Filled.CalendarMonth, contentDescription = "Calendar") },
                         label = { Text("Calendar") },
                     )
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.NUTRITION,
+                        onClick = { navController.navigate(Routes.NUTRITION) },
+                        icon = { Icon(Icons.Filled.Restaurant, contentDescription = "Nutrition") },
+                        label = { Text("Nutrition") },
+                    )
                 }
             }
         },
     ) { padding ->
         androidx.compose.foundation.layout.Box(modifier = Modifier.padding(padding)) {
-            RoyalMilesNavHost(navController = navController, repository = repository)
+            RoyalMilesNavHost(
+                navController = navController,
+                repository = repository,
+                athleteProfileRepository = athleteProfileRepository,
+            )
         }
     }
 }

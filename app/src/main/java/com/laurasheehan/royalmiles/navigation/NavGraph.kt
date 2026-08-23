@@ -10,12 +10,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.laurasheehan.royalmiles.RaceConfig
+import com.laurasheehan.royalmiles.data.AthleteProfileRepository
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.health.HealthConnectRepository
 import com.laurasheehan.royalmiles.ui.calendar.CalendarScreen
 import com.laurasheehan.royalmiles.ui.calendar.CalendarViewModel
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardScreen
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardViewModel
+import com.laurasheehan.royalmiles.ui.nutrition.NutritionScreen
+import com.laurasheehan.royalmiles.ui.nutrition.NutritionViewModel
 import com.laurasheehan.royalmiles.ui.session.SessionEditScreen
 import com.laurasheehan.royalmiles.ui.session.SessionEditViewModel
 import com.laurasheehan.royalmiles.ui.sync.SyncScreen
@@ -24,6 +27,7 @@ import com.laurasheehan.royalmiles.ui.sync.SyncViewModel
 object Routes {
     const val DASHBOARD = "dashboard"
     const val CALENDAR = "calendar"
+    const val NUTRITION = "nutrition"
     const val SESSION = "session/{sessionId}"
     const val SYNC = "sync"
     const val NEW_SESSION_ID = -1L
@@ -32,14 +36,17 @@ object Routes {
 }
 
 @Composable
-fun RoyalMilesNavHost(navController: NavHostController, repository: PlanRepository) {
+fun RoyalMilesNavHost(
+    navController: NavHostController,
+    repository: PlanRepository,
+    athleteProfileRepository: AthleteProfileRepository,
+) {
     NavHost(navController = navController, startDestination = Routes.DASHBOARD) {
         composable(Routes.DASHBOARD) {
-            val context = androidx.compose.ui.platform.LocalContext.current
             val viewModel: DashboardViewModel = viewModel(
                 factory = viewModelFactory {
                     initializer {
-                        DashboardViewModel(repository, RaceConfig.RACE_DATE, HealthConnectRepository(context.applicationContext))
+                        DashboardViewModel(repository, RaceConfig.RACE_DATE)
                     }
                 },
             )
@@ -48,6 +55,22 @@ fun RoyalMilesNavHost(navController: NavHostController, repository: PlanReposito
                 onOpenSession = { navController.navigate(Routes.session(it)) },
                 onOpenSync = { navController.navigate(Routes.SYNC) },
             )
+        }
+        composable(Routes.NUTRITION) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val viewModel: NutritionViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        NutritionViewModel(
+                            repository = repository,
+                            healthConnect = HealthConnectRepository(context.applicationContext),
+                            athleteProfileRepository = athleteProfileRepository,
+                            raceDate = RaceConfig.RACE_DATE,
+                        )
+                    }
+                },
+            )
+            NutritionScreen(viewModel = viewModel)
         }
         composable(Routes.CALENDAR) {
             val viewModel: CalendarViewModel = viewModel(
