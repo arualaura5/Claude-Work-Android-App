@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -208,57 +211,119 @@ private fun PhaseGuidanceCard(
     today: NutritionSummary?,
     modifier: Modifier = Modifier,
 ) {
+    var showInfo by remember { mutableStateOf(false) }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("This week's guidance", style = MaterialTheme.typography.titleMedium, color = RoyalPurple)
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Text("This week's guidance", style = MaterialTheme.typography.titleMedium, color = RoyalPurple)
+                IconButton(onClick = { showInfo = true }, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Filled.Info, contentDescription = "About these ratios", tint = ShimmerSilverDim)
+                }
+            }
             Text(phaseIntro(phase, targets), style = MaterialTheme.typography.bodyMedium)
 
-            if (bodyWeightKg != null) {
-                val carbTarget = targets.carbGramsFor(bodyWeightKg).roundToDisplay()
-                val proteinTarget = targets.proteinGramsFor(bodyWeightKg).roundToDisplay()
-                Text(
-                    "Carbs: this phase works out to about ${carbTarget}g a day for you" +
-                        (today?.let { " — today so far: ${it.carbsG.roundToDisplay()}g" } ?: "") + ".",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    "Protein: roughly ${proteinTarget}g a day, spread across meals — a post-session " +
-                        "snack with ~20g of protein is the single most consistent recovery habit.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            } else {
-                Text(
-                    "Add your body weight above for these turned into an actual gram target — for now, " +
-                        "roughly ${formatKg(targets.carbGramsPerKg)}g of carbs and ${formatKg(targets.proteinGramsPerKg)}g of " +
-                        "protein per kg of body weight, per day.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (bodyWeightKg != null) {
+                    val carbTarget = targets.carbGramsFor(bodyWeightKg).roundToDisplay()
+                    val proteinTarget = targets.proteinGramsFor(bodyWeightKg).roundToDisplay()
+                    MacroBullet(label = "Carbs", value = "~${carbTarget}g/day")
+                    today?.let {
+                        Text(
+                            "today so far: ${it.carbsG.roundToDisplay()}g",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ShimmerSilverDim,
+                            modifier = Modifier.padding(start = 20.dp),
+                        )
+                    }
+                    MacroBullet(label = "Protein", value = "~${proteinTarget}g/day")
+                } else {
+                    MacroBullet(label = "Carbs", value = "${formatKg(targets.carbGramsPerKg)} g/kg/day")
+                    MacroBullet(label = "Protein", value = "${formatKg(targets.proteinGramsPerKg)} g/kg/day")
+                    Text(
+                        "Add body weight above for a gram target.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ShimmerSilverDim,
+                        modifier = Modifier.padding(start = 20.dp, top = 2.dp),
+                    )
+                }
             }
 
             Text(
-                "These are ranges to inform you, not a scoreboard — no pressure to land on an exact number.",
+                "Ranges to inform you, not a scoreboard.",
                 style = MaterialTheme.typography.bodySmall,
                 color = ShimmerSilverDim,
             )
         }
     }
+
+    if (showInfo) {
+        NutritionRatioInfoDialog(onDismiss = { showInfo = false })
+    }
+}
+
+@Composable
+private fun MacroBullet(label: String, value: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text("•  $label", style = MaterialTheme.typography.bodyMedium)
+        Text(value, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun NutritionRatioInfoDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Ratios, per kg body weight") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                RatioBlock(phase = "Base", carbs = "4.0", protein = "1.3")
+                RatioBlock(phase = "Build", carbs = "6.5", protein = "1.4")
+                RatioBlock(phase = "Peak", carbs = "8.0", protein = "1.6")
+                RatioBlock(phase = "Taper", carbs = "5.0", protein = "1.4")
+                RatioBlock(phase = "Carb-loading (1–2 days pre-race)", carbs = "10.0", protein = "1.4")
+                Text(
+                    "From ACSM/IOC/ISSN sport-nutrition consensus guidelines. A post-session snack with " +
+                        "~20g protein is the single most consistent recovery habit across all phases.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ShimmerSilverDim,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Got it") }
+        },
+    )
+}
+
+@Composable
+private fun RatioBlock(phase: String, carbs: String, protein: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(phase, style = MaterialTheme.typography.labelLarge, color = RoyalPurple)
+        Text("•  Carbs — $carbs g/kg/day", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 8.dp))
+        Text("•  Protein — $protein g/kg/day", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 8.dp))
+    }
 }
 
 private fun phaseIntro(phase: TrainingPhase?, targets: NutritionTargets): String = when {
-    targets.isCarbLoadingWindow ->
-        "You're in the carb-loading window before race day — a moderate boost for a day or two, not a multi-day mega-load."
-    phase == TrainingPhase.BASE ->
-        "You're in Base phase — easy, foundational running. No need to carb-load or fuel mid-run at this stage."
-    phase == TrainingPhase.BUILD ->
-        "You're in Build phase — long runs are pushing past an hour, so carbs earn a bit more focus."
-    phase == TrainingPhase.PEAK ->
-        "Peak week — genuine endurance-nutrition territory. Worth treating your long run as a rehearsal for race-day fuelling."
-    phase == TrainingPhase.TAPER ->
-        "Taper week — training's easing off. This is about eating well and letting your legs recover, not restricting."
-    else -> "Here's this phase's guidance."
+    targets.isCarbLoadingWindow -> "Carb-loading window — a short boost before race day."
+    phase == TrainingPhase.BASE -> "Base phase — easy running, no fuelling focus needed yet."
+    phase == TrainingPhase.BUILD -> "Build phase — long runs are earning more carbs."
+    phase == TrainingPhase.PEAK -> "Peak week — treat this as race-day fuelling practice."
+    phase == TrainingPhase.TAPER -> "Taper — ease off, eat well, let your legs recover."
+    else -> "This phase's guidance."
 }
 
 private fun Double.roundToDisplay(): String = kotlin.math.round(this).toInt().toString()
