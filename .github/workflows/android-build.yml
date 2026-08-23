@@ -48,7 +48,7 @@ jobs:
             Automatically rebuilt from every push to `main` (commit ${{ github.sha }}).
             Unsigned debug build for sideloading only — not for distribution.
           files: app/build/outputs/apk/debug/*.apk
-          prerelease: true
+          prerelease: false
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
