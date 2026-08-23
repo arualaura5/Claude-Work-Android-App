@@ -52,7 +52,11 @@ class NutritionViewModel(
         _health,
     ) { weeks, bodyWeightKg, health ->
         val today = LocalDate.now()
+        // Before the plan's Monday start, or after its last week, fall back to the nearest week
+        // instead of leaving the phase (and this whole card) blank.
         val currentWeek = weeks.firstOrNull { !it.startDate.isAfter(today) && it.startDate.plusDays(6) >= today }
+            ?: weeks.filter { it.startDate.isAfter(today) }.minByOrNull { it.startDate }
+            ?: weeks.maxByOrNull { it.startDate }
         val phase = currentWeek?.phase
         val daysToRace = ChronoUnit.DAYS.between(today, raceDate)
         NutritionUiState(
