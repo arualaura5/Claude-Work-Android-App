@@ -18,6 +18,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -157,6 +159,7 @@ fun SessionEditScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }
+                EffortRatingPicker(selected = state.effortRating, onSelected = viewModel::updateEffortRating)
             }
 
             Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) {
@@ -226,6 +229,33 @@ private fun WeekDropdown(
                         onSelected(week)
                         expanded = false
                     },
+                )
+            }
+        }
+    }
+}
+
+private val effortLabels = listOf(1 to "Rough", 2 to "Tough", 3 to "OK", 4 to "Good", 5 to "Great")
+
+@Composable
+private fun EffortRatingPicker(selected: Int?, onSelected: (Int) -> Unit) {
+    Column {
+        Text("How did that feel?", style = MaterialTheme.typography.bodyLarge)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            effortLabels.forEach { (value, label) ->
+                FilterChip(
+                    selected = selected == value,
+                    onClick = { onSelected(value) },
+                    label = { Text(label) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = com.laurasheehan.royalmiles.ui.theme.ComebackGold,
+                        selectedLabelColor = MaterialTheme.colorScheme.surface,
+                    ),
                 )
             }
         }

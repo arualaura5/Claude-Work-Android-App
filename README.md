@@ -35,6 +35,24 @@ in `core/src/test/.../TrainingPlanGeneratorTest.kt` — run them with `./gradlew
 
 Also covered by unit tests in `GamificationEngineTest.kt`.
 
+## Why it's built this way
+
+The point isn't a leaderboard or a competitive score — it's staying accountable to the plan and
+having something that notices you rebuilding fitness that was hard to lose. That shaped a few
+concrete choices:
+
+- **A gentle evening nudge, not a nag.** `notifications/TrainingReminderWorker.kt` runs once a day
+  around 7pm and stays completely silent unless today has an unlogged, non-optional session — no
+  notification just to remind you the app exists.
+- **Affirmations, not just a checkbox flip.** Marking a session complete surfaces a small, varied,
+  low-key message ("Logged. That's rebuilding.") rather than a generic "Task complete."
+- **An effort/soreness tag, not just done/not-done.** Completing a session asks "how did that feel?"
+  (Rough → Great). The dashboard plots the last 10 as a small trend — an early, honest signal if
+  training is trending sore rather than fresh, which matters given how aggressive the 7-week runway
+  already is.
+- **Sync from Strava/Garmin/Google Fit via Health Connect**, so a real run doesn't also have to be
+  retyped by hand. See the dedicated section below — this piece needed a scope trade-off.
+
 ## Editing the plan
 
 Every session is a row in the database, not a fixed template — the generator only seeds the initial
@@ -50,6 +68,26 @@ what "the peak long run" or "the base phase" means for badges even after you've 
 - **`app/`** — the Android app: Room persistence (`data/`), Jetpack Compose UI (`ui/`), navigation
   (`navigation/`). Dashboard shows today's session(s), XP/level, streak, and badges; Calendar lists
   every week; tapping a session opens an editable detail screen.
+
+## Health Connect sync — scope and caveats
+
+True Strava/Garmin API integration needs *you* to register a developer app with each of them and get
+a client ID/secret — not something I can do on your behalf. The buildable, secret-free alternative is
+**Health Connect**, Android's on-device health data hub: if Strava, Garmin Connect, or Google Fit are
+set to write to it (a toggle inside each of those apps), Royal Miles can read the resulting workouts
+and offer to match one to a planned session (`ui/sync/`, reachable from the sync icon on the
+dashboard).
+
+Two deliberate simplifications, both worth knowing about:
+- **Distance isn't auto-filled**, only date, duration, and a guessed activity type. Health Connect
+  stores distance as a separate, route-shaped record with a fussier API; matching already removes
+  most of the "did I actually log today's run" friction, and you confirm distance in the normal edit
+  screen afterward.
+- **The Health Connect client library version in `app/build.gradle.kts` is pinned from memory** — this
+  sandbox couldn't reach `dl.google.com` to confirm the current release. Check/bump it in Android
+  Studio if it fails to resolve. For a sideloaded personal app (not Play Store distribution) the
+  permission flow used here is sufficient; publishing to Play would additionally need a permissions-
+  rationale activity, which isn't built here since it isn't needed for your use case.
 
 ### A note on verification
 

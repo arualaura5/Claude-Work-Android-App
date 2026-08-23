@@ -31,6 +31,8 @@ data class Stats(
     val currentStreak: Int,
     val longestStreak: Int,
     val badges: Set<Badge>,
+    /** Effort ratings (1-5) from the most recent completed sessions that have one, oldest first. */
+    val recentEffort: List<Int> = emptyList(),
 )
 
 class PlanRepository(
@@ -79,6 +81,7 @@ class PlanRepository(
         id: Long,
         actualDistanceKm: Double?,
         actualDurationMin: Int?,
+        effortRating: Int? = null,
         completedAt: LocalDate = LocalDate.now(),
     ) {
         val existing = sessionDao.getById(id) ?: return
@@ -87,6 +90,7 @@ class PlanRepository(
                 isCompleted = true,
                 actualDistanceKm = actualDistanceKm,
                 actualDurationMin = actualDurationMin,
+                effortRating = effortRating,
                 completedAt = completedAt,
             ),
         )
@@ -94,7 +98,15 @@ class PlanRepository(
 
     suspend fun markIncomplete(id: Long) {
         val existing = sessionDao.getById(id) ?: return
-        sessionDao.update(existing.copy(isCompleted = false, actualDistanceKm = null, actualDurationMin = null, completedAt = null))
+        sessionDao.update(
+            existing.copy(
+                isCompleted = false,
+                actualDistanceKm = null,
+                actualDurationMin = null,
+                effortRating = null,
+                completedAt = null,
+            ),
+        )
     }
 
     suspend fun updateSession(session: SessionEntity) = sessionDao.update(session)
@@ -117,6 +129,12 @@ class PlanRepository(
         val level = GamificationEngine.levelFor(totalXp)
         val badges = GamificationEngine.evaluateBadges(slotCompletions, snapshotPlan(sessions))
 
+        val recentEffort = completed
+            .filter { it.effortRating != null }
+            .sortedBy { it.completedAt ?: it.date }
+            .takeLast(10)
+            .mapNotNull { it.effortRating }
+
         return Stats(
             totalXp = totalXp,
             level = level,
@@ -124,6 +142,7 @@ class PlanRepository(
             currentStreak = GamificationEngine.currentStreak(calendarCompletions),
             longestStreak = GamificationEngine.longestStreak(calendarCompletions),
             badges = badges,
+            recentEffort = recentEffort,
         )
     }
 

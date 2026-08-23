@@ -23,6 +23,8 @@ data class SessionEntity(
     val actualDurationMin: Int? = null,
     val completedAt: LocalDate? = null,
     val isCustom: Boolean = false,
+    /** How it felt, 1 (rough/sore) to 5 (great) — captured only on completed sessions. */
+    val effortRating: Int? = null,
 ) {
     val isLoggable: Boolean get() = type != SessionType.REST
 }

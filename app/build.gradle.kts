@@ -42,6 +42,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+    // Version pinned as of this writing — this sandbox couldn't reach Google's Maven repo to
+    // confirm the current release, so double-check/bump this in Android Studio if it fails to resolve.
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
 
     val composeBom = platform("androidx.compose:compose-bom:2024.10.00")
     implementation(composeBom)

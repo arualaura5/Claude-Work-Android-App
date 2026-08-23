@@ -11,17 +11,21 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.laurasheehan.royalmiles.RaceConfig
 import com.laurasheehan.royalmiles.data.PlanRepository
+import com.laurasheehan.royalmiles.data.health.HealthConnectRepository
 import com.laurasheehan.royalmiles.ui.calendar.CalendarScreen
 import com.laurasheehan.royalmiles.ui.calendar.CalendarViewModel
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardScreen
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardViewModel
 import com.laurasheehan.royalmiles.ui.session.SessionEditScreen
 import com.laurasheehan.royalmiles.ui.session.SessionEditViewModel
+import com.laurasheehan.royalmiles.ui.sync.SyncScreen
+import com.laurasheehan.royalmiles.ui.sync.SyncViewModel
 
 object Routes {
     const val DASHBOARD = "dashboard"
     const val CALENDAR = "calendar"
     const val SESSION = "session/{sessionId}"
+    const val SYNC = "sync"
     const val NEW_SESSION_ID = -1L
 
     fun session(id: Long) = "session/$id"
@@ -37,6 +41,7 @@ fun RoyalMilesNavHost(navController: NavHostController, repository: PlanReposito
             DashboardScreen(
                 viewModel = viewModel,
                 onOpenSession = { navController.navigate(Routes.session(it)) },
+                onOpenSync = { navController.navigate(Routes.SYNC) },
             )
         }
         composable(Routes.CALENDAR) {
@@ -59,6 +64,15 @@ fun RoyalMilesNavHost(navController: NavHostController, repository: PlanReposito
                 factory = viewModelFactory { initializer { SessionEditViewModel(repository, resolvedId) } },
             )
             SessionEditScreen(viewModel = viewModel, onDone = { navController.popBackStack() })
+        }
+        composable(Routes.SYNC) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val viewModel: SyncViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer { SyncViewModel(repository, HealthConnectRepository(context.applicationContext)) }
+                },
+            )
+            SyncScreen(viewModel = viewModel, onDone = { navController.popBackStack() })
         }
     }
 }

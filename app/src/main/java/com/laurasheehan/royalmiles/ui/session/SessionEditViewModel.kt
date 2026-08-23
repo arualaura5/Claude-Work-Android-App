@@ -29,6 +29,7 @@ data class SessionEditUiState(
     val isCompleted: Boolean = false,
     val actualDistanceKm: String = "",
     val actualDurationMin: String = "",
+    val effortRating: Int? = null,
     val availableWeeks: List<UiWeek> = emptyList(),
     val saved: Boolean = false,
     val deleted: Boolean = false,
@@ -62,6 +63,7 @@ class SessionEditViewModel(
                         isCompleted = existing.isCompleted,
                         actualDistanceKm = existing.actualDistanceKm?.let { formatNumber(it) } ?: "",
                         actualDurationMin = existing.actualDurationMin?.toString() ?: "",
+                        effortRating = existing.effortRating,
                         availableWeeks = weeks,
                     )
                 } else {
@@ -88,7 +90,10 @@ class SessionEditViewModel(
     fun updateOptional(value: Boolean) = _uiState.update { it.copy(optional = value) }
     fun updateActualDistance(value: String) = _uiState.update { it.copy(actualDistanceKm = value) }
     fun updateActualDuration(value: String) = _uiState.update { it.copy(actualDurationMin = value) }
-    fun updateCompleted(value: Boolean) = _uiState.update { it.copy(isCompleted = value) }
+    fun updateCompleted(value: Boolean) = _uiState.update {
+        it.copy(isCompleted = value, effortRating = if (value) it.effortRating else null)
+    }
+    fun updateEffortRating(value: Int) = _uiState.update { it.copy(effortRating = value) }
 
     fun updateWeek(week: UiWeek) = _uiState.update { it.copy(weekNumber = week.weekNumber, phase = week.phase) }
 
@@ -116,6 +121,7 @@ class SessionEditViewModel(
                         isCompleted = state.isCompleted,
                         actualDistanceKm = if (state.isCompleted) actualDistance ?: distance else null,
                         actualDurationMin = if (state.isCompleted) actualDuration ?: duration else null,
+                        effortRating = if (state.isCompleted) state.effortRating else null,
                         completedAt = completedAt,
                     ),
                 )
@@ -135,6 +141,7 @@ class SessionEditViewModel(
                         isCompleted = state.isCompleted,
                         actualDistanceKm = if (state.isCompleted) (actualDistance ?: distance) else null,
                         actualDurationMin = if (state.isCompleted) (actualDuration ?: duration) else null,
+                        effortRating = if (state.isCompleted) state.effortRating else null,
                         completedAt = if (state.isCompleted) (existing.completedAt ?: LocalDate.now()) else null,
                     ),
                 )
