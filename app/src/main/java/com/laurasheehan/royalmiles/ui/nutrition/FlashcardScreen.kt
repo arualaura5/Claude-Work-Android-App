@@ -46,6 +46,7 @@ import com.laurasheehan.royalmiles.core.education.NutritionFlashcards
 import com.laurasheehan.royalmiles.ui.theme.BlushPink
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
 import com.laurasheehan.royalmiles.ui.theme.RoyalPurple
+import com.laurasheehan.royalmiles.ui.theme.ShimmerSilver
 import com.laurasheehan.royalmiles.ui.theme.ShimmerSilverDim
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,6 +131,10 @@ fun FlashcardScreen(onDone: () -> Unit) {
     }
 }
 
+/**
+ * The question is the bright face — it's the prompt you're meant to sit with. The answer is
+ * deliberately subdued: it's reading material, so it gets a calm surface and no competing color.
+ */
 @Composable
 private fun Flashcard(card: NutritionFlashcard, flipped: Boolean, onTap: () -> Unit, modifier: Modifier = Modifier) {
     Card(
@@ -138,14 +143,15 @@ private fun Flashcard(card: NutritionFlashcard, flipped: Boolean, onTap: () -> U
             .clickable(onClick = onTap),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
+        val faceBackground = if (flipped) {
+            Modifier.background(MaterialTheme.colorScheme.surface)
+        } else {
+            Modifier.background(Brush.verticalGradient(listOf(RoyalPurple, BlushPink)))
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        if (flipped) listOf(RoyalPurple, BlushPink) else listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surface),
-                    ),
-                )
+                .then(faceBackground)
                 .padding(24.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.Center,
@@ -156,22 +162,31 @@ private fun Flashcard(card: NutritionFlashcard, flipped: Boolean, onTap: () -> U
                 label = "flashcard-flip",
             ) { showAnswer ->
                 if (showAnswer) {
-                    Text(
-                        card.answer,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color.White,
-                    )
+                    Column {
+                        Text(
+                            "Answer",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = ShimmerSilverDim,
+                        )
+                        Text(
+                            card.answer,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = ShimmerSilver,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                    }
                 } else {
                     Column {
                         Text(
                             "Tap to reveal",
                             style = MaterialTheme.typography.labelMedium,
-                            color = ShimmerSilverDim,
+                            color = Color.White.copy(alpha = 0.75f),
                             fontStyle = FontStyle.Italic,
                         )
                         Text(
                             card.question,
                             style = MaterialTheme.typography.headlineSmall,
+                            color = Color.White,
                             modifier = Modifier.padding(top = 12.dp),
                         )
                     }

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MenuBook
@@ -307,7 +309,7 @@ private fun PhaseGuidanceCard(
     }
 
     if (showInfo) {
-        NutritionRatioInfoDialog(onDismiss = { showInfo = false })
+        NutritionRatioInfoDialog(bodyWeightKg = bodyWeightKg, onDismiss = { showInfo = false })
     }
 }
 
@@ -325,20 +327,44 @@ private fun MacroBullet(label: String, value: String, modifier: Modifier = Modif
 }
 
 @Composable
-private fun NutritionRatioInfoDialog(onDismiss: () -> Unit) {
+private fun NutritionRatioInfoDialog(bodyWeightKg: Double?, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Ratios, per kg body weight") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 RatioBlock(phase = "Base", carbs = "4.0", protein = "1.3")
                 RatioBlock(phase = "Build", carbs = "6.5", protein = "1.4")
                 RatioBlock(phase = "Peak", carbs = "8.0", protein = "1.6")
                 RatioBlock(phase = "Taper", carbs = "5.0", protein = "1.4")
                 RatioBlock(phase = "Carb-loading (1–2 days pre-race)", carbs = "10.0", protein = "1.4")
+
+                Text("Post-session snack", style = MaterialTheme.typography.labelLarge, color = RoyalPurple)
                 Text(
-                    "From ACSM/IOC/ISSN sport-nutrition consensus guidelines. A post-session snack with " +
-                        "~20g protein is the single most consistent recovery habit across all phases.",
+                    "•  0.25–0.4 g/kg of protein" +
+                        (bodyWeightKg?.let { " — about ${postSessionRange(it)} for you" } ?: "") +
+                        ", within 30 minutes",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+                Text(
+                    "•  Alongside carbs, roughly 3-4:1 carbs to protein",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+                Text(
+                    "The familiar \"~20g\" is this range rounded for an ~80kg study population. It's a " +
+                        "floor, not a cap — after whole-body strength work a larger dose does more.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ShimmerSilverDim,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+
+                Text(
+                    "From ACSM/IOC/ISSN sport-nutrition consensus guidelines.",
                     style = MaterialTheme.typography.bodySmall,
                     color = ShimmerSilverDim,
                 )
@@ -348,6 +374,13 @@ private fun NutritionRatioInfoDialog(onDismiss: () -> Unit) {
             TextButton(onClick = onDismiss) { Text("Got it") }
         },
     )
+}
+
+/** The 0.25-0.4 g/kg post-session protein window, rendered as a concrete gram range. */
+private fun postSessionRange(bodyWeightKg: Double): String {
+    val low = kotlin.math.round(bodyWeightKg * 0.25).toInt()
+    val high = kotlin.math.round(bodyWeightKg * 0.4).toInt()
+    return "$low–${high}g"
 }
 
 @Composable
