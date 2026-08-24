@@ -48,7 +48,6 @@ import com.laurasheehan.royalmiles.data.health.NutritionSummary
 import com.laurasheehan.royalmiles.ui.theme.BlushPink
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
 import com.laurasheehan.royalmiles.ui.theme.RoyalPurple
-import com.laurasheehan.royalmiles.ui.theme.ShimmerSilverDim
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,7 +85,7 @@ fun NutritionScreen(viewModel: NutritionViewModel, onOpenLearn: () -> Unit) {
                         Text(
                             "Health Connect isn't available on this device. It ships with Android 14+ and " +
                                 "can be installed from the Play Store on most phones back to Android 9.",
-                            color = ShimmerSilverDim,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -98,7 +97,7 @@ fun NutritionScreen(viewModel: NutritionViewModel, onOpenLearn: () -> Unit) {
                         Text(
                             "Connect Health Connect to see the food you log in Cronometer here, alongside " +
                                 "supportive, phase-aware guidance for this stage of training.",
-                            color = ShimmerSilverDim,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Button(onClick = { permissionLauncher.launch(viewModel.permissionsToRequest) }) {
                             Text("Connect Health Connect")
@@ -170,13 +169,13 @@ private fun TodayCard(nutrition: NutritionSummary?, modifier: Modifier = Modifie
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Today's food", style = MaterialTheme.typography.titleMedium)
-            Text("via Cronometer", style = MaterialTheme.typography.bodySmall, color = ShimmerSilverDim)
+            Text("via Cronometer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (nutrition == null) {
                 Text(
                     "Nothing logged yet today, or it hasn't synced from Cronometer to Health Connect yet. " +
                         "Tap refresh once you've logged something.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = ShimmerSilverDim,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             } else {
@@ -198,7 +197,7 @@ private fun TodayCard(nutrition: NutritionSummary?, modifier: Modifier = Modifie
 private fun NutritionStat(label: String, value: String) {
     Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
         Text(value, style = MaterialTheme.typography.titleLarge)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = ShimmerSilverDim)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -216,7 +215,7 @@ private fun BodyWeightCard(bodyWeightKg: Double?, onSave: (Double?) -> Unit, mod
             Text(
                 "Only used to scale the g/kg guidance below to you. Optional — nothing else in the app uses it.",
                 style = MaterialTheme.typography.bodySmall,
-                color = ShimmerSilverDim,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (editing) {
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -269,7 +268,7 @@ private fun PhaseGuidanceCard(
             ) {
                 Text("This week's guidance", style = MaterialTheme.typography.titleMedium, color = RoyalPurple)
                 IconButton(onClick = { showInfo = true }, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Filled.Info, contentDescription = "About these ratios", tint = ShimmerSilverDim)
+                    Icon(Icons.Filled.Info, contentDescription = "About these ratios", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Text(phaseIntro(phase, targets), style = MaterialTheme.typography.bodyMedium)
@@ -283,7 +282,7 @@ private fun PhaseGuidanceCard(
                         Text(
                             "today so far: ${it.carbsG.roundToDisplay()}g",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ShimmerSilverDim,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 20.dp),
                         )
                     }
@@ -294,7 +293,7 @@ private fun PhaseGuidanceCard(
                     Text(
                         "Add body weight above for a gram target.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = ShimmerSilverDim,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 20.dp, top = 2.dp),
                     )
                 }
@@ -303,7 +302,7 @@ private fun PhaseGuidanceCard(
             Text(
                 "Ranges to inform you, not a scoreboard.",
                 style = MaterialTheme.typography.bodySmall,
-                color = ShimmerSilverDim,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -359,14 +358,14 @@ private fun NutritionRatioInfoDialog(bodyWeightKg: Double?, onDismiss: () -> Uni
                     "The familiar \"~20g\" is this range rounded for an ~80kg study population. It's a " +
                         "floor, not a cap — after whole-body strength work a larger dose does more.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = ShimmerSilverDim,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 8.dp),
                 )
 
                 Text(
                     "From ACSM/IOC/ISSN sport-nutrition consensus guidelines.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = ShimmerSilverDim,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },

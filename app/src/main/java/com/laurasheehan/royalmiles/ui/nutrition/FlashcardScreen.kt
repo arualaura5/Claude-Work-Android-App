@@ -46,8 +46,6 @@ import com.laurasheehan.royalmiles.core.education.NutritionFlashcards
 import com.laurasheehan.royalmiles.ui.theme.BlushPink
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
 import com.laurasheehan.royalmiles.ui.theme.RoyalPurple
-import com.laurasheehan.royalmiles.ui.theme.ShimmerSilver
-import com.laurasheehan.royalmiles.ui.theme.ShimmerSilverDim
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,12 +77,12 @@ fun FlashcardScreen(onDone: () -> Unit) {
             Text(
                 "Card ${index + 1} of ${cards.size}",
                 style = MaterialTheme.typography.labelLarge,
-                color = ShimmerSilverDim,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             LinearProgressIndicator(
                 progress = { (index + 1) / cards.size.toFloat() },
                 color = ComebackGold,
-                trackColor = MaterialTheme.colorScheme.surface,
+                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp, bottom = 24.dp),
@@ -143,8 +141,10 @@ private fun Flashcard(card: NutritionFlashcard, flipped: Boolean, onTap: () -> U
             .clickable(onClick = onTap),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
+        // surfaceVariant rather than plain surface: enough tint that the answer face reads as a
+        // panel with content on it, without competing with the question's gradient.
         val faceBackground = if (flipped) {
-            Modifier.background(MaterialTheme.colorScheme.surface)
+            Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
         } else {
             Modifier.background(Brush.verticalGradient(listOf(RoyalPurple, BlushPink)))
         }
@@ -166,12 +166,12 @@ private fun Flashcard(card: NutritionFlashcard, flipped: Boolean, onTap: () -> U
                         Text(
                             "Answer",
                             style = MaterialTheme.typography.labelMedium,
-                            color = ShimmerSilverDim,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             card.answer,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = ShimmerSilver,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(top = 12.dp),
                         )
                     }

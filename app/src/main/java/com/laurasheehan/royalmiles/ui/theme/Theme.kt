@@ -39,8 +39,8 @@ private val RoyalMilesLightColors = lightColorScheme(
     surface = Color.White,
     onSurface = InkOnLight,
     surfaceVariant = CloudLavender,
-    onSurfaceVariant = InkOnLight,
-    outline = ShimmerSilverDim,
+    onSurfaceVariant = MutedOnLight,
+    outline = MutedOnLight,
 )
 
 @Composable

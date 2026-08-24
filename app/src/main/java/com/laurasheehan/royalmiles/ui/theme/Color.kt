@@ -17,6 +17,8 @@ val ShimmerSilver = Color(0xFFD9DBEA)
 val ShimmerSilverDim = Color(0xFF9EA2C4)
 val CloudLavender = Color(0xFFF3F0FF)
 val InkOnLight = Color(0xFF1B1533)
+/** Secondary text on light surfaces. ShimmerSilverDim is tuned for navy and washes out on white. */
+val MutedOnLight = Color(0xFF615D80)
 
 // Session-type accent colors, used consistently across cards, chips, and the calendar.
 val ColorEasyRun = Color(0xFF57C4FF)

@@ -32,7 +32,6 @@ import com.laurasheehan.royalmiles.ui.theme.ComebackGold
 import com.laurasheehan.royalmiles.ui.theme.ComebackGoldSoft
 import com.laurasheehan.royalmiles.ui.theme.RoyalPurple
 import com.laurasheehan.royalmiles.ui.theme.RoyalPurpleLight
-import com.laurasheehan.royalmiles.ui.theme.ShimmerSilverDim
 
 private val xpShimmerColors = listOf(RoyalPurple, BlushPink, ComebackGold, RoyalPurpleLight, RoyalPurple)
 
@@ -63,7 +62,7 @@ fun XpBar(totalXp: Int, level: Level, xpToNextLevel: Int?, modifier: Modifier = 
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(14.dp)
-                    .background(ShimmerSilverDim.copy(alpha = 0.25f)),
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)),
             )
             Box(
                 modifier = Modifier
@@ -75,7 +74,7 @@ fun XpBar(totalXp: Int, level: Level, xpToNextLevel: Int?, modifier: Modifier = 
         Text(
             text = if (xpToNextLevel != null) "$xpToNextLevel XP to next level" else "Max level reached — legend status",
             style = MaterialTheme.typography.labelSmall,
-            color = ShimmerSilverDim,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
         )
     }
@@ -113,7 +112,7 @@ fun BadgeChip(badge: Badge, unlocked: Boolean, modifier: Modifier = Modifier) {
             }
             .border(
                 width = 1.dp,
-                color = if (unlocked) ComebackGold else ShimmerSilverDim.copy(alpha = 0.5f),
+                color = if (unlocked) ComebackGold else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 shape = RoundedCornerShape(50),
             )
             .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -123,13 +122,13 @@ fun BadgeChip(badge: Badge, unlocked: Boolean, modifier: Modifier = Modifier) {
         Icon(
             imageVector = if (unlocked) Icons.Filled.EmojiEvents else Icons.Filled.Lock,
             contentDescription = null,
-            tint = if (unlocked) Color(0xFF3A2A00) else ShimmerSilverDim,
+            tint = if (unlocked) Color(0xFF3A2A00) else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(16.dp),
         )
         Text(
             text = badge.title,
             style = MaterialTheme.typography.labelSmall,
-            color = if (unlocked) Color(0xFF3A2A00) else ShimmerSilverDim,
+            color = if (unlocked) Color(0xFF3A2A00) else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

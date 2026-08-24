@@ -28,7 +28,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
-import com.laurasheehan.royalmiles.ui.theme.ShimmerSilverDim
 
 @Composable
 fun SessionCard(
@@ -70,14 +69,14 @@ fun SessionCard(
                 Text(
                     text = sessionSubtitle(session),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = ShimmerSilverDim,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (session.isCompleted) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = "Completed", tint = ComebackGold)
             } else if (session.isLoggable) {
                 IconButton(onClick = onToggleComplete) {
-                    Icon(Icons.Filled.RadioButtonUnchecked, contentDescription = "Mark complete", tint = ShimmerSilverDim)
+                    Icon(Icons.Filled.RadioButtonUnchecked, contentDescription = "Mark complete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

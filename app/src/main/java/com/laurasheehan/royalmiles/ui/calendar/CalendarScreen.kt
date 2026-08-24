@@ -35,7 +35,6 @@ import com.laurasheehan.royalmiles.ui.components.SessionCard
 import com.laurasheehan.royalmiles.ui.theme.BlushPink
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
 import com.laurasheehan.royalmiles.ui.theme.RoyalPurple
-import com.laurasheehan.royalmiles.ui.theme.ShimmerSilverDim
 import java.time.format.DateTimeFormatter
 
 private val weekDateFormat = DateTimeFormatter.ofPattern("d MMM")
@@ -110,7 +109,7 @@ private fun WeekHeader(weekNumber: Int, phase: TrainingPhase, startDate: java.ti
             Text(
                 "w/c ${startDate.format(weekDateFormat)} · ${phase.label}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = ShimmerSilverDim,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         if (longRunKm != null) {

@@ -41,7 +41,6 @@ import com.laurasheehan.royalmiles.ui.components.XpBar
 import com.laurasheehan.royalmiles.ui.theme.BlushPink
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
 import com.laurasheehan.royalmiles.ui.theme.RoyalPurple
-import com.laurasheehan.royalmiles.ui.theme.ShimmerSilverDim
 
 @Composable
 fun DashboardScreen(
@@ -120,7 +119,7 @@ fun DashboardScreen(
 
             item { Text("Today", style = MaterialTheme.typography.titleLarge) }
             if (state.today.isEmpty()) {
-                item { Text("Nothing scheduled today. Rest counts too.", color = ShimmerSilverDim) }
+                item { Text("Nothing scheduled today. Rest counts too.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             } else {
                 items(state.today, key = { it.id }) { session ->
                     SessionCard(

@@ -39,7 +39,6 @@ import com.laurasheehan.royalmiles.ui.components.accentColor
 import com.laurasheehan.royalmiles.ui.components.icon
 import com.laurasheehan.royalmiles.ui.components.label
 import com.laurasheehan.royalmiles.ui.theme.RoyalPurple
-import com.laurasheehan.royalmiles.ui.theme.ShimmerSilverDim
 import java.time.format.DateTimeFormatter
 
 private val workoutDateFormat = DateTimeFormatter.ofPattern("EEE d MMM")
@@ -83,7 +82,7 @@ fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit) {
                     Text(
                         "Health Connect isn't available on this device. It ships with Android 14+ and " +
                             "can be installed from the Play Store on most phones back to Android 9.",
-                        color = ShimmerSilverDim,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -98,7 +97,7 @@ fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit) {
                     Text(
                         "Connect Health Connect to see workouts logged by Strava, Garmin Connect or " +
                             "Google Fit here, and match them to a planned session instead of typing it in.",
-                        color = ShimmerSilverDim,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Button(onClick = { permissionLauncher.launch(viewModel.permissionsToRequest) }) {
                         Text("Connect Health Connect")
@@ -114,7 +113,7 @@ fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     if (state.workouts.isEmpty()) {
-                        item { Text("No workouts in Health Connect from the last 7 days yet.", color = ShimmerSilverDim) }
+                        item { Text("No workouts in Health Connect from the last 7 days yet.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                     items(state.workouts) { workout ->
                         WorkoutCard(workout = workout, onMatch = { pendingMatch = workout })
@@ -162,7 +161,7 @@ private fun WorkoutCard(workout: ExternalWorkout, onMatch: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Icon(workout.guessedType.icon(), contentDescription = null, tint = workout.guessedType.accentColor())
-                Text(workout.localDate.format(workoutDateFormat), color = ShimmerSilverDim)
+                Text(workout.localDate.format(workoutDateFormat), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(
                 "${workout.title ?: workout.guessedType.label()} · ${workout.durationMinutes} min",
