@@ -32,6 +32,22 @@ class TrainingPlanGeneratorTest {
     }
 
     @Test
+    fun `the mid-week easy run falls on Tuesday, with strength on Wednesday`() {
+        val plan = TrainingPlanGenerator.generate(raceDate = raceDate, today = today)
+
+        // Race week runs its own countdown structure, so it's excluded.
+        val regularWeeks = plan.weeks.filter { it.phase != TrainingPhase.TAPER }
+        assertTrue(regularWeeks.isNotEmpty())
+
+        regularWeeks.forEach { week ->
+            val tuesday = week.sessions.single { it.date.dayOfWeek == java.time.DayOfWeek.TUESDAY }
+            val wednesday = week.sessions.single { it.date.dayOfWeek == java.time.DayOfWeek.WEDNESDAY }
+            assertEquals(SessionType.EASY_RUN, tuesday.type)
+            assertEquals(SessionType.STRENGTH, wednesday.type)
+        }
+    }
+
+    @Test
     fun `first two weeks are base phase with no session over 5km`() {
         val plan = TrainingPlanGenerator.generate(raceDate = raceDate, today = today)
 

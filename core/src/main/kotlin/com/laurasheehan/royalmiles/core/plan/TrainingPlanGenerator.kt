@@ -93,15 +93,15 @@ object TrainingPlanGenerator {
         val easyDistance = roundToHalf((3.0 + (weekNumber - 1) * 1.0).coerceAtMost(5.0))
         return listOf(
             Session(weekStart, SessionType.REST, "Rest day", phase, notes = "Full recovery. Legs up if you can."),
-            Session(weekStart.plusDays(1), SessionType.STRENGTH, "Strength", phase, targetDurationMin = 35),
             Session(
-                weekStart.plusDays(2),
+                weekStart.plusDays(1),
                 SessionType.EASY_RUN,
                 "Easy run",
                 phase,
                 targetDistanceKm = easyDistance,
                 notes = "Conversational pace only.",
             ),
+            Session(weekStart.plusDays(2), SessionType.STRENGTH, "Strength", phase, targetDurationMin = 35),
             Session(weekStart.plusDays(3), SessionType.YOGA, "Yoga / mobility", phase, targetDurationMin = 30),
             Session(weekStart.plusDays(4), SessionType.STRENGTH, "Strength", phase, targetDurationMin = 35),
             Session(
@@ -138,14 +138,14 @@ object TrainingPlanGenerator {
         }
         return listOf(
             Session(weekStart, SessionType.REST, "Rest day", phase),
-            Session(weekStart.plusDays(1), SessionType.STRENGTH, "Strength", phase, targetDurationMin = 35),
             Session(
-                weekStart.plusDays(2),
+                weekStart.plusDays(1),
                 SessionType.EASY_RUN,
                 "Easy run",
                 phase,
                 targetDistanceKm = midWeekDistance,
             ),
+            Session(weekStart.plusDays(2), SessionType.STRENGTH, "Strength", phase, targetDurationMin = 35),
             Session(weekStart.plusDays(3), SessionType.YOGA, "Yoga / mobility", phase, targetDurationMin = 30),
             Session(weekStart.plusDays(4), SessionType.STRENGTH, "Strength", phase, targetDurationMin = 30),
             Session(
