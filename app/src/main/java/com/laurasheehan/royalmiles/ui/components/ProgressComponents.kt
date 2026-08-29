@@ -57,7 +57,7 @@ fun LongRunProgression(
         Column(Modifier.padding(16.dp)) {
             Text("The long run ladder", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Where the distance goes. Nothing here is a time.",
+                "Kilometres — where you are now, and every long run to race day.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -104,23 +104,6 @@ fun LongRunProgression(
                         )
                     }
                 }
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    "km",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    "race day",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }

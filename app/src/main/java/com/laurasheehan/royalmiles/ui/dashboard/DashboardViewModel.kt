@@ -80,7 +80,11 @@ class DashboardViewModel(
         val longRunSessions = allSessions
             .filter { it.type == SessionType.LONG_RUN || it.type == SessionType.RACE }
             .sortedBy { it.date }
-        val firstUndone = longRunSessions.firstOrNull { !it.isCompleted }?.id
+        val furthestRun = allSessions
+            .filter { it.isCompleted && it.type in RUN_TYPES }
+            .mapNotNull { it.actualDistanceKm ?: it.targetDistanceKm }
+            .maxOrNull()
+            ?: 0.0
 
         DashboardUiState(
             stats = stats,
@@ -99,14 +103,7 @@ class DashboardViewModel(
             weekNumber = currentWeek?.weekNumber ?: 0,
             totalWeeks = weeks.size,
             weekCommencing = currentWeek?.startDate,
-            longRuns = longRunSessions.map {
-                LongRunPoint(
-                    km = it.actualDistanceKm ?: it.targetDistanceKm ?: 0.0,
-                    done = it.isCompleted,
-                    isNext = it.id == firstUndone,
-                    isRace = it.type == SessionType.RACE,
-                )
-            }.filter { it.km > 0 },
+            longRuns = ladder(longRunSessions, furthestRun),
             weekWrap = weekWrapFor(stats, today),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
@@ -209,6 +206,41 @@ class DashboardViewModel(
     fun scaleDownThisWeek() {
         val week = uiState.value.weekCommencing ?: WeekSummaries.weekCommencing(LocalDate.now())
         viewModelScope.launch { repository.scaleDownWeek(week) }
+    }
+}
+
+private val RUN_TYPES = setOf(SessionType.EASY_RUN, SessionType.LONG_RUN, SessionType.RACE)
+
+/**
+ * Builds the long-run ladder from the planned rungs plus how far she has actually run.
+ *
+ * A rung counts as climbed once she has covered that distance, whether or not that particular
+ * scheduled session was the one that did it — the ladder is about distance reached, not adherence
+ * to a date. And when her furthest run so far sits below the first planned rung, it goes on the
+ * front as its own completed bar: 5km back is real progress and the chart should say so rather
+ * than starting at 8 and showing nothing done.
+ */
+private fun ladder(longRunSessions: List<SessionEntity>, furthestRun: Double): List<LongRunPoint> {
+    val rungs = longRunSessions.mapNotNull { session ->
+        val km = if (session.isCompleted) {
+            session.actualDistanceKm ?: session.targetDistanceKm
+        } else {
+            session.targetDistanceKm
+        }
+        km?.takeIf { it > 0 }?.let { distance ->
+            Triple(distance, session.isCompleted || furthestRun >= distance, session.type == SessionType.RACE)
+        }
+    }
+
+    val withFurthest = if (furthestRun > 0 && rungs.none { it.first <= furthestRun }) {
+        listOf(Triple(furthestRun, true, false)) + rungs
+    } else {
+        rungs
+    }
+
+    val nextIndex = withFurthest.indexOfFirst { !it.second }
+    return withFurthest.mapIndexed { index, (km, done, isRace) ->
+        LongRunPoint(km = km, done = done, isNext = index == nextIndex, isRace = isRace)
     }
 }
 
