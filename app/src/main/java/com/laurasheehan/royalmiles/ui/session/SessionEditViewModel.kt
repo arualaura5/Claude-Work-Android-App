@@ -7,7 +7,10 @@ import com.laurasheehan.royalmiles.core.model.TrainingPhase
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.data.UiWeek
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -110,7 +113,21 @@ class SessionEditViewModel(
     }
     fun updateEffortRating(value: Int) = _uiState.update { it.copy(effortRating = value) }
 
-    fun updateWeek(week: UiWeek) = _uiState.update { it.copy(weekNumber = week.weekNumber, phase = week.phase) }
+    /**
+     * The calendar groups by date now, so picking a week has to move the date too — otherwise the
+     * choice would appear to do nothing. Keeps the session on the same weekday.
+     */
+    fun updateWeek(week: UiWeek) = _uiState.update { state ->
+        val weekdayOffset = ChronoUnit.DAYS.between(
+            state.date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)),
+            state.date,
+        )
+        state.copy(
+            weekNumber = week.weekNumber,
+            phase = week.phase,
+            date = week.startDate.plusDays(weekdayOffset),
+        )
+    }
 
     fun save() {
         val state = _uiState.value

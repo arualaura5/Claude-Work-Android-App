@@ -10,7 +10,9 @@ import com.laurasheehan.royalmiles.core.model.TrainingPhase
 import com.laurasheehan.royalmiles.core.model.TrainingPlan
 import com.laurasheehan.royalmiles.core.model.TrainingWeek
 import com.laurasheehan.royalmiles.core.plan.TrainingPlanGenerator
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -22,6 +24,23 @@ data class UiWeek(
 ) {
     val longRunKm: Double?
         get() = sessions.firstOrNull { it.type == SessionType.LONG_RUN || it.type == SessionType.RACE }?.targetDistanceKm
+}
+
+/**
+ * Date first, then what actually happened before what's merely planned: a session carrying real
+ * logged numbers leads, then anything else marked done, then the rest. Ties fall back to id so the
+ * order is stable rather than arbitrary.
+ */
+private val sessionOrder = compareBy<SessionEntity>(
+    { it.date },
+    { loggedRank(it) },
+    { it.id },
+)
+
+private fun loggedRank(session: SessionEntity): Int = when {
+    session.actualDistanceKm != null || session.actualDurationMin != null -> 0
+    session.isCompleted -> 1
+    else -> 2
 }
 
 data class Stats(
@@ -59,16 +78,26 @@ class PlanRepository(
 
     fun observeSessions(): Flow<List<SessionEntity>> = sessionDao.observeAll()
 
+    /**
+     * Weeks are grouped by the Monday each session actually falls in, not by the stored
+     * [SessionEntity.weekNumber] — so moving a session across a week boundary files it under the
+     * week it now belongs to, and the header stays pinned to the real Monday rather than drifting
+     * to whatever the earliest session happens to be.
+     */
     fun observeWeeks(): Flow<List<UiWeek>> = observeSessions().map { sessions ->
-        sessions.groupBy { it.weekNumber }.toSortedMap().map { (weekNumber, weekSessions) ->
-            val sorted = weekSessions.sortedBy { it.date }
-            UiWeek(
-                weekNumber = weekNumber,
-                phase = sorted.first().phase,
-                startDate = sorted.minOf { it.date },
-                sessions = sorted,
-            )
-        }
+        sessions
+            .groupBy { it.date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) }
+            .toSortedMap()
+            .entries
+            .mapIndexed { index, entry ->
+                val weekSessions = entry.value.sortedWith(sessionOrder)
+                UiWeek(
+                    weekNumber = index + 1,
+                    phase = weekSessions.first().phase,
+                    startDate = entry.key,
+                    sessions = weekSessions,
+                )
+            }
     }
 
     fun observeStats(): Flow<Stats> = observeSessions().map { computeStats(it) }
