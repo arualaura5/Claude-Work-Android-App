@@ -35,6 +35,21 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 const val GARMIN_PACKAGE = "com.garmin.android.apps.connectmobile"
+const val WITHINGS_PACKAGE = "com.withings.wiscale2"
+
+/** A body-weight reading plus where it came from, so the UI can say which scale it trusts. */
+data class WeightReading(
+    val kg: Double,
+    val sourceApp: String,
+    val recordedAt: Instant,
+) {
+    val sourceLabel: String
+        get() = when (sourceApp) {
+            WITHINGS_PACKAGE -> "Withings"
+            GARMIN_PACKAGE -> "Garmin"
+            else -> sourceApp.substringAfterLast('.')
+        }
+}
 
 /**
  * A workout as Garmin (or Strava, or Google Fit) wrote it to Health Connect.
@@ -217,6 +232,39 @@ class HealthConnectRepository(private val context: Context) {
             )
         } catch (e: Exception) {
             workout
+        }
+    }
+
+    /**
+     * The most recent body weight, preferring the Withings scale.
+     *
+     * Several apps can write weight — a watch app with a hand-typed value, a second scale — and the
+     * newest record isn't necessarily the most trustworthy. Withings wins when it has anything at
+     * all; only if it has nothing does this fall back to the newest from any source.
+     */
+    suspend fun latestWeight(days: Long = 180): WeightReading? {
+        if (HealthPermission.getReadPermission(WeightRecord::class) !in granted()) return null
+        return try {
+            val records = HealthConnectClient.getOrCreate(context).readRecords(
+                ReadRecordsRequest(
+                    recordType = WeightRecord::class,
+                    timeRangeFilter = TimeRangeFilter.after(
+                        Instant.now().minusSeconds(days * 24 * 60 * 60),
+                    ),
+                ),
+            ).records
+            val preferred = records.filter { it.metadata.dataOrigin.packageName == WITHINGS_PACKAGE }
+            (preferred.ifEmpty { records })
+                .maxByOrNull { it.time }
+                ?.let {
+                    WeightReading(
+                        kg = it.weight.inKilograms,
+                        sourceApp = it.metadata.dataOrigin.packageName,
+                        recordedAt = it.time,
+                    )
+                }
+        } catch (e: Exception) {
+            null
         }
     }
 

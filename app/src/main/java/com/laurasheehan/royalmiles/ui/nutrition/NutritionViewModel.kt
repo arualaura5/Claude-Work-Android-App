@@ -28,6 +28,8 @@ data class NutritionUiState(
     val daysToRace: Long = 0,
     val targets: NutritionTargets? = null,
     val bodyWeightKg: Double? = null,
+    /** e.g. "Withings" when the weight came from the scale rather than being typed in. */
+    val weightSource: String? = null,
 )
 
 private data class HealthState(
@@ -35,6 +37,7 @@ private data class HealthState(
     val available: Boolean = false,
     val hasPermission: Boolean = false,
     val today: NutritionSummary? = null,
+    val weightSource: String? = null,
 )
 
 class NutritionViewModel(
@@ -68,6 +71,7 @@ class NutritionViewModel(
             daysToRace = daysToRace,
             targets = phase?.let { NutritionTargetsCalculator.targetsFor(it, daysToRace) },
             bodyWeightKg = bodyWeightKg,
+            weightSource = health.weightSource,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NutritionUiState())
 
@@ -81,7 +85,19 @@ class NutritionViewModel(
             val available = healthConnect.isAvailable()
             val hasPermission = available && healthConnect.hasPermissions()
             val today = if (hasPermission) healthConnect.nutritionSummaryForToday() else null
-            _health.value = HealthState(loading = false, available = available, hasPermission = hasPermission, today = today)
+
+            // Persist the scale reading rather than only displaying it, so the g/kg targets still
+            // resolve if Health Connect is unreachable later.
+            val weight = if (hasPermission) healthConnect.latestWeight() else null
+            weight?.let { athleteProfileRepository.setBodyWeightKg(it.kg) }
+
+            _health.value = HealthState(
+                loading = false,
+                available = available,
+                hasPermission = hasPermission,
+                today = today,
+                weightSource = weight?.sourceLabel,
+            )
         }
     }
 

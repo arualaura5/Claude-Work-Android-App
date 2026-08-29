@@ -114,6 +114,7 @@ fun NutritionScreen(viewModel: NutritionViewModel, onOpenLearn: () -> Unit) {
                         item {
                             BodyWeightCard(
                                 bodyWeightKg = state.bodyWeightKg,
+                                weightSource = state.weightSource,
                                 onSave = { viewModel.setBodyWeightKg(it) },
                             )
                         }
@@ -202,7 +203,14 @@ private fun NutritionStat(label: String, value: String) {
 }
 
 @Composable
-private fun BodyWeightCard(bodyWeightKg: Double?, onSave: (Double?) -> Unit, modifier: Modifier = Modifier) {
+private fun BodyWeightCard(
+    bodyWeightKg: Double?,
+    weightSource: String?,
+    onSave: (Double?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Only open straight into edit mode when there's genuinely nothing — a synced scale reading
+    // shouldn't drop you into a text field you didn't ask for.
     var editing by remember(bodyWeightKg) { mutableStateOf(bodyWeightKg == null) }
     var input by remember(bodyWeightKg) { mutableStateOf(bodyWeightKg?.toString() ?: "") }
 
@@ -213,7 +221,12 @@ private fun BodyWeightCard(bodyWeightKg: Double?, onSave: (Double?) -> Unit, mod
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Body weight", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Only used to scale the g/kg guidance below to you. Optional — nothing else in the app uses it.",
+                if (weightSource != null) {
+                    "Synced from $weightSource, and used to scale the g/kg guidance below. " +
+                        "Editing it here is overwritten by the next reading."
+                } else {
+                    "Only used to scale the g/kg guidance below to you. Optional — nothing else in the app uses it."
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
