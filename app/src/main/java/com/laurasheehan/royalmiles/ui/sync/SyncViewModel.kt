@@ -47,7 +47,7 @@ class SyncViewModel(
             val allSessions = repository.observeSessions().first()
             val candidates = workouts.associateWith { workout ->
                 allSessions.filter { session ->
-                    !session.isCompleted && session.isLoggable &&
+                    session.isOutstanding && session.isLoggable &&
                         ChronoUnit.DAYS.between(session.date, workout.localDate).let { it in -2..2 }
                 }.sortedBy { kotlin.math.abs(ChronoUnit.DAYS.between(it.date, workout.localDate)) }
             }

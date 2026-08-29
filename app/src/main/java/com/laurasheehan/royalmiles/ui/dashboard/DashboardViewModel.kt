@@ -45,7 +45,7 @@ class DashboardViewModel(
         DashboardUiState(
             stats = stats,
             today = allSessions.filter { it.date == today },
-            upNext = allSessions.filter { it.date.isAfter(today) && !it.isCompleted }
+            upNext = allSessions.filter { it.date.isAfter(today) && it.isOutstanding }
                 .sortedBy { it.date }
                 .take(4),
             daysToRace = ChronoUnit.DAYS.between(today, raceDate),

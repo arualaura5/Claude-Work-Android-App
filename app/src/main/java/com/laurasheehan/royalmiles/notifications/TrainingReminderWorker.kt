@@ -26,7 +26,7 @@ class TrainingReminderWorker(context: Context, params: WorkerParameters) : Corou
         val today = LocalDate.now()
         val sessions = sessionDao.observeAll().first()
         val outstanding = sessions.filter {
-            it.date == today && it.isLoggable && !it.optional && !it.isCompleted
+            it.date == today && it.isLoggable && !it.optional && it.isOutstanding
         }
         if (outstanding.isEmpty()) return Result.success()
 

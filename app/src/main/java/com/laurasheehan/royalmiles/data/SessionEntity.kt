@@ -25,8 +25,16 @@ data class SessionEntity(
     val isCustom: Boolean = false,
     /** How it felt, 1 (rough/sore) to 5 (great) — captured only on completed sessions. */
     val effortRating: Int? = null,
+    /**
+     * Explicitly acknowledged as not done, as distinct from simply not done *yet*. Purely so a
+     * session can be closed off and stop asking; nothing scores or penalises it.
+     */
+    val isSkipped: Boolean = false,
 ) {
     val isLoggable: Boolean get() = type != SessionType.REST
+
+    /** Neither done nor written off — the only state that still wants something from you. */
+    val isOutstanding: Boolean get() = !isCompleted && !isSkipped
 }
 
 @Entity(tableName = "plan_meta")

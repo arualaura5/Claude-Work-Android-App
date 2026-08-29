@@ -143,6 +143,21 @@ fun SessionEditScreen(
                 Switch(checked = state.isCompleted, onCheckedChange = viewModel::updateCompleted)
             }
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Didn't do this one", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Closes it off so it stops appearing in Up next. Nothing is counted against you.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = state.isSkipped, onCheckedChange = viewModel::updateSkipped)
+            }
+
             if (state.isCompleted) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(

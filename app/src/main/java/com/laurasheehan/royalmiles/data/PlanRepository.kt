@@ -88,6 +88,7 @@ class PlanRepository(
         sessionDao.update(
             existing.copy(
                 isCompleted = true,
+                isSkipped = false,
                 actualDistanceKm = actualDistanceKm,
                 actualDurationMin = actualDurationMin,
                 effortRating = effortRating,
@@ -96,11 +97,31 @@ class PlanRepository(
         )
     }
 
+    /**
+     * Acknowledges a session as not done. Deliberately carries no penalty — it exists so a missed
+     * session can stop asking, not so anything can be counted against her.
+     */
+    suspend fun markSkipped(id: Long) {
+        val existing = sessionDao.getById(id) ?: return
+        sessionDao.update(
+            existing.copy(
+                isCompleted = false,
+                isSkipped = true,
+                actualDistanceKm = null,
+                actualDurationMin = null,
+                effortRating = null,
+                completedAt = null,
+            ),
+        )
+    }
+
+    /** Back to outstanding — clears both "done" and "didn't do it". */
     suspend fun markIncomplete(id: Long) {
         val existing = sessionDao.getById(id) ?: return
         sessionDao.update(
             existing.copy(
                 isCompleted = false,
+                isSkipped = false,
                 actualDistanceKm = null,
                 actualDurationMin = null,
                 effortRating = null,

@@ -27,6 +27,7 @@ data class SessionEditUiState(
     val notes: String = "",
     val optional: Boolean = false,
     val isCompleted: Boolean = false,
+    val isSkipped: Boolean = false,
     val actualDistanceKm: String = "",
     val actualDurationMin: String = "",
     val effortRating: Int? = null,
@@ -61,6 +62,7 @@ class SessionEditViewModel(
                         notes = existing.notes,
                         optional = existing.optional,
                         isCompleted = existing.isCompleted,
+                        isSkipped = existing.isSkipped,
                         actualDistanceKm = existing.actualDistanceKm?.let { formatNumber(it) } ?: "",
                         actualDurationMin = existing.actualDurationMin?.toString() ?: "",
                         effortRating = existing.effortRating,
@@ -91,7 +93,20 @@ class SessionEditViewModel(
     fun updateActualDistance(value: String) = _uiState.update { it.copy(actualDistanceKm = value) }
     fun updateActualDuration(value: String) = _uiState.update { it.copy(actualDurationMin = value) }
     fun updateCompleted(value: Boolean) = _uiState.update {
-        it.copy(isCompleted = value, effortRating = if (value) it.effortRating else null)
+        it.copy(
+            isCompleted = value,
+            isSkipped = if (value) false else it.isSkipped,
+            effortRating = if (value) it.effortRating else null,
+        )
+    }
+
+    /** The three states are mutually exclusive: outstanding, done, or acknowledged as not done. */
+    fun updateSkipped(value: Boolean) = _uiState.update {
+        it.copy(
+            isSkipped = value,
+            isCompleted = if (value) false else it.isCompleted,
+            effortRating = if (value) null else it.effortRating,
+        )
     }
     fun updateEffortRating(value: Int) = _uiState.update { it.copy(effortRating = value) }
 
@@ -119,6 +134,7 @@ class SessionEditViewModel(
                         optional = state.optional,
                         notes = state.notes,
                         isCompleted = state.isCompleted,
+                        isSkipped = state.isSkipped,
                         actualDistanceKm = if (state.isCompleted) actualDistance ?: distance else null,
                         actualDurationMin = if (state.isCompleted) actualDuration ?: duration else null,
                         effortRating = if (state.isCompleted) state.effortRating else null,
@@ -139,6 +155,7 @@ class SessionEditViewModel(
                         optional = state.optional,
                         notes = state.notes,
                         isCompleted = state.isCompleted,
+                        isSkipped = state.isSkipped,
                         actualDistanceKm = if (state.isCompleted) (actualDistance ?: distance) else null,
                         actualDurationMin = if (state.isCompleted) (actualDuration ?: duration) else null,
                         effortRating = if (state.isCompleted) state.effortRating else null,

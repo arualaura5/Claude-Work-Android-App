@@ -74,6 +74,13 @@ fun SessionCard(
             }
             if (session.isCompleted) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = "Completed", tint = ComebackGold)
+            } else if (session.isSkipped) {
+                // Stated plainly and quietly — acknowledged, not flagged as a failure.
+                Text(
+                    "Didn't do it",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             } else if (session.isLoggable) {
                 IconButton(onClick = onToggleComplete) {
                     Icon(Icons.Filled.RadioButtonUnchecked, contentDescription = "Mark complete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
