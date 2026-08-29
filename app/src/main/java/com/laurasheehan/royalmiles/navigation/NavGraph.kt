@@ -11,6 +11,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.laurasheehan.royalmiles.RaceConfig
 import com.laurasheehan.royalmiles.data.AthleteProfileRepository
+import com.laurasheehan.royalmiles.data.CelebrationStore
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.health.HealthConnectRepository
 import com.laurasheehan.royalmiles.data.health.HealthDiagnostics
@@ -52,10 +53,15 @@ fun RoyalMilesNavHost(
 ) {
     NavHost(navController = navController, startDestination = Routes.DASHBOARD) {
         composable(Routes.DASHBOARD) {
+            val context = androidx.compose.ui.platform.LocalContext.current
             val viewModel: DashboardViewModel = viewModel(
                 factory = viewModelFactory {
                     initializer {
-                        DashboardViewModel(repository, RaceConfig.RACE_DATE)
+                        DashboardViewModel(
+                            repository = repository,
+                            raceDate = RaceConfig.RACE_DATE,
+                            celebrations = CelebrationStore(context.applicationContext),
+                        )
                     }
                 },
             )

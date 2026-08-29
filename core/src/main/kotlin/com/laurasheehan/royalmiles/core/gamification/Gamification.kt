@@ -19,16 +19,32 @@ data class CompletedSession(
 
 data class Level(val number: Int, val title: String, val xpRequired: Int)
 
+/**
+ * Every badge here is monotonic: once earned it can never be taken away, and nothing can make one
+ * permanently unreachable. That rules out the all-or-nothing shape the set used to have — "complete
+ * every session in the Base phase" locked itself forever the first week she caught a cold, and then
+ * sat padlocked on the dashboard for the rest of the block as a standing record of it. These count
+ * acts instead: sessions logged, ground covered, distances reached. A bad week delays a badge; it
+ * can no longer destroy one.
+ *
+ * Declaration order is roughly the order they fall, and the dashboard shows the unlocked ones plus
+ * the next few rather than the whole set, so the screen is never mostly padlocks.
+ */
 enum class Badge(val title: String, val description: String) {
-    FIRST_SESSION("First Steps", "Complete your first logged session"),
+    FIRST_SESSION("First Steps", "Log your first session"),
+    FIRST_5K("Five Back", "Run 5km in a single session"),
+    TEN_SESSIONS("Ten Logged", "Log ten sessions"),
     WEEK_STREAK_3("Three in a Row", "Train in three consecutive weeks"),
+    FIRST_8K("Eight Back", "Run 8km in a single session"),
+    FIFTY_KM("Fifty Kilometres", "Cover 50km of running in total"),
+    STRENGTH_REGULAR("Strength Regular", "Complete five strength sessions"),
+    ZEN_RUNNER("Zen Runner", "Complete five yoga sessions"),
+    DOUBLE_DIGITS("Double Digits", "Run 10km or more in a single session"),
+    TWENTY_FIVE_SESSIONS("Twenty-Five Logged", "Log twenty-five sessions"),
     WEEK_STREAK_6("Six in a Row", "Train in six consecutive weeks"),
-    DOUBLE_DIGITS("Double Digits", "Complete a run of 10km or more"),
-    BASE_COMPLETE("Base Camp Cleared", "Complete every planned session in the Base phase"),
-    PEAK_CONQUEROR("Peak Conqueror", "Complete the peak long run"),
-    STRENGTH_REGULAR("Strength Regular", "Complete 5 strength sessions"),
-    ZEN_RUNNER("Zen Runner", "Complete 5 yoga sessions"),
-    TAPER_DISCIPLINE("Taper Discipline", "Complete every non-optional taper-week session"),
+    FIFTEEN_KM("Fifteen Back", "Run 15km in a single session"),
+    HUNDRED_KM("Century Club", "Cover 100km of running in total"),
+    PEAK_CONQUEROR("Peak Conqueror", "Reach the plan's peak long-run distance"),
     RACE_DAY("Royal Parks Finisher", "Complete the half marathon"),
 }
 
@@ -121,40 +137,35 @@ object GamificationEngine {
     private fun LocalDate.weekCommencing(): LocalDate =
         with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
+    /** Distance only counts toward running badges when it was actually run. */
+    private val CompletedSession.isRun: Boolean
+        get() = type == SessionType.EASY_RUN || type == SessionType.LONG_RUN || type == SessionType.RACE
+
     fun evaluateBadges(completions: List<CompletedSession>, plan: TrainingPlan): Set<Badge> {
         val unlocked = mutableSetOf<Badge>()
         if (completions.isNotEmpty()) unlocked += Badge.FIRST_SESSION
+        if (completions.size >= 10) unlocked += Badge.TEN_SESSIONS
+        if (completions.size >= 25) unlocked += Badge.TWENTY_FIVE_SESSIONS
 
         val streak = longestWeekStreak(completions)
         if (streak >= 3) unlocked += Badge.WEEK_STREAK_3
         if (streak >= 6) unlocked += Badge.WEEK_STREAK_6
 
-        if (completions.any { (it.distanceKm ?: 0.0) >= 10.0 }) unlocked += Badge.DOUBLE_DIGITS
+        val runs = completions.filter { it.isRun }
+        val furthest = runs.maxOfOrNull { it.distanceKm ?: 0.0 } ?: 0.0
+        if (furthest >= 5.0) unlocked += Badge.FIRST_5K
+        if (furthest >= 8.0) unlocked += Badge.FIRST_8K
+        if (furthest >= 10.0) unlocked += Badge.DOUBLE_DIGITS
+        if (furthest >= 15.0) unlocked += Badge.FIFTEEN_KM
+        // Date-independent, so doing the peak long run a day late still counts.
+        if (furthest >= plan.peakLongRunKm) unlocked += Badge.PEAK_CONQUEROR
+
+        val totalKm = runs.sumOf { it.distanceKm ?: 0.0 }
+        if (totalKm >= 50.0) unlocked += Badge.FIFTY_KM
+        if (totalKm >= 100.0) unlocked += Badge.HUNDRED_KM
 
         if (completions.count { it.type == SessionType.STRENGTH } >= 5) unlocked += Badge.STRENGTH_REGULAR
         if (completions.count { it.type == SessionType.YOGA } >= 5) unlocked += Badge.ZEN_RUNNER
-
-        val completedDates = completions.map { it.date to it.type }.toSet()
-
-        val baseSessions = plan.weeks.filter { it.phase == TrainingPhase.BASE }
-            .flatMap { it.sessions }
-            .filter { it.isLoggable }
-        if (baseSessions.isNotEmpty() && baseSessions.all { (it.date to it.type) in completedDates }) {
-            unlocked += Badge.BASE_COMPLETE
-        }
-
-        val peakLongRun = plan.weeks.firstOrNull { it.phase == TrainingPhase.PEAK }
-            ?.sessions?.firstOrNull { it.type == SessionType.LONG_RUN }
-        if (peakLongRun != null && (peakLongRun.date to peakLongRun.type) in completedDates) {
-            unlocked += Badge.PEAK_CONQUEROR
-        }
-
-        val taperSessions = plan.weeks.filter { it.phase == TrainingPhase.TAPER }
-            .flatMap { it.sessions }
-            .filter { it.isLoggable && !it.optional && it.type != SessionType.RACE }
-        if (taperSessions.isNotEmpty() && taperSessions.all { (it.date to it.type) in completedDates }) {
-            unlocked += Badge.TAPER_DISCIPLINE
-        }
 
         if (completions.any { it.type == SessionType.RACE }) unlocked += Badge.RACE_DAY
 

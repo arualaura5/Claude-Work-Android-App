@@ -124,7 +124,6 @@ fun NutritionScreen(viewModel: NutritionViewModel, onOpenLearn: () -> Unit) {
                                     phase = state.phase,
                                     targets = state.targets!!,
                                     bodyWeightKg = state.bodyWeightKg,
-                                    today = state.today,
                                 )
                             }
                         }
@@ -259,12 +258,16 @@ private fun BodyWeightCard(
     }
 }
 
+/**
+ * Ranges only. "Today so far" deliberately does not appear here — sitting a running total directly
+ * under a daily number turns two neutral facts into a scoreboard, and one bar or one colour away
+ * from that is a food tracker with a pass mark. Intake lives on the neutral Today card instead.
+ */
 @Composable
 private fun PhaseGuidanceCard(
     phase: TrainingPhase?,
     targets: NutritionTargets,
     bodyWeightKg: Double?,
-    today: NutritionSummary?,
     modifier: Modifier = Modifier,
 ) {
     var showInfo by remember { mutableStateOf(false) }
@@ -291,14 +294,6 @@ private fun PhaseGuidanceCard(
                     val carbTarget = targets.carbGramsFor(bodyWeightKg).roundToDisplay()
                     val proteinTarget = targets.proteinGramsFor(bodyWeightKg).roundToDisplay()
                     MacroBullet(label = "Carbs", value = "~${carbTarget}g/day")
-                    today?.let {
-                        Text(
-                            "today so far: ${it.carbsG.roundToDisplay()}g",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 20.dp),
-                        )
-                    }
                     MacroBullet(label = "Protein", value = "~${proteinTarget}g/day")
                 } else {
                     MacroBullet(label = "Carbs", value = "${formatKg(targets.carbGramsPerKg)} g/kg/day")

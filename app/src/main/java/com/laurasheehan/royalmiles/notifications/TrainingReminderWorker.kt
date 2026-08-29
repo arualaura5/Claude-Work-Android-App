@@ -11,12 +11,13 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.laurasheehan.royalmiles.MainActivity
 import com.laurasheehan.royalmiles.R
+import com.laurasheehan.royalmiles.core.model.SessionType
 import com.laurasheehan.royalmiles.data.AppDatabase
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
 
 /**
- * Runs once a day in the evening. Stays silent unless today has an unlogged, non-optional session —
+ * Runs once a day in the morning. Stays silent unless today has an unlogged, non-optional session —
  * the point is a gentle nudge, not a daily ping regardless of whether there's anything to nudge about.
  */
 class TrainingReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -35,11 +36,41 @@ class TrainingReminderWorker(context: Context, params: WorkerParameters) : Corou
         } else {
             "${outstanding.size} sessions on today's plan"
         }
-        showNotification(title)
+        showNotification(title, encouragementFor(today, outstanding))
         return Result.success()
     }
 
-    private fun showNotification(title: String) {
+    /**
+     * Varied rather than the same line every day, and specific on Sunday. A notification that reads
+     * identically on a Wednesday strength session and on long-run day stops being read at all.
+     */
+    private fun encouragementFor(today: LocalDate, outstanding: List<com.laurasheehan.royalmiles.data.SessionEntity>): String {
+        val longRun = outstanding.firstOrNull { it.type == SessionType.LONG_RUN }
+        if (longRun != null) {
+            val distance = longRun.targetDistanceKm
+            return if (distance != null) {
+                "Long run day — ${formatKm(distance)}km, easy effort. Time on feet, not pace."
+            } else {
+                "Long run day. Easy effort, time on feet."
+            }
+        }
+        if (outstanding.any { it.type == SessionType.RACE }) return "This is it. Trust the training."
+        val pool = listOf(
+            "No pressure — just showing up counts.",
+            "Doesn't have to be good. It just has to happen.",
+            "Thirty minutes from now this is already done.",
+            "Nobody sees this one but you. It still counts.",
+            "One more brick in the foundation.",
+        )
+        return pool[today.toEpochDay().mod(pool.size)]
+    }
+
+    private fun formatKm(value: Double): String {
+        val rounded = kotlin.math.round(value * 10) / 10.0
+        return if (rounded == rounded.toLong().toDouble()) rounded.toLong().toString() else rounded.toString()
+    }
+
+    private fun showNotification(title: String, body: String) {
         if (ActivityCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
@@ -57,7 +88,8 @@ class TrainingReminderWorker(context: Context, params: WorkerParameters) : Corou
         val notification = NotificationCompat.Builder(applicationContext, ReminderScheduler.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
-            .setContentText("No pressure — just showing up counts.")
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()

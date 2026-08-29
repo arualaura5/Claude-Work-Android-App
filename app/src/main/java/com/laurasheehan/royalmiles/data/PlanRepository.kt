@@ -10,10 +10,13 @@ import com.laurasheehan.royalmiles.core.model.TrainingPhase
 import com.laurasheehan.royalmiles.core.model.TrainingPlan
 import com.laurasheehan.royalmiles.core.model.TrainingWeek
 import com.laurasheehan.royalmiles.core.plan.TrainingPlanGenerator
+import com.laurasheehan.royalmiles.core.progress.WeekSummaries
+import com.laurasheehan.royalmiles.core.progress.WeekSummary
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 data class UiWeek(
@@ -53,6 +56,9 @@ data class Stats(
     val badges: Set<Badge>,
     /** Effort ratings (1-5) from the most recent completed sessions that have one, oldest first. */
     val recentEffort: List<Int> = emptyList(),
+    /** What this week and last week actually contained. No denominators — see [WeekSummary]. */
+    val thisWeek: WeekSummary? = null,
+    val lastWeek: WeekSummary? = null,
 )
 
 class PlanRepository(
@@ -180,6 +186,38 @@ class PlanRepository(
 
     suspend fun updateSession(session: SessionEntity) = sessionDao.update(session)
 
+    /**
+     * Scales a week down: the long run loses a quarter of its distance, easy runs lose a fifth, and
+     * the second strength session of the week is written off rather than deleted.
+     *
+     * This exists so that "this week is too much" has an answer inside the app that isn't simply
+     * failing to do it. Dialling back a week is a coaching decision, and it deliberately touches
+     * nothing that scores: XP is earned on what gets logged, badges count acts rather than
+     * adherence, and the week streak only asks for one session. Reducing a week cannot cost her
+     * anything, which is the whole point.
+     *
+     * Completed sessions are left alone — they already happened.
+     */
+    suspend fun scaleDownWeek(weekCommencing: LocalDate) {
+        val weekEnd = weekCommencing.plusDays(6)
+        val week = sessionDao.observeAll().first()
+            .filter { !it.date.isBefore(weekCommencing) && !it.date.isAfter(weekEnd) && !it.isCompleted }
+
+        week.filter { it.type == SessionType.LONG_RUN }.forEach { session ->
+            val reduced = session.targetDistanceKm?.let { roundToHalf(it * 0.75) }
+            sessionDao.update(session.copy(targetDistanceKm = reduced))
+        }
+        week.filter { it.type == SessionType.EASY_RUN }.forEach { session ->
+            val reduced = session.targetDistanceKm?.let { roundToHalf(it * 0.8) }
+            sessionDao.update(session.copy(targetDistanceKm = reduced))
+        }
+        // Keep the first strength session, write off any beyond it.
+        week.filter { it.type == SessionType.STRENGTH && it.isOutstanding }
+            .sortedBy { it.date }
+            .drop(1)
+            .forEach { sessionDao.update(it.copy(isSkipped = true)) }
+    }
+
     suspend fun deleteSession(session: SessionEntity) = sessionDao.delete(session)
 
     suspend fun addCustomSession(session: SessionEntity) = sessionDao.insert(session.copy(isCustom = true))
@@ -205,6 +243,7 @@ class PlanRepository(
             .takeLast(10)
             .mapNotNull { it.effortRating }
 
+        val thisMonday = WeekSummaries.weekCommencing(LocalDate.now())
         return Stats(
             totalXp = totalXp,
             level = level,
@@ -213,6 +252,8 @@ class PlanRepository(
             longestWeekStreak = GamificationEngine.longestWeekStreak(calendarCompletions),
             badges = badges,
             recentEffort = recentEffort,
+            thisWeek = WeekSummaries.summarise(calendarCompletions, thisMonday),
+            lastWeek = WeekSummaries.summarise(calendarCompletions, thisMonday.minusWeeks(1)),
         )
     }
 
@@ -271,3 +312,5 @@ private fun SessionEntity.toCompletedSession(useScheduledDate: Boolean): Complet
     distanceKm = actualDistanceKm ?: targetDistanceKm,
     durationMin = actualDurationMin ?: targetDurationMin,
 )
+
+private fun roundToHalf(value: Double): Double = kotlin.math.round(value * 2) / 2.0

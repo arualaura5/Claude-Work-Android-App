@@ -127,27 +127,57 @@ class GamificationEngineTest {
     }
 
     @Test
-    fun `completing the peak long run unlocks peak conqueror`() {
+    fun `reaching the peak distance unlocks peak conqueror even a day late`() {
         val peakWeek = plan.weeks.first { it.phase == TrainingPhase.PEAK }
         val peakLongRun = peakWeek.sessions.first { it.type == SessionType.LONG_RUN }
         val completions = listOf(
-            CompletedSession(peakLongRun.date, SessionType.LONG_RUN, TrainingPhase.PEAK, peakLongRun.targetDistanceKm),
+            // Deliberately a day off the scheduled date: the badge is about the distance.
+            CompletedSession(
+                peakLongRun.date.plusDays(1),
+                SessionType.LONG_RUN,
+                TrainingPhase.PEAK,
+                peakLongRun.targetDistanceKm,
+            ),
         )
         val badges = GamificationEngine.evaluateBadges(completions, plan)
         assertTrue(Badge.PEAK_CONQUEROR in badges)
         assertTrue(Badge.DOUBLE_DIGITS in badges)
+        assertTrue(Badge.FIFTEEN_KM in badges)
     }
 
     @Test
-    fun `completing every base phase session unlocks base camp cleared`() {
-        val baseSessions = plan.weeks.filter { it.phase == TrainingPhase.BASE }
+    fun `no badge can be permanently lost by missing a session`() {
+        // Every badge must be reachable from a history that skipped the whole first week —
+        // the all-or-nothing badges this replaced could not be.
+        val afterAMissedWeek = plan.weeks.drop(1)
             .flatMap { it.sessions }
             .filter { it.isLoggable }
-        val completions = baseSessions.map {
-            CompletedSession(it.date, it.type, it.phase, it.targetDistanceKm, it.targetDurationMin)
+            .map { CompletedSession(it.date, it.type, it.phase, it.targetDistanceKm, it.targetDurationMin) }
+        val badges = GamificationEngine.evaluateBadges(afterAMissedWeek, plan)
+        val missing = Badge.entries.filterNot { it in badges }
+        assertTrue(missing.isEmpty(), "Unreachable after one missed week: $missing")
+    }
+
+    @Test
+    fun `badges accumulate and never regress as sessions are added`() {
+        val everything = everySession()
+        var previous = emptySet<Badge>()
+        everything.indices.forEach { i ->
+            val badges = GamificationEngine.evaluateBadges(everything.take(i + 1), plan)
+            assertTrue(previous.all { it in badges }, "Badge lost at session ${i + 1}: ${previous - badges}")
+            previous = badges
         }
+    }
+
+    @Test
+    fun `cycling distance does not count toward running badges`() {
+        val completions = listOf(
+            CompletedSession(today, SessionType.CYCLE, TrainingPhase.BASE, distanceKm = 60.0, durationMin = 120),
+        )
         val badges = GamificationEngine.evaluateBadges(completions, plan)
-        assertTrue(Badge.BASE_COMPLETE in badges)
+        assertTrue(Badge.FIFTY_KM !in badges)
+        assertTrue(Badge.DOUBLE_DIGITS !in badges)
+        assertTrue(Badge.FIRST_SESSION in badges)
     }
 
     @Test

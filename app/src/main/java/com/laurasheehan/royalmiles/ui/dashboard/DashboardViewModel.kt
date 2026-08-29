@@ -2,56 +2,190 @@ package com.laurasheehan.royalmiles.ui.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.laurasheehan.royalmiles.core.gamification.Badge
+import com.laurasheehan.royalmiles.core.model.SessionType
 import com.laurasheehan.royalmiles.core.model.TrainingPhase
+import com.laurasheehan.royalmiles.core.progress.WeekSummaries
+import com.laurasheehan.royalmiles.core.progress.WeekSummary
+import com.laurasheehan.royalmiles.data.CelebrationStore
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.data.Stats
 import com.laurasheehan.royalmiles.ui.components.Affirmations
+import com.laurasheehan.royalmiles.ui.components.LongRunPoint
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+/** A one-off moment for something newly earned. Shown once, then never again. */
+data class Celebration(
+    val headline: String,
+    val detail: String,
+    val badges: List<Badge> = emptyList(),
+)
 
 data class DashboardUiState(
     val stats: Stats? = null,
     val today: List<SessionEntity> = emptyList(),
     val upNext: List<SessionEntity> = emptyList(),
+    /** Past-dated and still neither done nor written off. Surfaced quietly so it can be closed. */
+    val stillOpen: List<SessionEntity> = emptyList(),
     val daysToRace: Long = 0,
     val phaseMessage: String = "",
+    val weekNumber: Int = 0,
+    val totalWeeks: Int = 0,
+    val weekCommencing: LocalDate? = null,
+    val longRuns: List<LongRunPoint> = emptyList(),
+    /** The Sunday/Monday week wrap, when there is a week worth wrapping and it hasn't been seen. */
+    val weekWrap: WeekSummary? = null,
 )
 
 class DashboardViewModel(
     private val repository: PlanRepository,
     private val raceDate: LocalDate,
+    private val celebrations: CelebrationStore? = null,
 ) : ViewModel() {
 
     private val _affirmations = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val affirmations: SharedFlow<String> = _affirmations.asSharedFlow()
 
+    private val _celebration = MutableStateFlow<Celebration?>(null)
+    val celebration: StateFlow<Celebration?> = _celebration.asStateFlow()
+
+    private val wrapDismissals = MutableStateFlow(0)
+
+    /** What to record as seen when the current celebration is dismissed. */
+    private var pendingSeen: Pair<Set<String>, Int>? = null
+
     val uiState: StateFlow<DashboardUiState> = combine(
         repository.observeStats(),
         repository.observeWeeks(),
-    ) { stats, weeks ->
+        wrapDismissals,
+    ) { stats, weeks, _ ->
         val allSessions = weeks.flatMap { it.sessions }
         val today = LocalDate.now()
         val currentWeek = weeks.firstOrNull { !it.startDate.isAfter(today) && it.startDate.plusDays(6) >= today }
         val planStarted = weeks.any { !it.startDate.isAfter(today) }
+
+        val longRunSessions = allSessions
+            .filter { it.type == SessionType.LONG_RUN || it.type == SessionType.RACE }
+            .sortedBy { it.date }
+        val firstUndone = longRunSessions.firstOrNull { !it.isCompleted }?.id
+
         DashboardUiState(
             stats = stats,
             today = allSessions.filter { it.date == today },
             upNext = allSessions.filter { it.date.isAfter(today) && it.isOutstanding }
                 .sortedBy { it.date }
                 .take(4),
+            // Only loggable sessions can be outstanding in a way that means anything — a rest day
+            // that was never ticked isn't unfinished business.
+            stillOpen = allSessions
+                .filter { it.date.isBefore(today) && it.isOutstanding && it.isLoggable }
+                .sortedByDescending { it.date }
+                .take(5),
             daysToRace = ChronoUnit.DAYS.between(today, raceDate),
             phaseMessage = phaseMessage(currentWeek?.phase, planStarted),
+            weekNumber = currentWeek?.weekNumber ?: 0,
+            totalWeeks = weeks.size,
+            weekCommencing = currentWeek?.startDate,
+            longRuns = longRunSessions.map {
+                LongRunPoint(
+                    km = it.actualDistanceKm ?: it.targetDistanceKm ?: 0.0,
+                    done = it.isCompleted,
+                    isNext = it.id == firstUndone,
+                    isRace = it.type == SessionType.RACE,
+                )
+            }.filter { it.km > 0 },
+            weekWrap = weekWrapFor(stats, today),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
+
+    init {
+        viewModelScope.launch {
+            repository.observeStats().collect { checkForCelebrations(it) }
+        }
+    }
+
+    /**
+     * The week wrap shows on Sunday (the week closing) and Monday (the week just gone), once each
+     * week, and only when there is something in it. A week with nothing logged produces no card at
+     * all rather than a card reporting zero.
+     */
+    private fun weekWrapFor(stats: Stats, today: LocalDate): WeekSummary? {
+        val summary = when (today.dayOfWeek) {
+            DayOfWeek.SUNDAY -> stats.thisWeek
+            DayOfWeek.MONDAY -> stats.lastWeek
+            else -> null
+        } ?: return null
+        if (summary.isEmpty) return null
+        val store = celebrations ?: return summary
+        return summary.takeUnless { store.weekWrapDismissed(it.weekCommencing.toString()) }
+    }
+
+    fun dismissWeekWrap() {
+        val summary = uiState.value.weekWrap ?: return
+        celebrations?.dismissWeekWrap(summary.weekCommencing.toString())
+        wrapDismissals.value += 1
+    }
+
+    /**
+     * Fires a celebration the first time a badge or level is reached. Primes itself on first run so
+     * an existing history doesn't produce a pile of backdated unlocks after an update.
+     */
+    private fun checkForCelebrations(stats: Stats) {
+        val store = celebrations ?: return
+        val names = stats.badges.map { it.name }.toSet()
+        store.primeIfUnset(names, stats.level.number)
+
+        val newBadges = stats.badges.filter { it.name !in store.seenBadges() }
+        val leveledUp = stats.level.number > store.seenLevel()
+        if (newBadges.isEmpty() && !leveledUp) return
+        if (_celebration.value != null) return
+        pendingSeen = names to stats.level.number
+
+        _celebration.value = when {
+            leveledUp && newBadges.isNotEmpty() -> Celebration(
+                headline = "Level ${stats.level.number} — ${stats.level.title}",
+                detail = "And something new to go with it.",
+                badges = newBadges,
+            )
+            leveledUp -> Celebration(
+                headline = "Level ${stats.level.number}",
+                detail = stats.level.title,
+            )
+            newBadges.size == 1 -> Celebration(
+                headline = newBadges.first().title,
+                detail = newBadges.first().description,
+                badges = newBadges,
+            )
+            else -> Celebration(
+                headline = "${newBadges.size} new badges",
+                detail = newBadges.joinToString(" · ") { it.title },
+                badges = newBadges,
+            )
+        }
+    }
+
+    /** Marked seen on dismissal rather than on display, so a missed dialog isn't a lost moment. */
+    fun dismissCelebration() {
+        pendingSeen?.let { (badges, level) ->
+            celebrations?.markBadgesSeen(badges)
+            celebrations?.markLevelSeen(level)
+        }
+        pendingSeen = null
+        _celebration.value = null
+    }
 
     fun toggleComplete(session: SessionEntity) {
         viewModelScope.launch {
@@ -62,6 +196,19 @@ class DashboardViewModel(
                 _affirmations.tryEmit(Affirmations.random())
             }
         }
+    }
+
+    fun skip(session: SessionEntity) {
+        viewModelScope.launch { repository.markSkipped(session.id) }
+    }
+
+    fun undoSkip(sessionId: Long) {
+        viewModelScope.launch { repository.markIncomplete(sessionId) }
+    }
+
+    fun scaleDownThisWeek() {
+        val week = uiState.value.weekCommencing ?: WeekSummaries.weekCommencing(LocalDate.now())
+        viewModelScope.launch { repository.scaleDownWeek(week) }
     }
 }
 
