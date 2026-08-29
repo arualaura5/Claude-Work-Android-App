@@ -20,6 +20,12 @@ val InkOnLight = Color(0xFF1B1533)
 /** Secondary text on light surfaces. ShimmerSilverDim is tuned for navy and washes out on white. */
 val MutedOnLight = Color(0xFF615D80)
 
+// "Didn't do it". Deliberate rather than inherited: Material's default error red is tuned for a
+// different palette and reads as an app-level alert. Two values because a red legible on navy is
+// washed out on white and vice versa.
+val SkippedRed = Color(0xFFFF6B6B)
+val SkippedRedOnLight = Color(0xFFC62F2F)
+
 // Session-type accent colors, used consistently across cards, chips, and the calendar.
 val ColorEasyRun = Color(0xFF57C4FF)
 val ColorLongRun = Color(0xFFB79BFF)

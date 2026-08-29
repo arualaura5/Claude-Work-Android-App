@@ -23,6 +23,8 @@ private val RoyalMilesDarkColors = darkColorScheme(
     surfaceVariant = NavySurfaceElevated,
     onSurfaceVariant = ShimmerSilverDim,
     outline = ShimmerSilverDim,
+    error = SkippedRed,
+    onError = MidnightNavy,
 )
 
 private val RoyalMilesLightColors = lightColorScheme(
@@ -41,6 +43,8 @@ private val RoyalMilesLightColors = lightColorScheme(
     surfaceVariant = CloudLavender,
     onSurfaceVariant = MutedOnLight,
     outline = MutedOnLight,
+    error = SkippedRedOnLight,
+    onError = Color.White,
 )
 
 @Composable

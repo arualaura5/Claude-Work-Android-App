@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.laurasheehan.royalmiles.data.SessionEntity
@@ -37,6 +39,7 @@ import com.laurasheehan.royalmiles.ui.components.formatKm
 import com.laurasheehan.royalmiles.ui.components.icon
 import com.laurasheehan.royalmiles.ui.theme.BlushPink
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
+import com.laurasheehan.royalmiles.ui.sync.openUrl
 import com.laurasheehan.royalmiles.ui.theme.RoyalPurple
 import java.time.format.DateTimeFormatter
 
@@ -109,67 +112,82 @@ private fun LoggedSessionCard(session: SessionEntity, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(accent.copy(alpha = 0.18f)),
-                contentAlignment = Alignment.Center,
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(session.type.icon(), contentDescription = null, tint = accent)
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(session.title, style = MaterialTheme.typography.titleMedium)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(session.type.icon(), contentDescription = null, tint = accent)
+                }
                 Text(
                     (session.completedAt ?: session.date).format(logDateFormat),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                val metrics = loggedMetrics(session)
-                if (metrics.isNotEmpty()) {
-                    Text(
-                        metrics.joinToString(" · "),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
-                if (session.garminUrl != null) {
-                    Text(
-                        "from Garmin",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
+
+            Text(
+                buildString {
+                    append(session.title)
+                    session.actualDurationMin?.let { append(" · $it min") }
+                },
+                style = MaterialTheme.typography.titleMedium,
+            )
+
+            val metrics = loggedMetrics(session)
+            if (metrics.isNotEmpty()) {
+                Text(
+                    metrics.joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             session.effortRating?.let { rating ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("$rating/5", style = MaterialTheme.typography.titleMedium, color = ComebackGold)
-                    Text(
-                        "felt",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Text(
+                    "Felt like $rating/5",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ComebackGold,
+                )
+            }
+
+            session.garminUrl?.let { url ->
+                val context = LocalContext.current
+                TextButton(
+                    onClick = { openUrl(context, url) },
+                    contentPadding = PaddingValues(0.dp),
+                ) {
+                    Text("View in Garmin Connect")
                 }
             }
         }
     }
 }
 
-/** Whatever was actually recorded — planned targets are not padded in here. */
+/**
+ * Whatever was actually recorded — planned targets are not padded in.
+ *
+ * Formatting deliberately mirrors the Sync screen's workout card down to the units and decimal
+ * places, so the same run reads identically before and after it's matched to a session.
+ */
 private fun loggedMetrics(session: SessionEntity): List<String> = buildList {
-    session.actualDistanceKm?.let { add("${formatKm(it)}km") }
-    session.actualDurationMin?.let { add("$it min") }
+    session.actualDistanceKm?.let { add("%.2f km".format(it)) }
     val km = session.actualDistanceKm
     val min = session.actualDurationMin
     if (km != null && km > 0 && min != null) {
         val pace = min / km
         add("%d:%02d /km".format(pace.toInt(), ((pace - pace.toInt()) * 60).toInt()))
     }
-    session.actualAvgHeartRate?.let { add("$it bpm") }
+    session.actualAvgHeartRate?.let { add("$it bpm avg") }
+    session.actualMaxHeartRate?.let { add("$it max") }
     session.actualCalories?.let { add("$it kcal") }
-    session.actualElevationGainM?.let { add("${it}m") }
+    session.actualElevationGainM?.let { add("${it}m elev") }
 }

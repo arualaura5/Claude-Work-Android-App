@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Card
@@ -80,16 +81,25 @@ fun SessionCard(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(accent.copy(alpha = 0.18f)),
+                    .background(accent.copy(alpha = if (session.isSkipped) 0.10f else 0.18f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(session.type.icon(), contentDescription = null, tint = accent)
+                Icon(
+                    session.type.icon(),
+                    contentDescription = null,
+                    tint = if (session.isSkipped) MaterialTheme.colorScheme.onSurfaceVariant else accent,
+                )
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = session.title,
                     style = MaterialTheme.typography.titleMedium,
-                    textDecoration = if (session.isCompleted) TextDecoration.LineThrough else null,
+                    textDecoration = if (session.isCompleted || session.isSkipped) TextDecoration.LineThrough else null,
+                    color = if (session.isSkipped) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                 )
                 Text(
                     text = sessionSubtitle(session),
@@ -100,12 +110,24 @@ fun SessionCard(
             if (session.isCompleted) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = "Completed", tint = ComebackGold)
             } else if (session.isSkipped) {
-                // Stated plainly and quietly — acknowledged, not flagged as a failure.
-                Text(
-                    "Didn't do it",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                // Struck through and in red, at her request. Owning a missed session is the point —
+                // the app shouldn't be so careful about her feelings that the state is hard to read.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.Cancel,
+                        contentDescription = "Didn't do it",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        "Didn't do it",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             } else if (session.isLoggable) {
                 IconButton(onClick = onToggleComplete) {
                     Icon(Icons.Filled.RadioButtonUnchecked, contentDescription = "Mark complete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
