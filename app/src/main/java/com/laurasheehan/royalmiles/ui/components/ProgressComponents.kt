@@ -87,7 +87,7 @@ fun LongRunProgression(
                             modifier = Modifier
                                 .padding(top = 4.dp)
                                 .fillMaxWidth()
-                                .height((96f * (point.km / furthest)).coerceAtLeast(8f).dp)
+                                .height((96.0 * (point.km / furthest)).coerceAtLeast(8.0).dp)
                                 .clip(RoundedCornerShape(6.dp))
                                 .then(
                                     if (point.isNext) {
