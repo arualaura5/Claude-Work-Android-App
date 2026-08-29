@@ -34,6 +34,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+const val GARMIN_PACKAGE = "com.garmin.android.apps.connectmobile"
+
 /**
  * A workout as Garmin (or Strava, or Google Fit) wrote it to Health Connect.
  *
@@ -51,7 +53,20 @@ data class ExternalWorkout(
     val maxHeartRate: Int? = null,
     val calories: Int? = null,
     val elevationGainM: Int? = null,
+    /** The writing app's package, e.g. com.garmin.android.apps.connectmobile. */
+    val sourceApp: String? = null,
+    /** The source app's own id for this activity, when it sets one. */
+    val sourceActivityId: String? = null,
 ) {
+    /**
+     * Garmin stores its activity id in Health Connect's clientRecordId, so a link back to the
+     * original activity is constructible. Null for anything not written by Garmin.
+     */
+    val garminUrl: String?
+        get() = sourceActivityId
+            ?.takeIf { it.isNotBlank() && sourceApp == GARMIN_PACKAGE }
+            ?.let { "https://connect.garmin.com/modern/activity/$it" }
+
     val durationMinutes: Int
         get() = ((end.epochSecond - start.epochSecond) / 60).toInt()
 
@@ -154,6 +169,8 @@ class HealthConnectRepository(private val context: Context) {
                     end = record.endTime,
                     exerciseType = record.exerciseType,
                     title = record.title,
+                    sourceApp = record.metadata.dataOrigin.packageName,
+                    sourceActivityId = record.metadata.clientRecordId,
                 )
                 enrich(base, grantedPermissions)
             }

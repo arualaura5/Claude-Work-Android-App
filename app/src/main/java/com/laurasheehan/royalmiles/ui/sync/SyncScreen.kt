@@ -196,6 +196,25 @@ private fun WorkoutCard(workout: ExternalWorkout, onMatch: () -> Unit) {
             Button(onClick = onMatch, colors = ButtonDefaults.buttonColors(containerColor = RoyalPurple)) {
                 Text("Match to a session")
             }
+            workout.garminUrl?.let { url ->
+                val context = androidx.compose.ui.platform.LocalContext.current
+                TextButton(onClick = { openUrl(context, url) }) {
+                    Text("View in Garmin Connect")
+                }
+            }
         }
+    }
+}
+
+/**
+ * Opens the original activity in the browser or the Garmin app, whichever handles the link.
+ * Wrapped because a device with nothing registered for http would otherwise crash on the intent.
+ */
+internal fun openUrl(context: android.content.Context, url: String) {
+    runCatching {
+        context.startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
     }
 }

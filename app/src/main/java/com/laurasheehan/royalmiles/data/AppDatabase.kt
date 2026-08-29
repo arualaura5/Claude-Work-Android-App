@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [SessionEntity::class, PlanMetaEntity::class, AthleteProfileEntity::class],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -85,13 +85,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** Provenance, so a completed session can still link back to the Garmin activity. */
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sessions ADD COLUMN sourceApp TEXT")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN sourceActivityId TEXT")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "royalmiles.db",
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build().also { instance = it }
             }
     }

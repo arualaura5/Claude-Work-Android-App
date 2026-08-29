@@ -328,7 +328,7 @@ private fun SyncedMetrics(state: SessionEditUiState) {
             add("Pace" to "%d:%02d /km".format(pace.toInt(), ((pace - pace.toInt()) * 60).toInt()))
         }
     }
-    if (metrics.isEmpty()) return
+    if (metrics.isEmpty() && state.garminUrl == null) return
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
@@ -343,6 +343,15 @@ private fun SyncedMetrics(state: SessionEditUiState) {
             ) {
                 Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(value, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        state.garminUrl?.let { url ->
+            val context = LocalContext.current
+            OutlinedButton(
+                onClick = { com.laurasheehan.royalmiles.ui.sync.openUrl(context, url) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("View this activity in Garmin Connect")
             }
         }
     }

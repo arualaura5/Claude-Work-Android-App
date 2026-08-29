@@ -40,7 +40,16 @@ data class SessionEntity(
     val actualMaxHeartRate: Int? = null,
     val actualCalories: Int? = null,
     val actualElevationGainM: Int? = null,
+    /** Source app package and its own activity id, kept so the original activity stays reachable. */
+    val sourceApp: String? = null,
+    val sourceActivityId: String? = null,
 ) {
+    /** Garmin puts its activity id in Health Connect's clientRecordId, so this link is buildable. */
+    val garminUrl: String?
+        get() = sourceActivityId
+            ?.takeIf { it.isNotBlank() && sourceApp == "com.garmin.android.apps.connectmobile" }
+            ?.let { "https://connect.garmin.com/modern/activity/$it" }
+
     val isLoggable: Boolean get() = type != SessionType.REST
 
     /** Neither done nor written off — the only state that still wants something from you. */

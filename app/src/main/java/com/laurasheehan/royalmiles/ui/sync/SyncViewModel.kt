@@ -76,6 +76,8 @@ class SyncViewModel(
                 maxHeartRate = workout.maxHeartRate,
                 calories = workout.calories,
                 elevationGainM = workout.elevationGainM,
+                sourceApp = workout.sourceApp,
+                sourceActivityId = workout.sourceActivityId,
             )
             _uiState.update { it.copy(justMatched = true) }
             refresh()

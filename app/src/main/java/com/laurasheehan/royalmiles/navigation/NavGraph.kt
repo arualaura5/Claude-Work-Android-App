@@ -123,7 +123,12 @@ fun RoyalMilesNavHost(
             val context = androidx.compose.ui.platform.LocalContext.current
             val viewModel: DiagnosticsViewModel = viewModel(
                 factory = viewModelFactory {
-                    initializer { DiagnosticsViewModel(HealthDiagnostics(context.applicationContext)) }
+                    initializer {
+                        DiagnosticsViewModel(
+                            diagnostics = HealthDiagnostics(context.applicationContext),
+                            healthConnect = HealthConnectRepository(context.applicationContext),
+                        )
+                    }
                 },
             )
             DiagnosticsScreen(viewModel = viewModel, onDone = { navController.popBackStack() })

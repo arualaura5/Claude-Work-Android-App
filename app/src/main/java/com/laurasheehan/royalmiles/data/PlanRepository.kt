@@ -116,12 +116,16 @@ class PlanRepository(
         maxHeartRate: Int? = null,
         calories: Int? = null,
         elevationGainM: Int? = null,
+        sourceApp: String? = null,
+        sourceActivityId: String? = null,
     ) {
         val existing = sessionDao.getById(id) ?: return
         sessionDao.update(
             existing.copy(
                 isCompleted = true,
                 isSkipped = false,
+                sourceApp = sourceApp ?: existing.sourceApp,
+                sourceActivityId = sourceActivityId ?: existing.sourceActivityId,
                 actualDistanceKm = actualDistanceKm,
                 actualDurationMin = actualDurationMin,
                 effortRating = effortRating,
@@ -167,6 +171,8 @@ class PlanRepository(
                 actualMaxHeartRate = null,
                 actualCalories = null,
                 actualElevationGainM = null,
+                sourceApp = null,
+                sourceActivityId = null,
             ),
         )
     }

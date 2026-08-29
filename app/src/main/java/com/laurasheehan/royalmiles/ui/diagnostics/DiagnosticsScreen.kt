@@ -1,5 +1,6 @@
 package com.laurasheehan.royalmiles.ui.diagnostics
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,6 +43,11 @@ private val stamp = DateTimeFormatter.ofPattern("EEE d MMM, HH:mm")
 @Composable
 fun DiagnosticsScreen(viewModel: DiagnosticsViewModel, onDone: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = remember { viewModel.permissionContract() },
+        onResult = { viewModel.refresh() },
+    )
 
     Scaffold(
         topBar = {
@@ -65,11 +73,23 @@ fun DiagnosticsScreen(viewModel: DiagnosticsViewModel, onDone: () -> Unit) {
         ) {
             item {
                 Text(
-                    "What's actually in Health Connect for the last 30 days. Anything showing 0 " +
-                        "either isn't written by your apps or isn't granted.",
+                    "What's actually in Health Connect for the last 30 days. \"Not granted\" means " +
+                        "the permission is off; 0 means it's on but nothing has written to it.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+
+            val ungranted = state.probes.count { !it.granted }
+            if (ungranted > 0) {
+                item {
+                    Button(
+                        onClick = { permissionLauncher.launch(viewModel.permissionsToRequest) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Grant access to $ungranted more data types")
+                    }
+                }
             }
 
             item { Text("Record types", style = MaterialTheme.typography.titleMedium, color = RoyalPurple) }

@@ -39,6 +39,8 @@ data class SessionEditUiState(
     val actualMaxHeartRate: Int? = null,
     val actualCalories: Int? = null,
     val actualElevationGainM: Int? = null,
+    /** Link back to the original Garmin activity, when this session came from a synced workout. */
+    val garminUrl: String? = null,
     val availableWeeks: List<UiWeek> = emptyList(),
     val saved: Boolean = false,
     val deleted: Boolean = false,
@@ -78,6 +80,7 @@ class SessionEditViewModel(
                         actualMaxHeartRate = existing.actualMaxHeartRate,
                         actualCalories = existing.actualCalories,
                         actualElevationGainM = existing.actualElevationGainM,
+                        garminUrl = existing.garminUrl,
                         availableWeeks = weeks,
                     )
                 } else {
