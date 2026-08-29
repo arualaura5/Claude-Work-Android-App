@@ -4,8 +4,13 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
+import androidx.health.connect.client.records.BasalMetabolicRateRecord
 import androidx.health.connect.client.records.BodyFatRecord
+import androidx.health.connect.client.records.BodyWaterMassRecord
+import androidx.health.connect.client.records.BoneMassRecord
 import androidx.health.connect.client.records.DistanceRecord
+import androidx.health.connect.client.records.HeightRecord
+import androidx.health.connect.client.records.LeanBodyMassRecord
 import androidx.health.connect.client.records.ElevationGainedRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
@@ -89,6 +94,22 @@ class HealthDiagnostics(private val context: Context) {
                 "%.1f kg".format(it.weight.inKilograms)
             },
             probe("Body fat", BodyFatRecord::class, since, granted) { "recorded" },
+            // Body composition: lean mass is stored directly, so fat-free mass needs no deriving.
+            probe("Lean body mass", LeanBodyMassRecord::class, since, granted) {
+                "%.1f kg".format(it.mass.inKilograms)
+            },
+            probe("Basal metabolic rate", BasalMetabolicRateRecord::class, since, granted) {
+                "${it.basalMetabolicRate.inKilocaloriesPerDay.toInt()} kcal/day"
+            },
+            probe("Body water mass", BodyWaterMassRecord::class, since, granted) {
+                "%.1f kg".format(it.mass.inKilograms)
+            },
+            probe("Bone mass", BoneMassRecord::class, since, granted) {
+                "%.1f kg".format(it.mass.inKilograms)
+            },
+            probe("Height", HeightRecord::class, since, granted) {
+                "%.2f m".format(it.height.inMeters)
+            },
             probe("Total calories", TotalCaloriesBurnedRecord::class, since, granted) {
                 "${it.energy.inKilocalories.toInt()} kcal"
             },
