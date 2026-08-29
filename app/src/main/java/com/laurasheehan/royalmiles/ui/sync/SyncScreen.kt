@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -59,7 +60,7 @@ private fun workoutMetrics(workout: ExternalWorkout): List<String> = buildList {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit) {
+fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit, onOpenDiagnostics: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var pendingMatch by remember { mutableStateOf<ExternalWorkout?>(null) }
 
@@ -78,6 +79,9 @@ fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenDiagnostics) {
+                        Icon(Icons.Filled.Info, contentDescription = "What's in Health Connect")
+                    }
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
                     }

@@ -13,6 +13,9 @@ import com.laurasheehan.royalmiles.RaceConfig
 import com.laurasheehan.royalmiles.data.AthleteProfileRepository
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.health.HealthConnectRepository
+import com.laurasheehan.royalmiles.data.health.HealthDiagnostics
+import com.laurasheehan.royalmiles.ui.diagnostics.DiagnosticsScreen
+import com.laurasheehan.royalmiles.ui.diagnostics.DiagnosticsViewModel
 import com.laurasheehan.royalmiles.ui.calendar.CalendarScreen
 import com.laurasheehan.royalmiles.ui.calendar.CalendarViewModel
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardScreen
@@ -30,6 +33,7 @@ object Routes {
     const val CALENDAR = "calendar"
     const val NUTRITION = "nutrition"
     const val NUTRITION_LEARN = "nutrition/learn"
+    const val HEALTH_DIAGNOSTICS = "sync/diagnostics"
     const val SESSION = "session/{sessionId}"
     const val SYNC = "sync"
     const val NEW_SESSION_ID = -1L
@@ -109,7 +113,20 @@ fun RoyalMilesNavHost(
                     initializer { SyncViewModel(repository, HealthConnectRepository(context.applicationContext)) }
                 },
             )
-            SyncScreen(viewModel = viewModel, onDone = { navController.popBackStack() })
+            SyncScreen(
+                viewModel = viewModel,
+                onDone = { navController.popBackStack() },
+                onOpenDiagnostics = { navController.navigate(Routes.HEALTH_DIAGNOSTICS) },
+            )
+        }
+        composable(Routes.HEALTH_DIAGNOSTICS) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val viewModel: DiagnosticsViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer { DiagnosticsViewModel(HealthDiagnostics(context.applicationContext)) }
+                },
+            )
+            DiagnosticsScreen(viewModel = viewModel, onDone = { navController.popBackStack() })
         }
     }
 }
