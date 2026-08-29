@@ -176,6 +176,7 @@ fun SessionEditScreen(
                     )
                 }
                 EffortRatingPicker(selected = state.effortRating, onSelected = viewModel::updateEffortRating)
+                SyncedMetrics(state)
             }
 
             Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) {
@@ -305,5 +306,44 @@ private fun DatePickerField(date: LocalDate, onDateSelected: (LocalDate) -> Unit
     ) {
         Icon(Icons.Filled.CalendarMonth, contentDescription = null)
         Text("  ${date.format(dateFormat)}")
+    }
+}
+
+/**
+ * Metrics pulled from Health Connect when this session was matched to a workout. Read-only —
+ * they're a record of what the watch measured, not something to type over. Hidden entirely when
+ * nothing synced, so a manually-ticked session doesn't show a row of blanks.
+ */
+@Composable
+private fun SyncedMetrics(state: SessionEditUiState) {
+    val metrics = buildList {
+        state.actualAvgHeartRate?.let { add("Avg HR" to "$it bpm") }
+        state.actualMaxHeartRate?.let { add("Max HR" to "$it bpm") }
+        state.actualCalories?.let { add("Energy" to "$it kcal") }
+        state.actualElevationGainM?.let { add("Elevation" to "${it}m") }
+        val km = state.actualDistanceKm.toDoubleOrNull()
+        val min = state.actualDurationMin.toIntOrNull()
+        if (km != null && km > 0 && min != null) {
+            val pace = min / km
+            add("Pace" to "%d:%02d /km".format(pace.toInt(), ((pace - pace.toInt()) * 60).toInt()))
+        }
+    }
+    if (metrics.isEmpty()) return
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            "From Health Connect",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        metrics.forEach { (label, value) ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(value, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
     }
 }

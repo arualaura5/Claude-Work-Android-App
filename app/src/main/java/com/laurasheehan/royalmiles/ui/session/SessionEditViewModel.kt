@@ -34,6 +34,11 @@ data class SessionEditUiState(
     val actualDistanceKm: String = "",
     val actualDurationMin: String = "",
     val effortRating: Int? = null,
+    /** Captured from Health Connect at match time — shown read-only, not editable by hand. */
+    val actualAvgHeartRate: Int? = null,
+    val actualMaxHeartRate: Int? = null,
+    val actualCalories: Int? = null,
+    val actualElevationGainM: Int? = null,
     val availableWeeks: List<UiWeek> = emptyList(),
     val saved: Boolean = false,
     val deleted: Boolean = false,
@@ -69,6 +74,10 @@ class SessionEditViewModel(
                         actualDistanceKm = existing.actualDistanceKm?.let { formatNumber(it) } ?: "",
                         actualDurationMin = existing.actualDurationMin?.toString() ?: "",
                         effortRating = existing.effortRating,
+                        actualAvgHeartRate = existing.actualAvgHeartRate,
+                        actualMaxHeartRate = existing.actualMaxHeartRate,
+                        actualCalories = existing.actualCalories,
+                        actualElevationGainM = existing.actualElevationGainM,
                         availableWeeks = weeks,
                     )
                 } else {
@@ -177,6 +186,11 @@ class SessionEditViewModel(
                         actualDurationMin = if (state.isCompleted) (actualDuration ?: duration) else null,
                         effortRating = if (state.isCompleted) state.effortRating else null,
                         completedAt = if (state.isCompleted) (existing.completedAt ?: LocalDate.now()) else null,
+                        // Synced metrics belong to the completion; clearing it clears them too.
+                        actualAvgHeartRate = if (state.isCompleted) existing.actualAvgHeartRate else null,
+                        actualMaxHeartRate = if (state.isCompleted) existing.actualMaxHeartRate else null,
+                        actualCalories = if (state.isCompleted) existing.actualCalories else null,
+                        actualElevationGainM = if (state.isCompleted) existing.actualElevationGainM else null,
                     ),
                 )
             }
