@@ -28,6 +28,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
+import java.time.format.DateTimeFormatter
+
+/** e.g. "Tue 1 Sep" — the day matters as much as the distance when scanning a week. */
+private val cardDateFormat = DateTimeFormatter.ofPattern("EEE d MMM")
 
 @Composable
 fun SessionCard(
@@ -91,11 +95,13 @@ fun SessionCard(
 }
 
 private fun sessionSubtitle(session: SessionEntity): String {
-    val parts = mutableListOf<String>()
+    val parts = mutableListOf(session.date.format(cardDateFormat))
     session.targetDistanceKm?.let { parts.add("${formatKm(it)}km") }
     session.targetDurationMin?.let { parts.add("${it} min") }
     if (session.optional) parts.add("optional")
-    return if (parts.isEmpty()) session.type.label() else parts.joinToString(" · ")
+    // Rest days carry no distance or duration, so name the type rather than showing a bare date.
+    if (parts.size == 1) parts.add(session.type.label())
+    return parts.joinToString(" · ")
 }
 
 fun formatKm(value: Double): String =

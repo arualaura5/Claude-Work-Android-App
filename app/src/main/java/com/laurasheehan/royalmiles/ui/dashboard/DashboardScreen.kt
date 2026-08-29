@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -23,6 +24,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +49,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel,
     onOpenSession: (Long) -> Unit,
     onOpenSync: () -> Unit,
+    onOpenCalendar: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -131,11 +134,23 @@ fun DashboardScreen(
             }
 
             item {
-                Text(
-                    "Up next",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Text("Up next", style = MaterialTheme.typography.titleLarge)
+                    TextButton(onClick = onOpenCalendar) {
+                        Text("Full schedule")
+                        Icon(
+                            Icons.Filled.ChevronRight,
+                            contentDescription = null,
+                            modifier = Modifier.padding(start = 2.dp),
+                        )
+                    }
+                }
             }
             items(state.upNext, key = { it.id }) { session ->
                 SessionCard(

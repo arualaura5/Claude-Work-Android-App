@@ -56,6 +56,7 @@ fun RoyalMilesNavHost(
                 viewModel = viewModel,
                 onOpenSession = { navController.navigate(Routes.session(it)) },
                 onOpenSync = { navController.navigate(Routes.SYNC) },
+                onOpenCalendar = { navController.navigate(Routes.CALENDAR) },
             )
         }
         composable(Routes.NUTRITION) {
