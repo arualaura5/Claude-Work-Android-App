@@ -10,6 +10,9 @@ import com.laurasheehan.royalmiles.core.model.TrainingPhase
 import com.laurasheehan.royalmiles.core.model.TrainingPlan
 import com.laurasheehan.royalmiles.core.model.TrainingWeek
 import com.laurasheehan.royalmiles.core.plan.TrainingPlanGenerator
+import com.laurasheehan.royalmiles.core.progress.EffortReading
+import com.laurasheehan.royalmiles.core.progress.EffortSignal
+import com.laurasheehan.royalmiles.core.progress.EffortTrends
 import com.laurasheehan.royalmiles.core.progress.WeekSummaries
 import com.laurasheehan.royalmiles.core.progress.WeekSummary
 import java.time.DayOfWeek
@@ -55,7 +58,9 @@ data class Stats(
     val longestWeekStreak: Int,
     val badges: Set<Badge>,
     /** Effort ratings (1-5) from the most recent completed sessions that have one, oldest first. */
-    val recentEffort: List<Int> = emptyList(),
+    val recentEffort: List<EffortReading> = emptyList(),
+    /** Whether that run of ratings is worth saying something about. */
+    val effortSignal: EffortSignal = EffortSignal.NONE,
     /** What this week and last week actually contained. No denominators — see [WeekSummary]. */
     val thisWeek: WeekSummary? = null,
     val lastWeek: WeekSummary? = null,
@@ -184,6 +189,13 @@ class PlanRepository(
         )
     }
 
+    /** Records how a completed session felt, 1-5. Nothing scores it; it only feeds the trend. */
+    suspend fun setEffortRating(id: Long, rating: Int) {
+        val existing = sessionDao.getById(id) ?: return
+        if (!existing.isCompleted) return
+        sessionDao.update(existing.copy(effortRating = rating.coerceIn(1, 5)))
+    }
+
     suspend fun updateSession(session: SessionEntity) = sessionDao.update(session)
 
     /**
@@ -241,7 +253,7 @@ class PlanRepository(
             .filter { it.effortRating != null }
             .sortedBy { it.completedAt ?: it.date }
             .takeLast(10)
-            .mapNotNull { it.effortRating }
+            .map { EffortReading(date = it.completedAt ?: it.date, rating = it.effortRating!!) }
 
         val thisMonday = WeekSummaries.weekCommencing(LocalDate.now())
         return Stats(
@@ -252,6 +264,7 @@ class PlanRepository(
             longestWeekStreak = GamificationEngine.longestWeekStreak(calendarCompletions),
             badges = badges,
             recentEffort = recentEffort,
+            effortSignal = EffortTrends.assess(recentEffort),
             thisWeek = WeekSummaries.summarise(calendarCompletions, thisMonday),
             lastWeek = WeekSummaries.summarise(calendarCompletions, thisMonday.minusWeeks(1)),
         )

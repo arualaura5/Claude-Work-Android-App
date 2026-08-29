@@ -152,6 +152,7 @@ fun CalendarScreen(
                             onToggleComplete = { viewModel.toggleComplete(session) },
                             onClick = { onOpenSession(session.id) },
                             onSkip = { skipWithUndo(session) },
+                            onRate = { viewModel.rate(session, it) },
                         )
                     }
                 }

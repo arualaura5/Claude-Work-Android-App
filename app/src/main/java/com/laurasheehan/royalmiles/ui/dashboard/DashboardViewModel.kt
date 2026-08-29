@@ -195,6 +195,10 @@ class DashboardViewModel(
         }
     }
 
+    fun rate(session: SessionEntity, rating: Int) {
+        viewModelScope.launch { repository.setEffortRating(session.id, rating) }
+    }
+
     fun skip(session: SessionEntity) {
         viewModelScope.launch { repository.markSkipped(session.id) }
     }

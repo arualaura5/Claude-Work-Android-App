@@ -2,6 +2,7 @@ package com.laurasheehan.royalmiles.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +42,9 @@ private val cardDateFormat = DateTimeFormatter.ofPattern("EEE d MMM")
  * @param onSkip long-press action, writing the session off as not done. Clearing a miss should be
  *   cheaper than the miss was — before this it took four taps through the edit screen, so misses
  *   simply accumulated in the calendar as unresolved empty circles instead.
+ * @param onRate records how a completed session felt. Shown inline on a completed, unrated card so
+ *   rating costs one tap on the card you just ticked, rather than a trip into the edit screen —
+ *   which is why almost nothing had a rating and the trend had nothing to read.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -50,6 +54,7 @@ fun SessionCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onSkip: (() -> Unit)? = null,
+    onRate: ((Int) -> Unit)? = null,
 ) {
     val accent = session.type.accentColor()
     val haptics = LocalHapticFeedback.current
@@ -70,10 +75,9 @@ fun SessionCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = if (session.isCompleted) 0.dp else 2.dp),
     ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -131,6 +135,49 @@ fun SessionCard(
             } else if (session.isLoggable) {
                 IconButton(onClick = onToggleComplete) {
                     Icon(Icons.Filled.RadioButtonUnchecked, contentDescription = "Mark complete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        if (onRate != null && session.isCompleted && session.effortRating == null) {
+            EffortPrompt(onRate = onRate, modifier = Modifier.padding(top = 10.dp))
+        }
+        }
+    }
+}
+
+/**
+ * "How did that feel?", 1 to 5, inline on the card. Disappears once answered.
+ *
+ * Self-reported and unscored — it feeds the fatigue trend and nothing else. Nothing here earns XP,
+ * and a low number is never treated as a worse answer than a high one.
+ */
+@Composable
+private fun EffortPrompt(onRate: (Int) -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            "How did that feel?",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            (1..5).forEach { rating ->
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { onRate(rating) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "$rating",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
                 }
             }
         }

@@ -30,6 +30,10 @@ class CalendarViewModel(private val repository: PlanRepository) : ViewModel() {
         return if (index >= 0) index else 0
     }
 
+    fun rate(session: SessionEntity, rating: Int) {
+        viewModelScope.launch { repository.setEffortRating(session.id, rating) }
+    }
+
     fun skip(session: SessionEntity) {
         viewModelScope.launch { repository.markSkipped(session.id) }
     }
