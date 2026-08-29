@@ -72,7 +72,7 @@ fun XpBar(totalXp: Int, level: Level, xpToNextLevel: Int?, modifier: Modifier = 
             )
         }
         Text(
-            text = if (xpToNextLevel != null) "$xpToNextLevel XP to next level" else "Max level reached — legend status",
+            text = if (xpToNextLevel != null) "$xpToNextLevel XP to next level" else "Top level — you built this back",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
@@ -81,7 +81,7 @@ fun XpBar(totalXp: Int, level: Level, xpToNextLevel: Int?, modifier: Modifier = 
 }
 
 @Composable
-fun StreakChip(currentStreak: Int, modifier: Modifier = Modifier) {
+fun StreakChip(weekStreak: Int, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .background(
@@ -94,7 +94,7 @@ fun StreakChip(currentStreak: Int, modifier: Modifier = Modifier) {
     ) {
         Icon(Icons.Filled.LocalFireDepartment, contentDescription = null, tint = Color.White)
         Text(
-            text = if (currentStreak == 1) "1 day streak" else "$currentStreak day streak",
+            text = if (weekStreak == 1) "1 week in a row" else "$weekStreak weeks in a row",
             color = Color.White,
             style = MaterialTheme.typography.labelLarge,
         )

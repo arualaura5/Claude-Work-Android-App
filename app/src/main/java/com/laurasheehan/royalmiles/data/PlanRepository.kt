@@ -47,8 +47,9 @@ data class Stats(
     val totalXp: Int,
     val level: Level,
     val xpToNextLevel: Int?,
-    val currentStreak: Int,
-    val longestStreak: Int,
+    /** Consecutive Mon-Sun weeks with something logged. Week-granular so a rest day can't break it. */
+    val currentWeekStreak: Int,
+    val longestWeekStreak: Int,
     val badges: Set<Badge>,
     /** Effort ratings (1-5) from the most recent completed sessions that have one, oldest first. */
     val recentEffort: List<Int> = emptyList(),
@@ -194,7 +195,8 @@ class PlanRepository(
         val calendarCompletions = completed.map { it.toCompletedSession(useScheduledDate = false) }
 
         val totalXp = GamificationEngine.totalXp(slotCompletions)
-        val level = GamificationEngine.levelFor(totalXp)
+        val raceCompleted = completed.any { it.type == SessionType.RACE }
+        val level = GamificationEngine.levelFor(totalXp, raceCompleted)
         val badges = GamificationEngine.evaluateBadges(slotCompletions, snapshotPlan(sessions))
 
         val recentEffort = completed
@@ -206,9 +208,9 @@ class PlanRepository(
         return Stats(
             totalXp = totalXp,
             level = level,
-            xpToNextLevel = GamificationEngine.xpToNextLevel(totalXp),
-            currentStreak = GamificationEngine.currentStreak(calendarCompletions),
-            longestStreak = GamificationEngine.longestStreak(calendarCompletions),
+            xpToNextLevel = GamificationEngine.xpToNextLevel(totalXp, raceCompleted),
+            currentWeekStreak = GamificationEngine.currentWeekStreak(calendarCompletions),
+            longestWeekStreak = GamificationEngine.longestWeekStreak(calendarCompletions),
             badges = badges,
             recentEffort = recentEffort,
         )

@@ -87,7 +87,11 @@ fun DashboardScreen(
                     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             XpBar(totalXp = stats.totalXp, level = stats.level, xpToNextLevel = stats.xpToNextLevel)
-                            StreakChip(currentStreak = stats.currentStreak)
+                            // Hidden rather than shown at zero: a "0 weeks" chip is a reprimand,
+                            // and the chip's job is to reward, not to keep score of nothing.
+                            if (stats.currentWeekStreak > 0) {
+                                StreakChip(weekStreak = stats.currentWeekStreak)
+                            }
                         }
                     }
                 }
