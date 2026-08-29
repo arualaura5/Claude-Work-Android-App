@@ -16,6 +16,8 @@ import com.laurasheehan.royalmiles.data.health.HealthConnectRepository
 import com.laurasheehan.royalmiles.data.health.HealthDiagnostics
 import com.laurasheehan.royalmiles.ui.diagnostics.DiagnosticsScreen
 import com.laurasheehan.royalmiles.ui.diagnostics.DiagnosticsViewModel
+import com.laurasheehan.royalmiles.ui.activity.ActivityLogScreen
+import com.laurasheehan.royalmiles.ui.activity.ActivityLogViewModel
 import com.laurasheehan.royalmiles.ui.calendar.CalendarScreen
 import com.laurasheehan.royalmiles.ui.calendar.CalendarViewModel
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardScreen
@@ -31,6 +33,7 @@ import com.laurasheehan.royalmiles.ui.sync.SyncViewModel
 object Routes {
     const val DASHBOARD = "dashboard"
     const val CALENDAR = "calendar"
+    const val ACTIVITY = "activity"
     const val NUTRITION = "nutrition"
     const val NUTRITION_LEARN = "nutrition/learn"
     const val HEALTH_DIAGNOSTICS = "sync/diagnostics"
@@ -61,6 +64,15 @@ fun RoyalMilesNavHost(
                 onOpenSession = { navController.navigate(Routes.session(it)) },
                 onOpenSync = { navController.navigate(Routes.SYNC) },
                 onOpenCalendar = { navController.navigate(Routes.CALENDAR) },
+            )
+        }
+        composable(Routes.ACTIVITY) {
+            val viewModel: ActivityLogViewModel = viewModel(
+                factory = viewModelFactory { initializer { ActivityLogViewModel(repository) } },
+            )
+            ActivityLogScreen(
+                viewModel = viewModel,
+                onOpenSession = { navController.navigate(Routes.session(it)) },
             )
         }
         composable(Routes.NUTRITION) {

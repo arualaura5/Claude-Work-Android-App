@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.Icon
@@ -75,7 +76,7 @@ private fun RoyalMilesRoot(
 
     Scaffold(
         bottomBar = {
-            if (currentRoute == Routes.DASHBOARD || currentRoute == Routes.CALENDAR || currentRoute == Routes.NUTRITION) {
+            if (currentRoute in setOf(Routes.DASHBOARD, Routes.CALENDAR, Routes.ACTIVITY, Routes.NUTRITION)) {
                 NavigationBar {
                     NavigationBarItem(
                         selected = currentRoute == Routes.DASHBOARD,
@@ -92,6 +93,12 @@ private fun RoyalMilesRoot(
                         onClick = { navController.navigate(Routes.CALENDAR) },
                         icon = { Icon(Icons.Filled.CalendarMonth, contentDescription = "Calendar") },
                         label = { Text("Calendar") },
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.ACTIVITY,
+                        onClick = { navController.navigate(Routes.ACTIVITY) },
+                        icon = { Icon(Icons.Filled.History, contentDescription = "Activity") },
+                        label = { Text("Activity") },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.NUTRITION,
