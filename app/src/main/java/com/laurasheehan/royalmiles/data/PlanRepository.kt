@@ -112,6 +112,10 @@ class PlanRepository(
         actualDurationMin: Int?,
         effortRating: Int? = null,
         completedAt: LocalDate = LocalDate.now(),
+        avgHeartRate: Int? = null,
+        maxHeartRate: Int? = null,
+        calories: Int? = null,
+        elevationGainM: Int? = null,
     ) {
         val existing = sessionDao.getById(id) ?: return
         sessionDao.update(
@@ -122,6 +126,10 @@ class PlanRepository(
                 actualDurationMin = actualDurationMin,
                 effortRating = effortRating,
                 completedAt = completedAt,
+                actualAvgHeartRate = avgHeartRate ?: existing.actualAvgHeartRate,
+                actualMaxHeartRate = maxHeartRate ?: existing.actualMaxHeartRate,
+                actualCalories = calories ?: existing.actualCalories,
+                actualElevationGainM = elevationGainM ?: existing.actualElevationGainM,
             ),
         )
     }
@@ -144,7 +152,7 @@ class PlanRepository(
         )
     }
 
-    /** Back to outstanding — clears both "done" and "didn't do it". */
+    /** Back to outstanding — clears both "done" and "didn't do it", and everything logged with it. */
     suspend fun markIncomplete(id: Long) {
         val existing = sessionDao.getById(id) ?: return
         sessionDao.update(
@@ -155,6 +163,10 @@ class PlanRepository(
                 actualDurationMin = null,
                 effortRating = null,
                 completedAt = null,
+                actualAvgHeartRate = null,
+                actualMaxHeartRate = null,
+                actualCalories = null,
+                actualElevationGainM = null,
             ),
         )
     }

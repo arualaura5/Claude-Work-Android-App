@@ -43,6 +43,20 @@ import java.time.format.DateTimeFormatter
 
 private val workoutDateFormat = DateTimeFormatter.ofPattern("EEE d MMM")
 
+/** Whatever Health Connect actually had for this workout — each part is skipped when absent. */
+private fun workoutMetrics(workout: ExternalWorkout): List<String> = buildList {
+    workout.distanceKm?.let { add("%.2f km".format(it)) }
+    workout.paceMinPerKm?.let { pace ->
+        val minutes = pace.toInt()
+        val seconds = ((pace - minutes) * 60).toInt()
+        add("%d:%02d /km".format(minutes, seconds))
+    }
+    workout.avgHeartRate?.let { add("$it bpm avg") }
+    workout.maxHeartRate?.let { add("$it max") }
+    workout.calories?.let { add("$it kcal") }
+    workout.elevationGainM?.let { add("${it}m elev") }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit) {
@@ -167,6 +181,14 @@ private fun WorkoutCard(workout: ExternalWorkout, onMatch: () -> Unit) {
                 "${workout.title ?: workout.guessedType.label()} · ${workout.durationMinutes} min",
                 style = MaterialTheme.typography.titleMedium,
             )
+            val metrics = workoutMetrics(workout)
+            if (metrics.isNotEmpty()) {
+                Text(
+                    metrics.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Button(onClick = onMatch, colors = ButtonDefaults.buttonColors(containerColor = RoyalPurple)) {
                 Text("Match to a session")
             }

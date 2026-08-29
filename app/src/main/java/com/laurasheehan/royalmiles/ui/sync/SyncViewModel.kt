@@ -67,9 +67,15 @@ class SyncViewModel(
         viewModelScope.launch {
             repository.markComplete(
                 id = session.id,
-                actualDistanceKm = session.targetDistanceKm,
+                // Prefer what was actually run over what was planned; fall back only if Health
+                // Connect has no distance for it.
+                actualDistanceKm = workout.distanceKm ?: session.targetDistanceKm,
                 actualDurationMin = workout.durationMinutes,
                 completedAt = workout.localDate,
+                avgHeartRate = workout.avgHeartRate,
+                maxHeartRate = workout.maxHeartRate,
+                calories = workout.calories,
+                elevationGainM = workout.elevationGainM,
             )
             _uiState.update { it.copy(justMatched = true) }
             refresh()

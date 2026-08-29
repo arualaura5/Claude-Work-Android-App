@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [SessionEntity::class, PlanMetaEntity::class, AthleteProfileEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -75,13 +75,24 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** Richer Health Connect metrics per session, so training history accumulates over time. */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sessions ADD COLUMN actualAvgHeartRate INTEGER")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN actualMaxHeartRate INTEGER")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN actualCalories INTEGER")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN actualElevationGainM INTEGER")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "royalmiles.db",
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .build().also { instance = it }
             }
     }
 }

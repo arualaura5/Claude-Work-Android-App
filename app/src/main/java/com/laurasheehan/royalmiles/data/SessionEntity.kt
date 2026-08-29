@@ -30,6 +30,16 @@ data class SessionEntity(
      * session can be closed off and stop asking; nothing scores or penalises it.
      */
     val isSkipped: Boolean = false,
+    /**
+     * Metrics captured from Health Connect at match time. Stored rather than re-read on demand so
+     * the training history accumulates into something a coaching layer can actually reason over
+     * later — Health Connect only retains a rolling window, and these are the numbers that make a
+     * session interpretable after the fact.
+     */
+    val actualAvgHeartRate: Int? = null,
+    val actualMaxHeartRate: Int? = null,
+    val actualCalories: Int? = null,
+    val actualElevationGainM: Int? = null,
 ) {
     val isLoggable: Boolean get() = type != SessionType.REST
 
