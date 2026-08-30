@@ -533,10 +533,13 @@ private fun HrvTrendRow(hrv: CoachPayload.HrvMetrics) {
             }
             // Direction is meaning, not decoration: an upward HRV trend is a genuinely different
             // fact from a downward one, and colour plus an arrow now say so, rather than both
-            // reading in the same neutral grey they did before.
-            val (icon, tint) = when (direction) {
-                "up" -> Icons.Filled.TrendingUp to ComebackGold
-                "down" -> Icons.Filled.TrendingDown to BlushPink
+            // reading in the same neutral grey they did before. The export actually sends words
+            // ("improving"/"worsening"/"stable"), not "up"/"down" — matching only the latter left
+            // every real value falling through to the neutral flat arrow, silently hiding the one
+            // case (worsening) this was meant to call out.
+            val (icon, tint) = when (direction.lowercase()) {
+                "improving", "up" -> Icons.Filled.TrendingUp to ComebackGold
+                "worsening", "down" -> Icons.Filled.TrendingDown to BlushPink
                 else -> Icons.Filled.TrendingFlat to MaterialTheme.colorScheme.onSurfaceVariant
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
