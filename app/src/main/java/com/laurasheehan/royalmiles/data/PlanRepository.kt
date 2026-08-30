@@ -19,8 +19,12 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+
+private const val CURRENT_PLAN_VERSION = 2
+private val PLAN_REGENERATION_CUTOVER: LocalDate = LocalDate.of(2026, 8, 31)
 
 data class UiWeek(
     val weekNumber: Int,
@@ -69,23 +73,57 @@ data class Stats(
 class PlanRepository(
     private val sessionDao: SessionDao,
     private val planMetaDao: PlanMetaDao,
+    private val transaction: suspend (suspend () -> Unit) -> Unit,
 ) {
-    suspend fun ensureSeeded(raceDate: LocalDate, today: LocalDate = LocalDate.now(), peakLongRunKm: Double = 17.0) {
-        if (sessionDao.count() > 0) return
+    suspend fun ensureSeeded(raceDate: LocalDate, today: LocalDate = LocalDate.now(), peakLongRunKm: Double = 15.0) {
+        val existingCount = sessionDao.count()
+        val existingMeta = planMetaDao.get()
+        if (existingCount > 0) {
+            if (existingMeta == null || existingMeta.planVersion < CURRENT_PLAN_VERSION) {
+                regeneratePlan(raceDate = raceDate, peakLongRunKm = peakLongRunKm)
+            }
+            return
+        }
         val plan = TrainingPlanGenerator.generate(raceDate = raceDate, today = today, peakLongRunKm = peakLongRunKm)
-        planMetaDao.upsert(
-            PlanMetaEntity(
-                id = 0,
-                raceDate = plan.raceDate,
-                startDate = plan.startDate,
-                raceDistanceKm = plan.raceDistanceKm,
-                peakLongRunKm = plan.peakLongRunKm,
-            ),
-        )
+        planMetaDao.upsert(plan.toMeta())
         val entities = plan.weeks.flatMap { week ->
             week.sessions.map { it.toEntity(week.weekNumber) }
         }
         sessionDao.insertAll(entities)
+    }
+
+    suspend fun regeneratePlan(
+        raceDate: LocalDate,
+        peakLongRunKm: Double = 15.0,
+        cutoverDate: LocalDate = PLAN_REGENERATION_CUTOVER,
+    ) {
+        val existingMeta = planMetaDao.get()
+        if (
+            existingMeta?.planVersion == CURRENT_PLAN_VERSION &&
+            existingMeta.peakLongRunKm == peakLongRunKm &&
+            existingMeta.raceDate == raceDate
+        ) return
+
+        transaction {
+            val plan = TrainingPlanGenerator.generate(
+                raceDate = raceDate,
+                today = cutoverDate.minusDays(1),
+                peakLongRunKm = peakLongRunKm,
+            )
+            val survivors = sessionDao.getAll().filter {
+                it.date.isBefore(cutoverDate) || it.isCompleted || it.isCustom
+            }
+            val survivorSlots = survivors.map { it.slotKey() }.toSet()
+            val replacementEntities = plan.weeks.flatMap { week ->
+                week.sessions
+                    .map { it.toEntity(week.weekNumber) }
+                    .filterNot { it.slotKey() in survivorSlots }
+            }
+
+            planMetaDao.upsert(plan.toMeta())
+            sessionDao.deleteRegeneratableSessions(cutoverDate)
+            sessionDao.insertAll(replacementEntities)
+        }
     }
 
     fun observeSessions(): Flow<List<SessionEntity>> = sessionDao.observeAll()
@@ -112,7 +150,9 @@ class PlanRepository(
             }
     }
 
-    fun observeStats(): Flow<Stats> = observeSessions().map { computeStats(it) }
+    fun observeStats(): Flow<Stats> = combine(observeSessions(), planMetaDao.observe()) { sessions, meta ->
+        computeStats(sessions, meta)
+    }
 
     suspend fun getSession(id: Long): SessionEntity? = sessionDao.getById(id)
 
@@ -239,7 +279,7 @@ class PlanRepository(
      * scheduled [SessionEntity.date] even if it was logged as complete on a different real day.
      * Streaks care about actual training days, so they use [SessionEntity.completedAt] instead.
      */
-    private fun computeStats(sessions: List<SessionEntity>): Stats {
+    private fun computeStats(sessions: List<SessionEntity>, meta: PlanMetaEntity?): Stats {
         val completed = sessions.filter { it.isCompleted }
         val slotCompletions = completed.map { it.toCompletedSession(useScheduledDate = true) }
         val calendarCompletions = completed.map { it.toCompletedSession(useScheduledDate = false) }
@@ -247,7 +287,7 @@ class PlanRepository(
         val totalXp = GamificationEngine.totalXp(slotCompletions)
         val raceCompleted = completed.any { it.type == SessionType.RACE }
         val level = GamificationEngine.levelFor(totalXp, raceCompleted)
-        val badges = GamificationEngine.evaluateBadges(slotCompletions, snapshotPlan(sessions))
+        val badges = GamificationEngine.evaluateBadges(slotCompletions, snapshotPlan(sessions, meta))
 
         val recentEffort = completed
             .filter { it.effortRating != null }
@@ -271,7 +311,7 @@ class PlanRepository(
     }
 
     /** Rebuilds a [TrainingPlan] from the live, editable rows so badge rules reflect edits, not the original template. */
-    private fun snapshotPlan(sessions: List<SessionEntity>): TrainingPlan {
+    private fun snapshotPlan(sessions: List<SessionEntity>, meta: PlanMetaEntity?): TrainingPlan {
         val weeks = sessions.groupBy { it.weekNumber }.toSortedMap().map { (weekNumber, weekSessions) ->
             val sorted = weekSessions.sortedBy { it.date }
             TrainingWeek(
@@ -288,12 +328,21 @@ class PlanRepository(
         return TrainingPlan(
             raceDate = raceDate,
             startDate = startDate,
-            raceDistanceKm = 21.1,
-            peakLongRunKm = 17.0,
+            raceDistanceKm = meta?.raceDistanceKm ?: 21.1,
+            peakLongRunKm = meta?.peakLongRunKm ?: 15.0,
             weeks = weeks,
         )
     }
 }
+
+private fun TrainingPlan.toMeta(): PlanMetaEntity = PlanMetaEntity(
+    id = 0,
+    raceDate = raceDate,
+    startDate = startDate,
+    raceDistanceKm = raceDistanceKm,
+    peakLongRunKm = peakLongRunKm,
+    planVersion = CURRENT_PLAN_VERSION,
+)
 
 private fun Session.toEntity(weekNumber: Int): SessionEntity = SessionEntity(
     date = date,
@@ -317,6 +366,8 @@ private fun SessionEntity.toCoreSession(): Session = Session(
     optional = optional,
     notes = notes,
 )
+
+private fun SessionEntity.slotKey(): String = listOf(date.toString(), type.name, title).joinToString("|")
 
 private fun SessionEntity.toCompletedSession(useScheduledDate: Boolean): CompletedSession = CompletedSession(
     date = if (useScheduledDate) date else (completedAt ?: date),

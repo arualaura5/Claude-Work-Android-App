@@ -63,4 +63,5 @@ data class PlanMetaEntity(
     val startDate: LocalDate,
     val raceDistanceKm: Double,
     val peakLongRunKm: Double,
+    val planVersion: Int = 1,
 )

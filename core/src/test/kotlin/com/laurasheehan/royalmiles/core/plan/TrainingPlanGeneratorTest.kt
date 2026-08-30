@@ -2,6 +2,7 @@ package com.laurasheehan.royalmiles.core.plan
 
 import com.laurasheehan.royalmiles.core.model.SessionType
 import com.laurasheehan.royalmiles.core.model.TrainingPhase
+import java.time.DayOfWeek
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,7 +18,7 @@ class TrainingPlanGeneratorTest {
         val plan = TrainingPlanGenerator.generate(raceDate = raceDate, today = today)
 
         assertEquals(7, plan.weeks.size)
-        assertEquals(LocalDate.of(2026, 8, 24), plan.startDate) // upcoming Monday (today, Aug 23, is a Sunday)
+        assertEquals(LocalDate.of(2026, 8, 24), plan.startDate)
         assertEquals(raceDate, plan.weeks.last().sessions.last().date)
     }
 
@@ -27,48 +28,89 @@ class TrainingPlanGeneratorTest {
 
         plan.weeks.forEachIndexed { index, week ->
             assertEquals(index + 1, week.weekNumber)
-            assertEquals(java.time.DayOfWeek.MONDAY, week.startDate.dayOfWeek)
+            assertEquals(DayOfWeek.MONDAY, week.startDate.dayOfWeek)
         }
     }
 
     @Test
-    fun `the mid-week easy run falls on Tuesday, with strength on Wednesday`() {
+    fun `regular weeks put easy run on Tuesday and strength plus short easy run on Wednesday`() {
         val plan = TrainingPlanGenerator.generate(raceDate = raceDate, today = today)
 
-        // Race week runs its own countdown structure, so it's excluded.
         val regularWeeks = plan.weeks.filter { it.phase != TrainingPhase.TAPER }
         assertTrue(regularWeeks.isNotEmpty())
 
         regularWeeks.forEach { week ->
-            val tuesday = week.sessions.single { it.date.dayOfWeek == java.time.DayOfWeek.TUESDAY }
-            val wednesday = week.sessions.single { it.date.dayOfWeek == java.time.DayOfWeek.WEDNESDAY }
-            assertEquals(SessionType.EASY_RUN, tuesday.type)
-            assertEquals(SessionType.STRENGTH, wednesday.type)
+            val tuesday = week.sessions.filter { it.date.dayOfWeek == DayOfWeek.TUESDAY }
+            val wednesday = week.sessions.filter { it.date.dayOfWeek == DayOfWeek.WEDNESDAY }
+            assertEquals(listOf(SessionType.EASY_RUN), tuesday.map { it.type })
+            assertEquals(listOf(SessionType.STRENGTH, SessionType.EASY_RUN), wednesday.map { it.type })
         }
     }
 
     @Test
-    fun `first two weeks are base phase with no session over 5km`() {
-        val plan = TrainingPlanGenerator.generate(raceDate = raceDate, today = today)
+    fun `remaining plan after completed week one uses exact revised ladder and three runs per week`() {
+        val plan = TrainingPlanGenerator.generate(
+            raceDate = raceDate,
+            today = LocalDate.of(2026, 8, 30),
+            peakLongRunKm = 15.0,
+        )
 
-        val baseWeeks = plan.weeks.take(2)
-        assertTrue(baseWeeks.all { it.phase == TrainingPhase.BASE })
-        val maxDistance = baseWeeks.flatMap { it.sessions }.mapNotNull { it.targetDistanceKm }.max()
-        assertTrue(maxDistance <= 5.0, "expected base phase to stay <=5km, was $maxDistance")
+        assertEquals(LocalDate.of(2026, 8, 31), plan.startDate)
+        assertEquals(listOf(7.0, 9.0, 11.0, 13.0, 15.0), plan.weeks.take(5).map { it.longRunKm })
+
+        val expectedRuns = listOf(
+            listOf(4.0, 3.0, 7.0),
+            listOf(5.0, 3.5, 9.0),
+            listOf(5.5, 4.0, 11.0),
+            listOf(6.0, 4.5, 13.0),
+            listOf(6.0, 4.5, 15.0),
+        )
+        plan.weeks.take(5).forEachIndexed { index, week ->
+            val runs = week.sessions
+                .filter { it.type == SessionType.EASY_RUN || it.type == SessionType.LONG_RUN }
+                .mapNotNull { it.targetDistanceKm }
+            assertEquals(expectedRuns[index], runs)
+        }
+        assertEquals(
+            listOf(3.0, 2.0, 21.1),
+            plan.weeks.last().sessions
+                .filter { it.type == SessionType.EASY_RUN || it.type == SessionType.RACE }
+                .mapNotNull { it.targetDistanceKm },
+        )
+        plan.weeks.forEach { week ->
+            val runCount = week.sessions.count {
+                it.type == SessionType.EASY_RUN || it.type == SessionType.LONG_RUN || it.type == SessionType.RACE
+            }
+            assertEquals(3, runCount)
+        }
     }
 
     @Test
-    fun `long run ramps up and peaks at 17km exactly one week before the race`() {
-        val plan = TrainingPlanGenerator.generate(raceDate = raceDate, today = today, peakLongRunKm = 17.0)
+    fun `long runs peak at 15km exactly one week before the race`() {
+        val plan = TrainingPlanGenerator.generate(raceDate = raceDate, today = today, peakLongRunKm = 15.0)
 
         val peakWeek = plan.weeks.first { it.phase == TrainingPhase.PEAK }
-        assertEquals(17.0, peakWeek.longRunKm)
+        assertEquals(15.0, peakWeek.longRunKm)
         assertEquals(raceDate.minusWeeks(1), peakWeek.sessions.first { it.type == SessionType.LONG_RUN }.date)
 
         val longRunDistances = plan.weeks
-            .filter { it.phase == TrainingPhase.BUILD || it.phase == TrainingPhase.PEAK }
+            .filter { it.phase != TrainingPhase.TAPER }
             .mapNotNull { it.longRunKm }
         assertEquals(longRunDistances, longRunDistances.sorted(), "long run distance should increase every week")
+    }
+
+    @Test
+    fun `target notes are attached to long runs and race`() {
+        val plan = TrainingPlanGenerator.generate(
+            raceDate = raceDate,
+            today = LocalDate.of(2026, 8, 30),
+            peakLongRunKm = 15.0,
+        )
+
+        val longRuns = plan.weeks.take(5).map { it.sessions.first { session -> session.type == SessionType.LONG_RUN } }
+        assertTrue(longRuns.filterNot { it.targetDistanceKm == 13.0 }.all { it.notes.contains("Keep heart rate under 150") })
+        assertTrue(longRuns.first { it.targetDistanceKm == 13.0 }.notes.startsWith("Gate check."))
+        assertTrue(plan.weeks.last().sessions.first { it.type == SessionType.RACE }.notes.startsWith("First 14 km"))
     }
 
     @Test

@@ -9,11 +9,11 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
-import kotlin.math.roundToInt
+import kotlin.math.round
 
 /**
  * Generates a Monday-to-Sunday week-by-week half marathon plan working backward from race day.
- * Weeks are numbered 1..N, each commencing on a Monday. The output is a starting point only —
+ * Weeks are numbered 1..N, each commencing on a Monday. The output is a starting point only:
  * every [Session] it produces is meant to be persisted and then freely edited.
  */
 object TrainingPlanGenerator {
@@ -21,9 +21,9 @@ object TrainingPlanGenerator {
     fun generate(
         raceDate: LocalDate,
         today: LocalDate = LocalDate.now(),
-        peakLongRunKm: Double = 17.0,
+        peakLongRunKm: Double = 15.0,
         raceDistanceKm: Double = 21.1,
-        baseLongRunStartKm: Double = 8.0,
+        baseLongRunStartKm: Double = 7.0,
     ): TrainingPlan {
         require(!raceDate.isBefore(today)) { "Race date must be in the future" }
 
@@ -32,13 +32,10 @@ object TrainingPlanGenerator {
         val totalWeeks = (ChronoUnit.WEEKS.between(startDate, raceWeekMonday).toInt() + 1).coerceAtLeast(1)
 
         val taperWeeks = 1
-        val peakWeeks = if (totalWeeks >= 3) 1 else 0
-        val baseWeeks = when {
-            totalWeeks >= 6 -> 2
-            totalWeeks >= 4 -> 1
-            else -> 0
-        }
-        val buildWeeks = (totalWeeks - taperWeeks - peakWeeks - baseWeeks).coerceAtLeast(0)
+        val progressiveWeeks = (totalWeeks - taperWeeks).coerceAtLeast(0)
+        val baseWeeks = if (progressiveWeeks > 0) 1 else 0
+        val peakWeeks = if (progressiveWeeks >= 2) 1 else 0
+        val buildWeeks = (progressiveWeeks - baseWeeks - peakWeeks).coerceAtLeast(0)
 
         val phases = buildList {
             repeat(baseWeeks) { add(TrainingPhase.BASE) }
@@ -46,7 +43,6 @@ object TrainingPlanGenerator {
             repeat(peakWeeks) { add(TrainingPhase.PEAK) }
             repeat(taperWeeks) { add(TrainingPhase.TAPER) }
         }.let { phaseList ->
-            // Guard: if rounding left us short (very small totalWeeks), pad the front with BUILD.
             if (phaseList.size < totalWeeks) {
                 List(totalWeeks - phaseList.size) { TrainingPhase.BUILD } + phaseList
             } else {
@@ -54,27 +50,25 @@ object TrainingPlanGenerator {
             }
         }
 
-        val rampWeeks = buildWeeks + peakWeeks
-        val longRunProgression: List<Double> = if (rampWeeks <= 0) {
+        val longRunProgression: List<Double> = if (progressiveWeeks <= 0) {
             emptyList()
-        } else if (rampWeeks == 1) {
+        } else if (progressiveWeeks == 1) {
             listOf(peakLongRunKm)
         } else {
-            val step = (peakLongRunKm - baseLongRunStartKm) / (rampWeeks - 1)
-            (0 until rampWeeks).map { i -> roundToHalf(baseLongRunStartKm + step * i) }
+            val step = (peakLongRunKm - baseLongRunStartKm) / (progressiveWeeks - 1)
+            (0 until progressiveWeeks).map { i -> roundToHalf(baseLongRunStartKm + step * i) }
         }
 
-        var rampIndex = 0
+        var progressionIndex = 0
         val weeks = phases.mapIndexed { index, phase ->
             val weekStart = startDate.plusWeeks(index.toLong())
             val weekNumber = index + 1
             val sessions = when (phase) {
-                TrainingPhase.BASE -> baseWeekSessions(weekStart, weekNumber, phase)
                 TrainingPhase.TAPER -> taperWeekSessions(weekStart, raceDate, raceDistanceKm, phase)
-                TrainingPhase.BUILD, TrainingPhase.PEAK -> {
-                    val longRun = longRunProgression.getOrElse(rampIndex) { peakLongRunKm }
-                    rampIndex++
-                    buildOrPeakWeekSessions(weekStart, weekNumber, phase, longRun)
+                TrainingPhase.BASE, TrainingPhase.BUILD, TrainingPhase.PEAK -> {
+                    val longRun = longRunProgression.getOrElse(progressionIndex) { peakLongRunKm }
+                    progressionIndex++
+                    progressiveWeekSessions(weekStart, phase, longRun)
                 }
             }
             TrainingWeek(weekNumber = weekNumber, phase = phase, startDate = weekStart, sessions = sessions)
@@ -89,10 +83,21 @@ object TrainingPlanGenerator {
         )
     }
 
-    private fun baseWeekSessions(weekStart: LocalDate, weekNumber: Int, phase: TrainingPhase): List<Session> {
-        val easyDistance = roundToHalf((3.0 + (weekNumber - 1) * 1.0).coerceAtMost(5.0))
+    private fun progressiveWeekSessions(
+        weekStart: LocalDate,
+        phase: TrainingPhase,
+        longRunKm: Double,
+    ): List<Session> {
+        val (easyDistance, shortDistance) = when (longRunKm) {
+            7.0 -> 4.0 to 3.0
+            9.0 -> 5.0 to 3.5
+            11.0 -> 5.5 to 4.0
+            13.0 -> 6.0 to 4.5
+            else -> 6.0 to 4.5
+        }
+        val longRunNotes = if (longRunKm == 13.0) GATE_CHECK_NOTE else EFFORT_CAP_NOTE
         return listOf(
-            Session(weekStart, SessionType.REST, "Rest day", phase, notes = "Full recovery. Legs up if you can."),
+            Session(weekStart, SessionType.REST, "Rest day", phase),
             Session(
                 weekStart.plusDays(1),
                 SessionType.EASY_RUN,
@@ -102,6 +107,14 @@ object TrainingPlanGenerator {
                 notes = "Conversational pace only.",
             ),
             Session(weekStart.plusDays(2), SessionType.STRENGTH, "Strength", phase, targetDurationMin = 35),
+            Session(
+                weekStart.plusDays(2),
+                SessionType.EASY_RUN,
+                "Short easy run",
+                phase,
+                targetDistanceKm = shortDistance,
+                notes = "Keep this genuinely easy.",
+            ),
             Session(weekStart.plusDays(3), SessionType.YOGA, "Yoga / mobility", phase, targetDurationMin = 30),
             Session(weekStart.plusDays(4), SessionType.STRENGTH, "Strength", phase, targetDurationMin = 35),
             Session(
@@ -112,49 +125,6 @@ object TrainingPlanGenerator {
                 targetDurationMin = 40,
                 optional = true,
                 notes = "Optional cross-training, easy effort.",
-            ),
-            Session(
-                weekStart.plusDays(6),
-                SessionType.EASY_RUN,
-                "Easy run",
-                phase,
-                targetDistanceKm = easyDistance,
-                notes = "Conversational pace only.",
-            ),
-        )
-    }
-
-    private fun buildOrPeakWeekSessions(
-        weekStart: LocalDate,
-        weekNumber: Int,
-        phase: TrainingPhase,
-        longRunKm: Double,
-    ): List<Session> {
-        val midWeekDistance = if (phase == TrainingPhase.PEAK) 6.0 else 5.0
-        val longRunNotes = if (phase == TrainingPhase.PEAK) {
-            "Peak long run. Easy, controlled effort — this is about time on feet, not pace."
-        } else {
-            "Steady, easy effort. Practice your race-day fuelling."
-        }
-        return listOf(
-            Session(weekStart, SessionType.REST, "Rest day", phase),
-            Session(
-                weekStart.plusDays(1),
-                SessionType.EASY_RUN,
-                "Easy run",
-                phase,
-                targetDistanceKm = midWeekDistance,
-            ),
-            Session(weekStart.plusDays(2), SessionType.STRENGTH, "Strength", phase, targetDurationMin = 35),
-            Session(weekStart.plusDays(3), SessionType.YOGA, "Yoga / mobility", phase, targetDurationMin = 30),
-            Session(weekStart.plusDays(4), SessionType.STRENGTH, "Strength", phase, targetDurationMin = 30),
-            Session(
-                weekStart.plusDays(5),
-                SessionType.CYCLE,
-                "Easy spin",
-                phase,
-                targetDurationMin = 40,
-                optional = true,
             ),
             Session(
                 weekStart.plusDays(6),
@@ -177,51 +147,58 @@ object TrainingPlanGenerator {
         var date = weekStart
         while (!date.isAfter(raceDate)) {
             val daysBeforeRace = ChronoUnit.DAYS.between(date, raceDate).toInt()
-            val session = when (daysBeforeRace) {
-                0 -> Session(
-                    date,
-                    SessionType.RACE,
-                    "Royal Parks Half Marathon",
-                    phase,
-                    targetDistanceKm = raceDistanceKm,
-                    notes = "This is it. Trust the training.",
+            when (daysBeforeRace) {
+                0 -> sessions.add(
+                    Session(
+                        date,
+                        SessionType.RACE,
+                        "Royal Parks Half Marathon",
+                        phase,
+                        targetDistanceKm = raceDistanceKm,
+                        notes = RACE_NOTE,
+                    ),
                 )
-                1 -> Session(date, SessionType.REST, "Rest day", phase, notes = "Feet up, hydrate, lay out kit.")
-                2 -> Session(
-                    date,
-                    SessionType.EASY_RUN,
-                    "Shakeout run",
-                    phase,
-                    targetDistanceKm = 2.0,
-                    optional = true,
-                    notes = "Very easy, a few strides if it feels good.",
+                1 -> sessions.add(Session(date, SessionType.REST, "Rest day", phase, notes = "Feet up, hydrate, lay out kit."))
+                2 -> sessions.add(Session(date, SessionType.REST, "Rest day", phase))
+                3 -> sessions.add(
+                    Session(
+                        date,
+                        SessionType.STRENGTH,
+                        "Light strength",
+                        phase,
+                        targetDurationMin = 20,
+                        optional = true,
+                        notes = "Keep it light - mobility over load.",
+                    ),
                 )
-                3 -> Session(date, SessionType.REST, "Rest day", phase)
-                4 -> Session(
-                    date,
-                    SessionType.EASY_RUN,
-                    "Easy run with strides",
-                    phase,
-                    targetDistanceKm = 3.0,
-                    notes = "Include 4 x 20s relaxed strides.",
-                )
-                5 -> Session(
-                    date,
-                    SessionType.STRENGTH,
-                    "Light strength",
-                    phase,
-                    targetDurationMin = 20,
-                    optional = true,
-                    notes = "Keep it light — mobility over load.",
-                )
-                6 -> Session(date, SessionType.EASY_RUN, "Easy run", phase, targetDistanceKm = 3.0)
-                else -> Session(date, SessionType.REST, "Rest day", phase)
+                4 -> sessions.add(Session(date, SessionType.YOGA, "Yoga / mobility", phase, targetDurationMin = 30))
+                5 -> {
+                    sessions.add(Session(date, SessionType.STRENGTH, "Strength", phase, targetDurationMin = 35))
+                    sessions.add(
+                        Session(
+                            date,
+                            SessionType.EASY_RUN,
+                            "Short easy run",
+                            phase,
+                            targetDistanceKm = 2.0,
+                            notes = "Very easy, a few strides if it feels good.",
+                        ),
+                    )
+                }
+                6 -> sessions.add(Session(date, SessionType.EASY_RUN, "Easy run", phase, targetDistanceKm = 3.0))
+                else -> sessions.add(Session(date, SessionType.REST, "Rest day", phase))
             }
-            sessions.add(session)
             date = date.plusDays(1)
         }
         return sessions
     }
 
-    private fun roundToHalf(value: Double): Double = (value * 2).roundToInt() / 2.0
+    private fun roundToHalf(value: Double): Double = round(value * 2) / 2.0
+
+    private const val EFFORT_CAP_NOTE =
+        "Keep heart rate under 150. Ease off or take a brief walking break to bring it back down if it drifts."
+    private const val GATE_CHECK_NOTE =
+        "Gate check. If this run or the days after it bring pain, altered gait, calf/Achilles/plantar symptoms or poor recovery, hold next week at 13 km instead of 15."
+    private const val RACE_NOTE =
+        "First 14 km at 160 bpm or below. The gap from your longest training run is real - hold the ceiling early, then lift over the last 7 km if it's there."
 }

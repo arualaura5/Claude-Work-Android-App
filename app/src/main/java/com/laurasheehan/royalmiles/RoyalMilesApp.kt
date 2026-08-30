@@ -1,6 +1,7 @@
 package com.laurasheehan.royalmiles
 
 import android.app.Application
+import androidx.room.withTransaction
 import com.laurasheehan.royalmiles.data.AppDatabase
 import com.laurasheehan.royalmiles.data.AthleteProfileRepository
 import com.laurasheehan.royalmiles.data.PlanRepository
@@ -16,7 +17,11 @@ class RoyalMilesApp : Application() {
     override fun onCreate() {
         super.onCreate()
         val database = AppDatabase.getInstance(this)
-        repository = PlanRepository(database.sessionDao(), database.planMetaDao())
+        repository = PlanRepository(
+            database.sessionDao(),
+            database.planMetaDao(),
+            transaction = { block -> database.withTransaction { block() } },
+        )
         athleteProfileRepository = AthleteProfileRepository(database.athleteProfileDao())
 
         ReminderScheduler.createChannel(this)

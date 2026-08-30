@@ -16,6 +16,9 @@ interface SessionDao {
     @Query("SELECT * FROM sessions WHERE id = :id")
     suspend fun getById(id: Long): SessionEntity?
 
+    @Query("SELECT * FROM sessions ORDER BY date ASC, id ASC")
+    suspend fun getAll(): List<SessionEntity>
+
     @Query("SELECT COUNT(*) FROM sessions")
     suspend fun count(): Int
 
@@ -30,6 +33,16 @@ interface SessionDao {
 
     @Delete
     suspend fun delete(session: SessionEntity)
+
+    @Query(
+        """
+        DELETE FROM sessions
+         WHERE date >= :cutoverDate
+           AND isCompleted = 0
+           AND isCustom = 0
+        """,
+    )
+    suspend fun deleteRegeneratableSessions(cutoverDate: java.time.LocalDate)
 }
 
 @Dao
