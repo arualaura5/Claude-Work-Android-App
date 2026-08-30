@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -26,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -50,6 +52,19 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+// A shared single-line label: at labelMedium the 5-item bar has no room for "Dashboard", which
+// wraps to two lines while every other tab stays on one — labelSmall plus a forced single line
+// keeps all five tabs the same height regardless of label length.
+@Composable
+private fun NavLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 @Composable
@@ -88,31 +103,31 @@ private fun RoyalMilesRoot(
                             }
                         },
                         icon = { Icon(Icons.Filled.Home, contentDescription = "Dashboard") },
-                        label = { Text("Dashboard") },
+                        label = { NavLabel("Dashboard") },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.CALENDAR,
                         onClick = { navController.navigate(Routes.CALENDAR) },
                         icon = { Icon(Icons.Filled.CalendarMonth, contentDescription = "Calendar") },
-                        label = { Text("Calendar") },
+                        label = { NavLabel("Calendar") },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.ACTIVITY,
                         onClick = { navController.navigate(Routes.ACTIVITY) },
                         icon = { Icon(Icons.Filled.History, contentDescription = "Activity") },
-                        label = { Text("Activity") },
+                        label = { NavLabel("Activity") },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.COACH,
                         onClick = { navController.navigate(Routes.COACH) },
                         icon = { Icon(Icons.Filled.Insights, contentDescription = "Coach") },
-                        label = { Text("Coach") },
+                        label = { NavLabel("Coach") },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.NUTRITION,
                         onClick = { navController.navigate(Routes.NUTRITION) },
                         icon = { Icon(Icons.Filled.Restaurant, contentDescription = "Nutrition") },
-                        label = { Text("Nutrition") },
+                        label = { NavLabel("Nutrition") },
                     )
                 }
             }
