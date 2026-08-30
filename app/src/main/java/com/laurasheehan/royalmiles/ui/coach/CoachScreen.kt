@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -538,7 +539,7 @@ private fun HrvTrendRow(hrv: CoachPayload.HrvMetrics) {
             // every real value falling through to the neutral flat arrow, silently hiding the one
             // case (worsening) this was meant to call out.
             val (icon, tint) = when (direction.lowercase()) {
-                "improving", "up" -> Icons.Filled.TrendingUp to ComebackGold
+                "improving", "up" -> Icons.Filled.TrendingUp to MaterialTheme.colorScheme.primary
                 "worsening", "down" -> Icons.Filled.TrendingDown to BlushPink
                 else -> Icons.Filled.TrendingFlat to MaterialTheme.colorScheme.onSurfaceVariant
             }
@@ -550,16 +551,26 @@ private fun HrvTrendRow(hrv: CoachPayload.HrvMetrics) {
     }
 }
 
+// Fixed, start-aligned columns for the value and target — a row with no target still needs its
+// number to line up with rows that have one, and every → should start at the same x rather than
+// drifting with however wide the preceding number happens to be.
+private val MetricValueWidth = 60.dp
+private val MetricTargetWidth = 68.dp
+
 @Composable
 private fun MetricRow(label: String, value: Double?, unit: String, target: Double?) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Label muted, value strong: the number is what's being scanned for, not its name.
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Row(modifier = Modifier.widthIn(min = MetricValueWidth), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 value?.let { formatMetric(it) } ?: "—",
                 // Tabular figures so a column of these rows lines up digit-for-digit instead of
@@ -569,13 +580,20 @@ private fun MetricRow(label: String, value: Double?, unit: String, target: Doubl
                 color = MaterialTheme.colorScheme.onSurface,
             )
             if (unit.isNotEmpty()) {
-                Text(" $unit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Same size as everything else in the row — this used to run a step smaller and
+                // read as an afterthought next to the number.
+                Text(" $unit", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
+        Row(modifier = Modifier.widthIn(min = MetricTargetWidth), verticalAlignment = Alignment.CenterVertically) {
             target?.let {
                 Text(
-                    "  → ${formatMetric(it)}",
-                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
-                    color = MaterialTheme.colorScheme.secondary,
+                    // The target carries the same unit as the value it's a target for — "→ 67 ms",
+                    // not just "→ 67" — and the app's own primary purple rather than the secondary
+                    // gold, which read poorly on a light card.
+                    "→ ${formatMetric(it)}${if (unit.isNotEmpty()) " $unit" else ""}",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
