@@ -13,6 +13,7 @@ import com.laurasheehan.royalmiles.RaceConfig
 import com.laurasheehan.royalmiles.data.AthleteProfileRepository
 import com.laurasheehan.royalmiles.data.CelebrationStore
 import com.laurasheehan.royalmiles.data.PlanRepository
+import com.laurasheehan.royalmiles.data.coach.CoachRepository
 import com.laurasheehan.royalmiles.data.health.HealthConnectRepository
 import com.laurasheehan.royalmiles.data.health.HealthDiagnostics
 import com.laurasheehan.royalmiles.ui.diagnostics.DiagnosticsScreen
@@ -21,6 +22,8 @@ import com.laurasheehan.royalmiles.ui.activity.ActivityLogScreen
 import com.laurasheehan.royalmiles.ui.activity.ActivityLogViewModel
 import com.laurasheehan.royalmiles.ui.calendar.CalendarScreen
 import com.laurasheehan.royalmiles.ui.calendar.CalendarViewModel
+import com.laurasheehan.royalmiles.ui.coach.CoachScreen
+import com.laurasheehan.royalmiles.ui.coach.CoachViewModel
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardScreen
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardViewModel
 import com.laurasheehan.royalmiles.ui.nutrition.FlashcardScreen
@@ -35,6 +38,7 @@ object Routes {
     const val DASHBOARD = "dashboard"
     const val CALENDAR = "calendar"
     const val ACTIVITY = "activity"
+    const val COACH = "coach"
     const val NUTRITION = "nutrition"
     const val NUTRITION_LEARN = "nutrition/learn"
     const val HEALTH_DIAGNOSTICS = "sync/diagnostics"
@@ -80,6 +84,15 @@ fun RoyalMilesNavHost(
                 viewModel = viewModel,
                 onOpenSession = { navController.navigate(Routes.session(it)) },
             )
+        }
+        composable(Routes.COACH) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val viewModel: CoachViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer { CoachViewModel(CoachRepository(context.applicationContext)) }
+                },
+            )
+            CoachScreen(viewModel = viewModel)
         }
         composable(Routes.NUTRITION) {
             val context = androidx.compose.ui.platform.LocalContext.current
