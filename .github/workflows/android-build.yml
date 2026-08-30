@@ -54,3 +54,28 @@ jobs:
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same idea for claude/** branches, so an in-progress build has a tap-to-install link too —
+      # not just main's stable one. One release per branch (tag derived from the branch name, "/"
+      # replaced since a literal slash would nest it under a different ref namespace) so pushing
+      # again updates the same release instead of piling up new ones. prerelease + make_latest:
+      # false keeps it out of the "Latest" badge that main's release owns.
+      - name: Compute branch release tag
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/claude/')
+        id: branch_tag
+        run: echo "tag=royal-miles-branch-${GITHUB_REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish latest debug APK for this branch as a release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/claude/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.branch_tag.outputs.tag }}
+          name: "Royal Miles — ${{ github.ref_name }} (branch build)"
+          body: |
+            Automatically rebuilt from every push to `${{ github.ref_name }}` (commit ${{ github.sha }}).
+            Unsigned debug build for sideloading only — not for distribution.
+          files: app/build/outputs/apk/debug/*.apk
+          prerelease: true
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
