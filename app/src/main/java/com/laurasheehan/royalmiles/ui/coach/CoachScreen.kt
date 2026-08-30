@@ -13,10 +13,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -24,6 +28,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -38,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +51,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.laurasheehan.royalmiles.data.coach.CoachPayload
 import com.laurasheehan.royalmiles.ui.theme.BlushPink
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
+
+// One corner language for the whole screen rather than mismatched Material defaults: a standard
+// radius for the working cards, and a slightly rounder one for the two cards meant to read as the
+// screen's headline — readiness and the coaching status.
+private val CardCornerDp = 18.dp
+private val HeroCardCornerDp = 22.dp
+private val CardCorner = RoundedCornerShape(CardCornerDp)
+private val HeroCardCorner = RoundedCornerShape(HeroCardCornerDp)
 
 /**
  * The Coach tab: the laptop dashboard's conclusions, shown as they are.
@@ -80,16 +94,22 @@ fun CoachScreen(viewModel: CoachViewModel) {
             TopAppBar(
                 title = { Text("Coach") },
                 actions = {
-                    if (state.sourceRemembered) {
-                        IconButton(onClick = viewModel::refresh, enabled = !state.loading) {
-                            Icon(Icons.Filled.Refresh, contentDescription = "Re-read the file")
-                        }
-                    }
-                    IconButton(
-                        onClick = { picker.launch(arrayOf("application/json", "*/*")) },
-                        enabled = !state.loading,
+                    Row(
+                        modifier = Modifier.padding(end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
-                        Icon(Icons.Filled.FileOpen, contentDescription = "Import coach.json")
+                        if (state.sourceRemembered) {
+                            IconButton(onClick = viewModel::refresh, enabled = !state.loading) {
+                                Icon(Icons.Filled.Refresh, contentDescription = "Re-read the file")
+                            }
+                        }
+                        IconButton(
+                            onClick = { picker.launch(arrayOf("application/json", "*/*")) },
+                            enabled = !state.loading,
+                        ) {
+                            Icon(Icons.Filled.FileOpen, contentDescription = "Import coach.json")
+                        }
                     }
                 },
             )
@@ -108,8 +128,8 @@ fun CoachScreen(viewModel: CoachViewModel) {
 
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item { FreshnessLine(payload, state.dataAgeDays) }
 
@@ -144,8 +164,8 @@ fun CoachScreen(viewModel: CoachViewModel) {
 @Composable
 private fun EmptyState(loading: Boolean, onPick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        modifier = modifier.padding(horizontal = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (loading) {
@@ -176,24 +196,44 @@ private fun FreshnessLine(payload: CoachPayload, ageDays: Long?) {
         "Data to $dataDate$age",
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(bottom = 4.dp),
     )
 }
 
 @Composable
 private fun CoachingSummaryCard(coaching: CoachPayload.Coaching) {
+    val accent = if (coaching.onTrack) ComebackGold else BlushPink
     Card(
+        shape = HeroCardCorner,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    if (coaching.onTrack) "On track" else "Off target",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (coaching.onTrack) ComebackGold else BlushPink,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                // A real pill rather than plain coloured text: this is the second-strongest thing
+                // on the screen after the readiness score, so it should look like a verdict, not a
+                // label.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(accent.copy(alpha = 0.18f))
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                ) {
+                    Icon(
+                        if (coaching.onTrack) Icons.Filled.CheckCircle else Icons.Filled.ErrorOutline,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        if (coaching.onTrack) "On track" else "Off target",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = accent,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
                 coaching.dataDate?.let {
                     Text(
                         "  ·  from $it",
@@ -203,7 +243,7 @@ private fun CoachingSummaryCard(coaching: CoachPayload.Coaching) {
                 }
             }
             coaching.statusSummary?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium, lineHeight = 21.sp)
+                Text(it, style = MaterialTheme.typography.bodyLarge, lineHeight = 22.sp)
             }
         }
     }
@@ -217,20 +257,21 @@ private fun ActionPointCard(point: CoachPayload.Coaching.ActionPoint) {
         "medium" -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(shape = CardCorner, modifier = Modifier.fillMaxWidth()) {
         // height(IntrinsicSize.Min) is what gives the accent bar a bounded height to fill —
         // fillMaxHeight against a Row's unbounded incoming constraints would collapse it.
         Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
             // A colour bar rather than a coloured card: the priority should be scannable without
-            // making five stacked cards shout at once.
+            // making five stacked cards shout at once. Its corner radius mirrors the card's own so
+            // it reads as part of the same shape rather than a rectangle stuck on top.
             Box(
                 modifier = Modifier
-                    .width(4.dp)
+                    .width(5.dp)
                     .fillMaxHeight()
-                    .background(accent, RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)),
+                    .background(accent, RoundedCornerShape(topStart = CardCornerDp, bottomStart = CardCornerDp)),
             )
             Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(point.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
@@ -242,8 +283,8 @@ private fun ActionPointCard(point: CoachPayload.Coaching.ActionPoint) {
 
 @Composable
 private fun NoCoachingCard(reason: String?) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Card(shape = CardCorner, modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("No coaching in this export", style = MaterialTheme.typography.titleSmall)
             Text(
                 reason ?: "The dashboard hasn't filed coaching against this data yet.",
@@ -261,29 +302,49 @@ private fun ReadinessCard(readiness: CoachPayload.Readiness, coverage: CoachPayl
         "fair" -> MaterialTheme.colorScheme.primary
         else -> BlushPink
     }
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Card(
+        shape = HeroCardCorner,
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Readiness", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    readiness.score?.toString() ?: "—",
-                    fontSize = 40.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = accent,
-                )
-                Text(
-                    "  ${readiness.label.orEmpty()}",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 6.dp),
-                )
+
+            // The score as a tinted badge rather than bare digits: the same circular, low-alpha
+            // accent treatment already used for session-type icons elsewhere in the app, so this
+            // reads as the screen's headline number instead of another line of text.
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        readiness.score?.toString() ?: "—",
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = accent,
+                    )
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(readiness.label.orEmpty(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    readiness.reason?.let {
+                        Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
-            readiness.reason?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
 
             // Stated, not enforced: a score off two signals and one off five read identically
             // otherwise, and which it is changes how much it is worth.
             val signals = readiness.componentCount
             val confidence = readiness.confidence
-            if (signals != null || confidence != null) {
+            val hasMeta = signals != null || confidence != null
+            if (hasMeta || coverage != null) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+            }
+            if (hasMeta) {
                 Text(
                     listOfNotNull(
                         signals?.let { "$it signals" },
@@ -308,21 +369,29 @@ private fun ReadinessCard(readiness: CoachPayload.Readiness, coverage: CoachPayl
 
 @Composable
 private fun HrvCard(hrv: CoachPayload.HrvMetrics, milestone: CoachPayload.PlanStatus.Milestone?) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("HRV & recovery", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-            MetricRow("HRV 7-day", hrv.hrv7d, "ms", milestone?.hrv7d)
-            MetricRow("HRV 30-day", hrv.hrv30d, "ms", null)
-            MetricRow("H0 (first hour)", hrv.h0, "ms", milestone?.h0)
-            MetricRow("Nightly peak", hrv.nightlyPeak, "ms", null)
-            MetricRow("Resting HR", hrv.rhr, "bpm", milestone?.rhr)
-            MetricRow(
-                "High-HRV nights",
-                hrv.highHrvNights?.toDouble(),
-                "",
-                milestone?.highHrvNights?.toDouble(),
+    Card(shape = CardCorner, modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "HRV & recovery",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp),
             )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+
+            Column(modifier = Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                MetricRow("HRV 7-day", hrv.hrv7d, "ms", milestone?.hrv7d)
+                MetricRow("HRV 30-day", hrv.hrv30d, "ms", null)
+                MetricRow("H0 (first hour)", hrv.h0, "ms", milestone?.h0)
+                MetricRow("Nightly peak", hrv.nightlyPeak, "ms", null)
+                MetricRow("Resting HR", hrv.rhr, "bpm", milestone?.rhr)
+                MetricRow(
+                    "High-HRV nights",
+                    hrv.highHrvNights?.toDouble(),
+                    "",
+                    milestone?.highHrvNights?.toDouble(),
+                )
+            }
 
             val trend = listOfNotNull(
                 hrv.trend14d?.takeIf { it != "unknown" }?.let { "14d $it" },
@@ -333,6 +402,7 @@ private fun HrvCard(hrv: CoachPayload.HrvMetrics, milestone: CoachPayload.PlanSt
                     trend.joinToString(" · "),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }
@@ -374,11 +444,14 @@ private fun formatMetric(value: Double): String =
 @Composable
 private fun WarningsCard(warnings: List<String>) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = CardCorner,
+        // A blush tint rather than the neutral surfaceVariant used elsewhere on the screen: flags
+        // are the one card that wants to read as "pay attention", not as routine detail.
+        colors = CardDefaults.cardColors(containerColor = BlushPink.copy(alpha = 0.10f)),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Flags", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Flags", style = MaterialTheme.typography.labelLarge, color = BlushPink, fontWeight = FontWeight.SemiBold)
             warnings.forEach { warning ->
                 Text("• $warning", style = MaterialTheme.typography.bodySmall)
             }
