@@ -64,7 +64,7 @@ class CoachViewModel(
                 loading = false,
                 // A null result means nothing is remembered yet, which is not an error worth showing.
                 error = result?.exceptionOrNull()?.let {
-                    "Couldn't re-read that file — pick it again. (${it.message})"
+                    "Couldn't refresh coach data. ${it.message}"
                 },
             )
         }

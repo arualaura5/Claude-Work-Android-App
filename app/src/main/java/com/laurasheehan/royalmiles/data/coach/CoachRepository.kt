@@ -39,37 +39,37 @@ class CoachRepository(context: Context) {
 
     suspend fun import(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            val json = appContext.contentResolver.openInputStream(uri)?.use { stream ->
-                stream.bufferedReader().readText()
-            } ?: error("Could not open that file.")
+            val json = readCoachFile(uri)
 
             // Parse before storing: a file that doesn't parse should leave the previous payload
             // intact rather than replacing a working one with something unreadable.
-            val payload = CoachPayload.parse(json)
+            val payload = parseCoachPayload(json)
 
-            runCatching {
+            val sourceRemembered = runCatching {
                 appContext.contentResolver.takePersistableUriPermission(
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION,
                 )
+            }.isSuccess
+
+            val importedAtMillis = System.currentTimeMillis()
+
+            val edit = prefs.edit()
+                .putString(KEY_JSON, json)
+                .putLong(KEY_IMPORTED_AT, importedAtMillis)
+
+            if (sourceRemembered) {
+                edit.putString(KEY_URI, uri.toString())
+            } else {
+                edit.remove(KEY_URI)
             }
 
-            prefs.edit()
-                .putString(KEY_JSON, json)
-                .putString(KEY_URI, uri.toString())
-                .putLong(KEY_IMPORTED_AT, System.currentTimeMillis())
-                .apply()
+            edit.apply()
 
             _state.value = CoachState.Loaded(
                 payload = payload,
-                importedAtMillis = System.currentTimeMillis(),
-                sourceRemembered = true,
-            )
-        }.recoverCatching { error ->
-            throw IllegalArgumentException(
-                "That file isn't a coach export. Run export_coach_payload.py on the laptop and pick " +
-                    "the coach.json it writes. (${error.message})",
-                error,
+                importedAtMillis = importedAtMillis,
+                sourceRemembered = sourceRemembered,
             )
         }
     }
@@ -80,6 +80,30 @@ class CoachRepository(context: Context) {
     }
 
     private fun rememberedUri(): Uri? = prefs.getString(KEY_URI, null)?.let(Uri::parse)
+
+    private fun readCoachFile(uri: Uri): String =
+        runCatching {
+            appContext.contentResolver.openInputStream(uri)?.use { stream ->
+                stream.bufferedReader().readText()
+            } ?: error("Content resolver returned no stream.")
+        }.getOrElse { error ->
+            throw IllegalArgumentException(
+                "Couldn't open or read that file. Pick it again, or export a fresh coach.json if " +
+                    "it was moved or deleted. (${error.message})",
+                error,
+            )
+        }
+
+    private fun parseCoachPayload(json: String): CoachPayload =
+        runCatching {
+            CoachPayload.parse(json)
+        }.getOrElse { error ->
+            throw IllegalArgumentException(
+                "That file isn't a coach export. Run export_coach_payload.py on the laptop and pick " +
+                    "the coach.json it writes. (${error.message})",
+                error,
+            )
+        }
 
     private fun load(): CoachState {
         val json = prefs.getString(KEY_JSON, null) ?: return CoachState.Empty

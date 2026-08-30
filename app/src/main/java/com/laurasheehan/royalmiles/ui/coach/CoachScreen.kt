@@ -83,11 +83,14 @@ fun CoachScreen(viewModel: CoachViewModel) {
                 title = { Text("Coach") },
                 actions = {
                     if (state.sourceRemembered) {
-                        IconButton(onClick = viewModel::refresh) {
+                        IconButton(onClick = viewModel::refresh, enabled = !state.loading) {
                             Icon(Icons.Filled.Refresh, contentDescription = "Re-read the file")
                         }
                     }
-                    IconButton(onClick = { picker.launch(arrayOf("application/json", "*/*")) }) {
+                    IconButton(
+                        onClick = { picker.launch(arrayOf("application/json", "*/*")) },
+                        enabled = !state.loading,
+                    ) {
                         Icon(Icons.Filled.FileOpen, contentDescription = "Import coach.json")
                     }
                 },
