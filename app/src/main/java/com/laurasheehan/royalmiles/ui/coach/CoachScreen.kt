@@ -45,9 +45,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.laurasheehan.royalmiles.data.coach.CoachPayload
 import com.laurasheehan.royalmiles.ui.theme.BlushPink
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
-import com.laurasheehan.royalmiles.ui.theme.ComebackGoldSoft
-import com.laurasheehan.royalmiles.ui.theme.RoyalPurpleLight
-import com.laurasheehan.royalmiles.ui.theme.ShimmerSilverDim
 
 /**
  * The Coach tab: the laptop dashboard's conclusions, shown as they are.
@@ -78,6 +75,7 @@ fun CoachScreen(viewModel: CoachViewModel) {
     }
 
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = { Text("Coach") },
@@ -110,8 +108,8 @@ fun CoachScreen(viewModel: CoachViewModel) {
 
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item { FreshnessLine(payload, state.dataAgeDays) }
 
@@ -123,9 +121,6 @@ fun CoachScreen(viewModel: CoachViewModel) {
                 item { CoachingSummaryCard(coaching) }
                 items(coaching.actionPoints.size) { index ->
                     ActionPointCard(coaching.actionPoints[index])
-                }
-                coaching.coachNote?.let { note ->
-                    item { CoachNoteCard(note) }
                 }
             } else {
                 item { NoCoachingCard(payload.coachingAbsentReason) }
@@ -180,7 +175,7 @@ private fun FreshnessLine(payload: CoachPayload, ageDays: Long?) {
     Text(
         "Data to $dataDate$age",
         style = MaterialTheme.typography.labelMedium,
-        color = ShimmerSilverDim,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(bottom = 4.dp),
     )
 }
@@ -191,7 +186,7 @@ private fun CoachingSummaryCard(coaching: CoachPayload.Coaching) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     if (coaching.onTrack) "On track" else "Off target",
@@ -203,7 +198,7 @@ private fun CoachingSummaryCard(coaching: CoachPayload.Coaching) {
                     Text(
                         "  ·  from $it",
                         style = MaterialTheme.typography.labelMedium,
-                        color = ShimmerSilverDim,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -219,8 +214,8 @@ private fun ActionPointCard(point: CoachPayload.Coaching.ActionPoint) {
     val accent = when (point.priority.lowercase()) {
         "critical" -> BlushPink
         "high" -> ComebackGold
-        "medium" -> RoyalPurpleLight
-        else -> ShimmerSilverDim
+        "medium" -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Card(modifier = Modifier.fillMaxWidth()) {
         // height(IntrinsicSize.Min) is what gives the accent bar a bounded height to fill —
@@ -235,15 +230,10 @@ private fun ActionPointCard(point: CoachPayload.Coaching.ActionPoint) {
                     .background(accent, RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)),
             )
             Column(
-                modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(point.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text(
-                    point.priority.replaceFirstChar { it.uppercase() },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = accent,
-                )
                 Text(point.body, style = MaterialTheme.typography.bodyMedium, lineHeight = 20.sp)
             }
         }
@@ -251,19 +241,9 @@ private fun ActionPointCard(point: CoachPayload.Coaching.ActionPoint) {
 }
 
 @Composable
-private fun CoachNoteCard(note: String) {
-    Text(
-        note,
-        style = MaterialTheme.typography.bodySmall,
-        color = ShimmerSilverDim,
-        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-    )
-}
-
-@Composable
 private fun NoCoachingCard(reason: String?) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("No coaching in this export", style = MaterialTheme.typography.titleSmall)
             Text(
                 reason ?: "The dashboard hasn't filed coaching against this data yet.",
@@ -278,12 +258,12 @@ private fun NoCoachingCard(reason: String?) {
 private fun ReadinessCard(readiness: CoachPayload.Readiness, coverage: CoachPayload.Coverage?) {
     val accent = when (readiness.status) {
         "good" -> ComebackGold
-        "fair" -> RoyalPurpleLight
+        "fair" -> MaterialTheme.colorScheme.primary
         else -> BlushPink
     }
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Readiness", style = MaterialTheme.typography.labelLarge, color = ShimmerSilverDim)
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Readiness", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     readiness.score?.toString() ?: "—",
@@ -311,7 +291,7 @@ private fun ReadinessCard(readiness: CoachPayload.Readiness, coverage: CoachPayl
                         readiness.date?.let { "scored $it" },
                     ).joinToString(" · "),
                     style = MaterialTheme.typography.labelMedium,
-                    color = ShimmerSilverDim,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             coverage?.let {
@@ -319,7 +299,7 @@ private fun ReadinessCard(readiness: CoachPayload.Readiness, coverage: CoachPayl
                     "Last ${it.windowDays} days: ${it.hrvNights} HRV nights · " +
                         "${it.sleepNights} sleep · ${it.rhrDays} RHR",
                     style = MaterialTheme.typography.labelSmall,
-                    color = ShimmerSilverDim,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -329,8 +309,8 @@ private fun ReadinessCard(readiness: CoachPayload.Readiness, coverage: CoachPayl
 @Composable
 private fun HrvCard(hrv: CoachPayload.HrvMetrics, milestone: CoachPayload.PlanStatus.Milestone?) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("HRV & recovery", style = MaterialTheme.typography.labelLarge, color = ShimmerSilverDim)
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("HRV & recovery", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             MetricRow("HRV 7-day", hrv.hrv7d, "ms", milestone?.hrv7d)
             MetricRow("HRV 30-day", hrv.hrv30d, "ms", null)
@@ -352,7 +332,7 @@ private fun HrvCard(hrv: CoachPayload.HrvMetrics, milestone: CoachPayload.PlanSt
                 Text(
                     trend.joinToString(" · "),
                     style = MaterialTheme.typography.labelMedium,
-                    color = ShimmerSilverDim,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -372,16 +352,16 @@ private fun MetricRow(label: String, value: Double?, unit: String, target: Doubl
                 value?.let { formatMetric(it) } ?: "—",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = RoyalPurpleLight,
+                color = MaterialTheme.colorScheme.primary,
             )
             if (unit.isNotEmpty()) {
-                Text(" $unit", style = MaterialTheme.typography.labelSmall, color = ShimmerSilverDim)
+                Text(" $unit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             target?.let {
                 Text(
                     "  → ${formatMetric(it)}",
                     style = MaterialTheme.typography.labelMedium,
-                    color = ComebackGoldSoft,
+                    color = MaterialTheme.colorScheme.secondary,
                 )
             }
         }
@@ -397,8 +377,8 @@ private fun WarningsCard(warnings: List<String>) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Flags", style = MaterialTheme.typography.labelLarge, color = ShimmerSilverDim)
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Flags", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             warnings.forEach { warning ->
                 Text("• $warning", style = MaterialTheme.typography.bodySmall)
             }
