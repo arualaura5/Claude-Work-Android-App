@@ -114,7 +114,7 @@ fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit, onOpenDiagnostics: 
                 ) {
                     Text(
                         "Connect Health Connect to see workouts logged by Strava, Garmin Connect or " +
-                            "Google Fit here, and match them to a planned session instead of typing it in.",
+                            "Google Fit here, and match them to a session instead of typing it in.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Button(onClick = { permissionLauncher.launch(viewModel.permissionsToRequest) }) {
@@ -149,7 +149,7 @@ fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit, onOpenDiagnostics: 
             title = { Text("Match to which session?") },
             text = {
                 if (candidates.isEmpty()) {
-                    Text("No nearby planned session found within a couple of days of this workout.")
+                    Text("No nearby unlinked session found within a couple of days of this workout.")
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         candidates.forEach { session ->
@@ -157,7 +157,10 @@ fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit, onOpenDiagnostics: 
                                 viewModel.match(workout, session)
                                 pendingMatch = null
                             }) {
-                                Text("${session.title} — ${session.date.format(workoutDateFormat)}")
+                                Text(
+                                    "${session.title} — ${session.date.format(workoutDateFormat)}" +
+                                        if (session.isCompleted) " · already logged" else "",
+                                )
                             }
                         }
                     }

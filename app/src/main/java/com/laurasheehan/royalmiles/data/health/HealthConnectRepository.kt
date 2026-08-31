@@ -26,6 +26,7 @@ import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.Vo2MaxRecord
 import androidx.health.connect.client.records.WeightRecord
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -215,12 +216,14 @@ class HealthConnectRepository(private val context: Context) {
             metrics += ElevationGainedRecord.ELEVATION_GAINED_TOTAL
         }
         if (metrics.isEmpty()) return workout
+        val sourceApp = workout.sourceApp ?: return workout
 
         return try {
             val result = HealthConnectClient.getOrCreate(context).aggregate(
                 AggregateRequest(
                     metrics = metrics,
                     timeRangeFilter = TimeRangeFilter.between(workout.start, workout.end),
+                    dataOriginFilter = setOf(DataOrigin(sourceApp)),
                 ),
             )
             workout.copy(

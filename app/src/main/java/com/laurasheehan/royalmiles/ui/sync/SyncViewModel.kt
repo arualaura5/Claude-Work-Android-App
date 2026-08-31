@@ -47,9 +47,16 @@ class SyncViewModel(
             val allSessions = repository.observeSessions().first()
             val candidates = workouts.associateWith { workout ->
                 allSessions.filter { session ->
-                    session.isOutstanding && session.isLoggable &&
+                    session.sourceActivityId == null &&
+                        (session.isOutstanding || session.isCompleted) &&
+                        session.isLoggable &&
                         ChronoUnit.DAYS.between(session.date, workout.localDate).let { it in -2..2 }
-                }.sortedBy { kotlin.math.abs(ChronoUnit.DAYS.between(it.date, workout.localDate)) }
+                }.sortedWith(
+                    compareBy<SessionEntity>(
+                        { if (it.isOutstanding) 0 else 1 },
+                        { kotlin.math.abs(ChronoUnit.DAYS.between(it.date, workout.localDate)) },
+                    ),
+                )
             }
             _uiState.update {
                 it.copy(loading = false, available = true, hasPermission = true, workouts = workouts, candidatesByWorkout = candidates)
@@ -69,13 +76,17 @@ class SyncViewModel(
                 id = session.id,
                 // Prefer what was actually run over what was planned; fall back only if Health
                 // Connect has no distance for it.
-                actualDistanceKm = workout.distanceKm ?: session.targetDistanceKm,
-                actualDurationMin = workout.durationMinutes,
-                completedAt = workout.localDate,
-                avgHeartRate = workout.avgHeartRate,
-                maxHeartRate = workout.maxHeartRate,
-                calories = workout.calories,
-                elevationGainM = workout.elevationGainM,
+                actualDistanceKm = if (session.isCompleted) {
+                    workout.distanceKm.takeIf { session.actualDistanceKm == null }
+                } else {
+                    workout.distanceKm ?: session.targetDistanceKm
+                },
+                actualDurationMin = workout.durationMinutes.takeIf { !session.isCompleted || session.actualDurationMin == null },
+                completedAt = if (session.isCompleted) session.completedAt ?: workout.localDate else workout.localDate,
+                avgHeartRate = workout.avgHeartRate.takeIf { session.actualAvgHeartRate == null },
+                maxHeartRate = workout.maxHeartRate.takeIf { session.actualMaxHeartRate == null },
+                calories = workout.calories.takeIf { session.actualCalories == null },
+                elevationGainM = workout.elevationGainM.takeIf { session.actualElevationGainM == null },
                 sourceApp = workout.sourceApp,
                 sourceActivityId = workout.sourceActivityId,
             )
