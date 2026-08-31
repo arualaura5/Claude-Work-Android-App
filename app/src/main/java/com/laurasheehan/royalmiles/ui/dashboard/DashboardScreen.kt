@@ -326,16 +326,22 @@ private fun CoachTopNote(motivation: String?, keyReminder: String?) {
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
                         text = "Key reminder",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center,
                     )
                     Text(
                         text = it,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontStyle = FontStyle.Italic,
+                        ),
                         color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
                     )
                 }
             }
