@@ -2,6 +2,7 @@ package com.laurasheehan.royalmiles.ui.session
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.laurasheehan.royalmiles.RaceConfig
 import com.laurasheehan.royalmiles.core.model.SessionType
 import com.laurasheehan.royalmiles.core.model.TrainingPhase
 import com.laurasheehan.royalmiles.data.PlanRepository
@@ -152,21 +153,11 @@ class SessionEditViewModel(
 
             if (state.isNew) {
                 repository.addCustomSession(
-                    SessionEntity(
-                        date = state.date,
-                        type = state.type,
-                        title = state.title.ifBlank { state.type.name },
-                        phase = state.phase,
-                        weekNumber = state.weekNumber,
-                        targetDistanceKm = distance,
-                        targetDurationMin = duration,
-                        optional = state.optional,
-                        notes = state.notes,
-                        isCompleted = state.isCompleted,
-                        isSkipped = state.isSkipped,
-                        actualDistanceKm = if (state.isCompleted) actualDistance ?: distance else null,
-                        actualDurationMin = if (state.isCompleted) actualDuration ?: duration else null,
-                        effortRating = if (state.isCompleted) state.effortRating else null,
+                    state.toNewSessionEntity(
+                        distance = distance,
+                        duration = duration,
+                        actualDistance = actualDistance,
+                        actualDuration = actualDuration,
                         completedAt = completedAt,
                     ),
                 )
@@ -213,3 +204,28 @@ class SessionEditViewModel(
 
 private fun formatNumber(value: Double): String =
     if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
+
+internal fun SessionEditUiState.toNewSessionEntity(
+    distance: Double? = distanceKm.toDoubleOrNull(),
+    duration: Int? = durationMin.toIntOrNull(),
+    actualDistance: Double? = actualDistanceKm.toDoubleOrNull(),
+    actualDuration: Int? = actualDurationMin.toIntOrNull(),
+    completedAt: LocalDate? = if (isCompleted) LocalDate.now() else null,
+): SessionEntity = SessionEntity(
+    eventId = RaceConfig.ROYAL_PARKS_EVENT_ID,
+    date = date,
+    type = type,
+    title = title.ifBlank { type.name },
+    phase = phase,
+    weekNumber = weekNumber,
+    targetDistanceKm = distance,
+    targetDurationMin = duration,
+    optional = optional,
+    notes = notes,
+    isCompleted = isCompleted,
+    isSkipped = isSkipped,
+    actualDistanceKm = if (isCompleted) actualDistance ?: distance else null,
+    actualDurationMin = if (isCompleted) actualDuration ?: duration else null,
+    effortRating = if (isCompleted) effortRating else null,
+    completedAt = completedAt,
+)

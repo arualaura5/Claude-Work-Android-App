@@ -1,5 +1,6 @@
 package com.laurasheehan.royalmiles.data
 
+import com.laurasheehan.royalmiles.RaceConfig
 import com.laurasheehan.royalmiles.core.gamification.Badge
 import com.laurasheehan.royalmiles.core.gamification.CompletedSession
 import com.laurasheehan.royalmiles.core.gamification.GamificationEngine
@@ -111,7 +112,7 @@ class PlanRepository(
                 peakLongRunKm = peakLongRunKm,
             )
             val survivors = sessionDao.getAll().filter {
-                it.date.isBefore(cutoverDate) || it.isCompleted || it.isCustom
+                it.date.isBefore(cutoverDate) || it.isCompleted || it.isSkipped || it.isCustom
             }
             val survivorSlots = survivors.map { it.slotKey() }.toSet()
             val replacementEntities = plan.weeks.flatMap { week ->
@@ -223,8 +224,6 @@ class PlanRepository(
                 actualMaxHeartRate = null,
                 actualCalories = null,
                 actualElevationGainM = null,
-                sourceApp = null,
-                sourceActivityId = null,
             ),
         )
     }
@@ -252,27 +251,67 @@ class PlanRepository(
      */
     suspend fun scaleDownWeek(weekCommencing: LocalDate) {
         val weekEnd = weekCommencing.plusDays(6)
-        val week = sessionDao.observeAll().first()
-            .filter { !it.date.isBefore(weekCommencing) && !it.date.isAfter(weekEnd) && !it.isCompleted }
+        val allSessions = sessionDao.observeAll().first()
+        val week = allSessions.filter {
+            !it.date.isBefore(weekCommencing) && !it.date.isAfter(weekEnd) && it.canBeScaled
+        }
 
-        week.filter { it.type == SessionType.LONG_RUN }.forEach { session ->
-            val reduced = session.targetDistanceKm?.let { roundToHalf(it * 0.75) }
-            sessionDao.update(session.copy(targetDistanceKm = reduced))
+        transaction {
+            week.filter { it.type == SessionType.LONG_RUN }.forEach { session ->
+                val reduced = session.targetDistanceKm?.let { roundToHalf(it * 0.75) }
+                sessionDao.update(session.copy(targetDistanceKm = reduced))
+            }
+            week.filter { it.type == SessionType.EASY_RUN }.forEach { session ->
+                val reduced = session.targetDistanceKm?.let { roundToHalf(it * 0.8) }
+                sessionDao.update(session.copy(targetDistanceKm = reduced))
+            }
+            // Keep the first strength session, write off any beyond it.
+            week.filter { it.type == SessionType.STRENGTH }
+                .sortedBy { it.date }
+                .drop(1)
+                .forEach { sessionDao.update(it.copy(isSkipped = true)) }
+
+            val scaledLongRuns = week
+                .filter { it.type == SessionType.LONG_RUN }
+                .associate { it.id to it.targetDistanceKm?.let { distance -> roundToHalf(distance * 0.75) } }
+            val longRunsByWeek = allSessions
+                .map { session ->
+                    if (session.id in scaledLongRuns) {
+                        session.copy(targetDistanceKm = scaledLongRuns[session.id])
+                    } else {
+                        session
+                    }
+                }
+                .filter { it.type == SessionType.LONG_RUN }
+                .groupBy { it.date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) }
+                .toSortedMap()
+
+            var previousLongRunKm = longRunsByWeek[weekCommencing]
+                ?.mapNotNull { it.targetDistanceKm }
+                ?.maxOrNull()
+                ?: return@transaction
+
+            for ((_, longRuns) in longRunsByWeek.tailMap(weekCommencing.plusWeeks(1))) {
+                val session = longRuns.minByOrNull { it.date } ?: continue
+                val targetDistance = session.targetDistanceKm ?: continue
+                val maxDistance = floorToHalf(previousLongRunKm * 1.3)
+                if (targetDistance <= maxDistance) break
+
+                if (!session.canBeScaled) {
+                    previousLongRunKm = targetDistance
+                    continue
+                }
+
+                sessionDao.update(session.copy(targetDistanceKm = maxDistance))
+                previousLongRunKm = maxDistance
+            }
         }
-        week.filter { it.type == SessionType.EASY_RUN }.forEach { session ->
-            val reduced = session.targetDistanceKm?.let { roundToHalf(it * 0.8) }
-            sessionDao.update(session.copy(targetDistanceKm = reduced))
-        }
-        // Keep the first strength session, write off any beyond it.
-        week.filter { it.type == SessionType.STRENGTH && it.isOutstanding }
-            .sortedBy { it.date }
-            .drop(1)
-            .forEach { sessionDao.update(it.copy(isSkipped = true)) }
     }
 
     suspend fun deleteSession(session: SessionEntity) = sessionDao.delete(session)
 
-    suspend fun addCustomSession(session: SessionEntity) = sessionDao.insert(session.copy(isCustom = true))
+    suspend fun addCustomSession(session: SessionEntity) =
+        sessionDao.insert(session.copy(eventId = RaceConfig.ROYAL_PARKS_EVENT_ID, isCustom = true))
 
     /**
      * Badges care about which planned *slot* got done, so they're matched against the session's
@@ -344,7 +383,8 @@ private fun TrainingPlan.toMeta(): PlanMetaEntity = PlanMetaEntity(
     planVersion = CURRENT_PLAN_VERSION,
 )
 
-private fun Session.toEntity(weekNumber: Int): SessionEntity = SessionEntity(
+internal fun Session.toEntity(weekNumber: Int): SessionEntity = SessionEntity(
+    eventId = RaceConfig.ROYAL_PARKS_EVENT_ID,
     date = date,
     type = type,
     title = title,
@@ -369,6 +409,9 @@ private fun SessionEntity.toCoreSession(): Session = Session(
 
 private fun SessionEntity.slotKey(): String = listOf(date.toString(), type.name, title).joinToString("|")
 
+private val SessionEntity.canBeScaled: Boolean
+    get() = !isCompleted && !isSkipped && !isCustom
+
 private fun SessionEntity.toCompletedSession(useScheduledDate: Boolean): CompletedSession = CompletedSession(
     date = if (useScheduledDate) date else (completedAt ?: date),
     type = type,
@@ -378,3 +421,5 @@ private fun SessionEntity.toCompletedSession(useScheduledDate: Boolean): Complet
 )
 
 private fun roundToHalf(value: Double): Double = kotlin.math.round(value * 2) / 2.0
+
+private fun floorToHalf(value: Double): Double = kotlin.math.floor(value * 2) / 2.0

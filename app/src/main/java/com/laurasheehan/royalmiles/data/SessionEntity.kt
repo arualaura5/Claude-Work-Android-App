@@ -1,14 +1,16 @@
 package com.laurasheehan.royalmiles.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.laurasheehan.royalmiles.core.model.SessionType
 import com.laurasheehan.royalmiles.core.model.TrainingPhase
 import java.time.LocalDate
 
-@Entity(tableName = "sessions")
+@Entity(tableName = "sessions", indices = [Index(value = ["eventId", "date"])])
 data class SessionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val eventId: String,
     val date: LocalDate,
     val type: SessionType,
     val title: String,
@@ -64,4 +66,15 @@ data class PlanMetaEntity(
     val raceDistanceKm: Double,
     val peakLongRunKm: Double,
     val planVersion: Int = 1,
+)
+
+@Entity(tableName = "events")
+data class EventEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val raceDate: LocalDate,
+    val raceDistanceKm: Double,
+    val peakLongRunKm: Double,
+    val planStartDate: LocalDate?,
+    val planVersion: Int = 0,
 )

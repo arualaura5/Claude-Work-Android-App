@@ -266,6 +266,7 @@ fun DashboardScreen(
                         onClick = { onOpenSession(session.id) },
                     )
                 }
+                moreCountItem(total = state.stillOpenTotal, shown = state.stillOpen.size)
             }
 
             item {
@@ -296,6 +297,21 @@ fun DashboardScreen(
                     onClick = { onOpenSession(session.id) },
                 )
             }
+            moreCountItem(total = state.upNextTotal, shown = state.upNext.size)
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.moreCountItem(total: Int, shown: Int) {
+    val remaining = total - shown
+    if (remaining > 0) {
+        item {
+            Text(
+                "and $remaining more",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, top = 2.dp),
+            )
         }
     }
 }

@@ -7,10 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.laurasheehan.royalmiles.RaceConfig
 
 @Database(
-    entities = [SessionEntity::class, PlanMetaEntity::class, AthleteProfileEntity::class],
-    version = 7,
+    entities = [SessionEntity::class, PlanMetaEntity::class, AthleteProfileEntity::class, EventEntity::class],
+    version = 8,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -18,6 +19,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
     abstract fun planMetaDao(): PlanMetaDao
     abstract fun athleteProfileDao(): AthleteProfileDao
+    abstract fun eventDao(): EventDao
 
     companion object {
         @Volatile private var instance: AppDatabase? = null
@@ -103,6 +105,94 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS events (
+                      id TEXT NOT NULL PRIMARY KEY,
+                      name TEXT NOT NULL,
+                      raceDate TEXT NOT NULL,
+                      raceDistanceKm REAL NOT NULL,
+                      peakLongRunKm REAL NOT NULL,
+                      planStartDate TEXT,
+                      planVersion INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("ALTER TABLE sessions ADD COLUMN eventId TEXT NOT NULL DEFAULT '${RaceConfig.ROYAL_PARKS_EVENT_ID}'")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sessions_eventId_date ON sessions(eventId, date)")
+
+                db.execSQL(
+                    """
+                    INSERT OR REPLACE INTO events (
+                      id,
+                      name,
+                      raceDate,
+                      raceDistanceKm,
+                      peakLongRunKm,
+                      planStartDate,
+                      planVersion
+                    )
+                    SELECT
+                      '${RaceConfig.ROYAL_PARKS_EVENT_ID}',
+                      '${RaceConfig.ROYAL_PARKS_EVENT_NAME}',
+                      raceDate,
+                      raceDistanceKm,
+                      peakLongRunKm,
+                      startDate,
+                      planVersion
+                    FROM plan_meta
+                    WHERE id = 0
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO events (
+                      id,
+                      name,
+                      raceDate,
+                      raceDistanceKm,
+                      peakLongRunKm,
+                      planStartDate,
+                      planVersion
+                    )
+                    VALUES (
+                      '${RaceConfig.ROYAL_PARKS_EVENT_ID}',
+                      '${RaceConfig.ROYAL_PARKS_EVENT_NAME}',
+                      '${RaceConfig.ROYAL_PARKS_RACE_DATE}',
+                      ${RaceConfig.ROYAL_PARKS_RACE_DISTANCE_KM},
+                      ${RaceConfig.ROYAL_PARKS_PEAK_LONG_RUN_KM},
+                      NULL,
+                      0
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    INSERT OR REPLACE INTO events (
+                      id,
+                      name,
+                      raceDate,
+                      raceDistanceKm,
+                      peakLongRunKm,
+                      planStartDate,
+                      planVersion
+                    )
+                    VALUES (
+                      '${RaceConfig.RICHMOND_EVENT_ID}',
+                      '${RaceConfig.RICHMOND_EVENT_NAME}',
+                      '${RaceConfig.RICHMOND_RACE_DATE}',
+                      ${RaceConfig.RICHMOND_RACE_DISTANCE_KM},
+                      ${RaceConfig.RICHMOND_PEAK_LONG_RUN_KM},
+                      NULL,
+                      0
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -116,6 +206,7 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_4_5,
                     MIGRATION_5_6,
                     MIGRATION_6_7,
+                    MIGRATION_7_8,
                 )
                     .build().also { instance = it }
             }

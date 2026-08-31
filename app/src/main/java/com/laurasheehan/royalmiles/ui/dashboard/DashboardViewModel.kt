@@ -38,8 +38,10 @@ data class DashboardUiState(
     val stats: Stats? = null,
     val today: List<SessionEntity> = emptyList(),
     val upNext: List<SessionEntity> = emptyList(),
+    val upNextTotal: Int = 0,
     /** Past-dated and still neither done nor written off. Surfaced quietly so it can be closed. */
     val stillOpen: List<SessionEntity> = emptyList(),
+    val stillOpenTotal: Int = 0,
     val daysToRace: Long = 0,
     val phaseMessage: String = "",
     val weekNumber: Int = 0,
@@ -86,18 +88,22 @@ class DashboardViewModel(
             .maxOrNull()
             ?: 0.0
 
+        val upNext = allSessions
+            .filter { it.date.isAfter(today) && it.isOutstanding }
+            .sortedBy { it.date }
+        val stillOpen = allSessions
+            .filter { it.date.isBefore(today) && it.isOutstanding && it.isLoggable }
+            .sortedByDescending { it.date }
+
         DashboardUiState(
             stats = stats,
             today = allSessions.filter { it.date == today },
-            upNext = allSessions.filter { it.date.isAfter(today) && it.isOutstanding }
-                .sortedBy { it.date }
-                .take(4),
+            upNext = upNext.take(4),
+            upNextTotal = upNext.size,
             // Only loggable sessions can be outstanding in a way that means anything — a rest day
             // that was never ticked isn't unfinished business.
-            stillOpen = allSessions
-                .filter { it.date.isBefore(today) && it.isOutstanding && it.isLoggable }
-                .sortedByDescending { it.date }
-                .take(5),
+            stillOpen = stillOpen.take(5),
+            stillOpenTotal = stillOpen.size,
             daysToRace = ChronoUnit.DAYS.between(today, raceDate),
             phaseMessage = phaseMessage(currentWeek?.phase, planStarted),
             weekNumber = currentWeek?.weekNumber ?: 0,

@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.laurasheehan.royalmiles.navigation.RoyalMilesNavHost
@@ -75,6 +76,15 @@ private fun RoyalMilesRoot(
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.hierarchy?.firstOrNull()?.route
+    fun navigateToTab(route: String) {
+        navController.navigate(route) {
+            launchSingleTop = true
+            restoreState = true
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+        }
+    }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -97,35 +107,31 @@ private fun RoyalMilesRoot(
                 NavigationBar {
                     NavigationBarItem(
                         selected = currentRoute == Routes.DASHBOARD,
-                        onClick = {
-                            navController.navigate(Routes.DASHBOARD) {
-                                popUpTo(Routes.DASHBOARD) { inclusive = true }
-                            }
-                        },
+                        onClick = { navigateToTab(Routes.DASHBOARD) },
                         icon = { Icon(Icons.Filled.Home, contentDescription = "Dashboard") },
                         label = { NavLabel("Dashboard") },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.CALENDAR,
-                        onClick = { navController.navigate(Routes.CALENDAR) },
+                        onClick = { navigateToTab(Routes.CALENDAR) },
                         icon = { Icon(Icons.Filled.CalendarMonth, contentDescription = "Calendar") },
                         label = { NavLabel("Calendar") },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.ACTIVITY,
-                        onClick = { navController.navigate(Routes.ACTIVITY) },
+                        onClick = { navigateToTab(Routes.ACTIVITY) },
                         icon = { Icon(Icons.Filled.History, contentDescription = "Activity") },
                         label = { NavLabel("Activity") },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.COACH,
-                        onClick = { navController.navigate(Routes.COACH) },
+                        onClick = { navigateToTab(Routes.COACH) },
                         icon = { Icon(Icons.Filled.Insights, contentDescription = "Coach") },
                         label = { NavLabel("Coach") },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.NUTRITION,
-                        onClick = { navController.navigate(Routes.NUTRITION) },
+                        onClick = { navigateToTab(Routes.NUTRITION) },
                         icon = { Icon(Icons.Filled.Restaurant, contentDescription = "Nutrition") },
                         label = { NavLabel("Nutrition") },
                     )

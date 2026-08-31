@@ -39,6 +39,7 @@ interface SessionDao {
         DELETE FROM sessions
          WHERE date >= :cutoverDate
            AND isCompleted = 0
+           AND isSkipped = 0
            AND isCustom = 0
         """,
     )
@@ -55,4 +56,19 @@ interface PlanMetaDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(meta: PlanMetaEntity)
+}
+
+@Dao
+interface EventDao {
+    @Query("SELECT * FROM events WHERE id = :id")
+    suspend fun getById(id: String): EventEntity?
+
+    @Query("SELECT * FROM events ORDER BY raceDate ASC, id ASC")
+    suspend fun getAll(): List<EventEntity>
+
+    @Query("SELECT * FROM events ORDER BY raceDate ASC, id ASC")
+    fun observeAll(): Flow<List<EventEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(event: EventEntity)
 }
