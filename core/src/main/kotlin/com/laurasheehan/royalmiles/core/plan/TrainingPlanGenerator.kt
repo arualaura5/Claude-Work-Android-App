@@ -19,6 +19,7 @@ import kotlin.math.round
 object TrainingPlanGenerator {
 
     fun generate(
+        raceName: String,
         raceDate: LocalDate,
         today: LocalDate = LocalDate.now(),
         peakLongRunKm: Double = 15.0,
@@ -64,7 +65,7 @@ object TrainingPlanGenerator {
             val weekStart = startDate.plusWeeks(index.toLong())
             val weekNumber = index + 1
             val sessions = when (phase) {
-                TrainingPhase.TAPER -> taperWeekSessions(weekStart, raceDate, raceDistanceKm, phase)
+                TrainingPhase.TAPER -> taperWeekSessions(weekStart, raceName, raceDate, raceDistanceKm, phase)
                 TrainingPhase.BASE, TrainingPhase.BUILD, TrainingPhase.PEAK -> {
                     val longRun = longRunProgression.getOrElse(progressionIndex) { peakLongRunKm }
                     progressionIndex++
@@ -139,6 +140,7 @@ object TrainingPlanGenerator {
 
     private fun taperWeekSessions(
         weekStart: LocalDate,
+        raceName: String,
         raceDate: LocalDate,
         raceDistanceKm: Double,
         phase: TrainingPhase,
@@ -152,40 +154,54 @@ object TrainingPlanGenerator {
                     Session(
                         date,
                         SessionType.RACE,
-                        "Royal Parks Half Marathon",
+                        raceName,
                         phase,
                         targetDistanceKm = raceDistanceKm,
                         notes = RACE_NOTE,
                     ),
                 )
                 1 -> sessions.add(Session(date, SessionType.REST, "Rest day", phase, notes = "Feet up, hydrate, lay out kit."))
-                2 -> sessions.add(Session(date, SessionType.REST, "Rest day", phase))
-                3 -> sessions.add(
+                2 -> sessions.add(
                     Session(
                         date,
-                        SessionType.STRENGTH,
-                        "Light strength",
+                        SessionType.EASY_RUN,
+                        "Shakeout run",
                         phase,
-                        targetDurationMin = 20,
-                        optional = true,
-                        notes = "Keep it light - mobility over load.",
+                        targetDistanceKm = 3.0,
+                        notes = "Very easy, a few relaxed strides if it feels good. Loosening the legs, nothing more.",
                     ),
                 )
-                4 -> sessions.add(Session(date, SessionType.YOGA, "Yoga / mobility", phase, targetDurationMin = 30))
-                5 -> {
-                    sessions.add(Session(date, SessionType.STRENGTH, "Strength", phase, targetDurationMin = 35))
-                    sessions.add(
-                        Session(
-                            date,
-                            SessionType.EASY_RUN,
-                            "Short easy run",
-                            phase,
-                            targetDistanceKm = 2.0,
-                            notes = "Very easy, a few strides if it feels good.",
-                        ),
-                    )
-                }
-                6 -> sessions.add(Session(date, SessionType.EASY_RUN, "Easy run", phase, targetDistanceKm = 3.0))
+                3 -> sessions.add(Session(date, SessionType.YOGA, "Yoga / mobility", phase, targetDurationMin = 30))
+                4 -> sessions.add(
+                    Session(
+                        date,
+                        SessionType.EASY_RUN,
+                        "Easy run",
+                        phase,
+                        targetDistanceKm = 5.0,
+                        notes = "Conversational pace only.",
+                    ),
+                )
+                5 -> sessions.add(
+                    Session(
+                        date,
+                        SessionType.CYCLE,
+                        "Easy spin",
+                        phase,
+                        targetDurationMin = 30,
+                        optional = true,
+                        notes = "Active recovery from the long run. Very easy — flushing the legs, not training them.",
+                    ),
+                )
+                6 -> sessions.add(
+                    Session(
+                        date,
+                        SessionType.REST,
+                        "Rest day",
+                        phase,
+                        notes = "Day after the long run. Nothing today.",
+                    ),
+                )
                 else -> sessions.add(Session(date, SessionType.REST, "Rest day", phase))
             }
             date = date.plusDays(1)

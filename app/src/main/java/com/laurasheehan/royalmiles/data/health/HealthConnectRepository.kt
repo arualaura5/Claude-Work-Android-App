@@ -98,6 +98,9 @@ data class ExternalWorkout(
         get() = when (exerciseType) {
             ExerciseSessionRecord.EXERCISE_TYPE_RUNNING -> SessionType.EASY_RUN
             ExerciseSessionRecord.EXERCISE_TYPE_BIKING -> SessionType.CYCLE
+            ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL,
+            ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER,
+            -> SessionType.SWIM
             ExerciseSessionRecord.EXERCISE_TYPE_YOGA -> SessionType.YOGA
             ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING -> SessionType.STRENGTH
             else -> SessionType.EASY_RUN

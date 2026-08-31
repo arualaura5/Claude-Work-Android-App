@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-private const val CURRENT_PLAN_VERSION = 2
+private const val CURRENT_PLAN_VERSION = 3
 private val PLAN_REGENERATION_CUTOVER: LocalDate = LocalDate.of(2026, 8, 31)
 
 data class UiWeek(
@@ -85,7 +85,12 @@ class PlanRepository(
             }
             return
         }
-        val plan = TrainingPlanGenerator.generate(raceDate = raceDate, today = today, peakLongRunKm = peakLongRunKm)
+        val plan = TrainingPlanGenerator.generate(
+            raceName = RaceConfig.ROYAL_PARKS_EVENT_NAME,
+            raceDate = raceDate,
+            today = today,
+            peakLongRunKm = peakLongRunKm,
+        )
         planMetaDao.upsert(plan.toMeta())
         val entities = plan.weeks.flatMap { week ->
             week.sessions.map { it.toEntity(week.weekNumber) }
@@ -107,6 +112,7 @@ class PlanRepository(
 
         transaction {
             val plan = TrainingPlanGenerator.generate(
+                raceName = RaceConfig.ROYAL_PARKS_EVENT_NAME,
                 raceDate = raceDate,
                 today = cutoverDate.minusDays(1),
                 peakLongRunKm = peakLongRunKm,

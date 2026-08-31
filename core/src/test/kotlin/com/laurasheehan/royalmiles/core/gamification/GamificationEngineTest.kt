@@ -12,7 +12,8 @@ class GamificationEngineTest {
 
     private val today = LocalDate.of(2026, 8, 23)
     private val raceDate = LocalDate.of(2026, 10, 11)
-    private val plan = TrainingPlanGenerator.generate(raceDate = raceDate, today = today)
+    private val raceName = "Royal Parks Half Marathon"
+    private val plan = TrainingPlanGenerator.generate(raceName = raceName, raceDate = raceDate, today = today)
 
     @Test
     fun `xp rewards long runs more than easy runs of the same distance`() {

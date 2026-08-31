@@ -7,6 +7,7 @@ enum class SessionType {
     STRENGTH,
     YOGA,
     CYCLE,
+    SWIM,
     RACE,
 }
 

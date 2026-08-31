@@ -77,6 +77,7 @@ object GamificationEngine {
         SessionType.STRENGTH -> 15
         SessionType.YOGA -> 10
         SessionType.CYCLE -> 10 + (session.durationMin ?: 0) / 10
+        SessionType.SWIM -> 10 + (session.durationMin ?: 0) / 10
         SessionType.RACE -> 200
     }
 

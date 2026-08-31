@@ -190,7 +190,7 @@ class PlanRepositoryTest {
         assertTrue(oldWeekOne in afterFirst)
         assertTrue(afterFirst.none { it.title == "Old generated future row" })
         assertEquals(15.0, planMetaDao.get()?.peakLongRunKm)
-        assertEquals(2, planMetaDao.get()?.planVersion)
+        assertEquals(3, planMetaDao.get()?.planVersion)
 
         val longRuns = afterFirst
             .filter { it.type == SessionType.LONG_RUN }
