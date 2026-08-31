@@ -1,6 +1,12 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      Light theme. windowLightStatusBar=true tells the system the status bar sits on a LIGHT
+      background, so it draws dark icons and the clock stays readable. The dark counterpart in
+      values-night flips it. This was previously hardcoded false for both, which left the clock
+      and system icons white on a white background in light mode.
+    -->
     <style name="Theme.RoyalMiles" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="23">true</item>
     </style>
 </resources>
