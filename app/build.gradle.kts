@@ -1,3 +1,5 @@
+import java.time.LocalDate
+
 /** Short commit of the source this APK was built from, or "unknown" outside a git checkout. */
 fun gitSha(): String = try {
     val process = ProcessBuilder("git", "rev-parse", "--short", "HEAD")
@@ -9,8 +11,7 @@ fun gitSha(): String = try {
     "unknown"
 }
 
-fun buildDate(): String =
-    java.time.LocalDate.now().toString()
+fun buildDate(): String = LocalDate.now().toString()
 
 plugins {
     id("com.android.application") version "8.7.0"
