@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -34,8 +33,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -47,11 +44,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.laurasheehan.royalmiles.core.gamification.Badge
-import com.laurasheehan.royalmiles.core.progress.EffortSignal
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.ui.components.BadgeChip
 import com.laurasheehan.royalmiles.ui.components.CelebrationDialog
-import com.laurasheehan.royalmiles.ui.components.EffortTrend
 import com.laurasheehan.royalmiles.ui.components.LongRunProgression
 import com.laurasheehan.royalmiles.ui.components.SessionCard
 import com.laurasheehan.royalmiles.ui.components.StreakChip
@@ -79,31 +74,6 @@ fun DashboardScreen(
     val celebration by viewModel.celebration.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    var confirmScaleDown by remember { mutableStateOf(false) }
-
-    if (confirmScaleDown) {
-        AlertDialog(
-            onDismissRequest = { confirmScaleDown = false },
-            title = { Text("Dial this week back?") },
-            text = {
-                Text(
-                    "Long run down a quarter, easy runs down a fifth, and the second strength " +
-                        "session written off. That's a coaching call, not a miss — it costs you " +
-                        "nothing in XP, badges or your streak.",
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.scaleDownThisWeek()
-                    confirmScaleDown = false
-                }) { Text("Dial it back") }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmScaleDown = false }) { Text("Leave it") }
-            },
-        )
-    }
-
     LaunchedEffect(viewModel) {
         viewModel.affirmations.collect { message -> snackbarHostState.showSnackbar(message) }
     }
@@ -160,6 +130,15 @@ fun DashboardScreen(
                 )
             }
 
+            if (state.coachMotivation != null || state.coachKeyReminder != null) {
+                item {
+                    CoachTopNote(
+                        motivation = state.coachMotivation,
+                        keyReminder = state.coachKeyReminder,
+                    )
+                }
+            }
+
             state.weekWrap?.let { wrap ->
                 item { WeekWrapCard(summary = wrap, onDismiss = viewModel::dismissWeekWrap) }
             }
@@ -184,37 +163,6 @@ fun DashboardScreen(
             }
 
             state.stats?.let { stats ->
-                if (stats.recentEffort.isNotEmpty()) {
-                    item {
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                            Column(Modifier.padding(16.dp)) {
-                                Text("How training's felt lately", style = MaterialTheme.typography.titleMedium)
-                                EffortTrend(
-                                    readings = stats.recentEffort,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 12.dp),
-                                )
-                                // The chart's whole reason for existing: say something when the
-                                // ratings start pointing at fatigue, and offer the lighter week
-                                // rather than leaving her to spot the pattern herself.
-                                effortMessage(stats.effortSignal)?.let { message ->
-                                    Text(
-                                        message,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(top = 12.dp),
-                                    )
-                                    TextButton(
-                                        onClick = { confirmScaleDown = true },
-                                        contentPadding = PaddingValues(0.dp),
-                                    ) {
-                                        Text("Dial this week back", color = ComebackGold)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
                 if (stats.badges.isNotEmpty()) {
                     item {
                         Text("Badges", style = MaterialTheme.typography.titleMedium)
@@ -298,6 +246,38 @@ fun DashboardScreen(
                 )
             }
             moreCountItem(total = state.upNextTotal, shown = state.upNext.size)
+        }
+    }
+}
+
+@Composable
+private fun CoachTopNote(motivation: String?, keyReminder: String?) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            motivation?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            keyReminder?.let {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Key reminder",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
         }
     }
 }
@@ -400,9 +380,3 @@ private fun HeroHeader(
     }
 }
 
-/** Nothing at all unless the ratings are actually saying something. */
-private fun effortMessage(signal: EffortSignal): String? = when (signal) {
-    EffortSignal.NONE -> null
-    EffortSignal.WATCH -> "Sessions have been feeling harder lately. Nothing alarming — worth keeping an eye on."
-    EffortSignal.DIAL_BACK -> "The last three all felt rough. That's usually the body asking for less, not more."
-}

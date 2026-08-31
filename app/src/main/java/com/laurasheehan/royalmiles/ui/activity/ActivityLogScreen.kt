@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,8 +26,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.laurasheehan.royalmiles.core.progress.EffortSignal
+import com.laurasheehan.royalmiles.ui.components.EffortTrend
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -49,6 +55,30 @@ private val logDateFormat = DateTimeFormatter.ofPattern("EEE d MMM")
 @Composable
 fun ActivityLogScreen(viewModel: ActivityLogViewModel, onOpenSession: (Long) -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var confirmScaleDown by remember { mutableStateOf(false) }
+
+    if (confirmScaleDown) {
+        AlertDialog(
+            onDismissRequest = { confirmScaleDown = false },
+            title = { Text("Dial this week back?") },
+            text = {
+                Text(
+                    "Long run down a quarter, easy runs down a fifth, and the second strength " +
+                        "session written off. That's a coaching call, not a miss — it costs you " +
+                        "nothing in XP, badges or your streak.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.scaleDownThisWeek()
+                    confirmScaleDown = false
+                }) { Text("Dial it back") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmScaleDown = false }) { Text("Leave it") }
+            },
+        )
+    }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Activity") }) }) { padding ->
         LazyColumn(
@@ -57,6 +87,12 @@ fun ActivityLogScreen(viewModel: ActivityLogViewModel, onOpenSession: (Long) -> 
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item { TotalsCard(state) }
+
+            if (state.recentEffort.isNotEmpty()) {
+                item {
+                    EffortCard(state = state, onDialBack = { confirmScaleDown = true })
+                }
+            }
 
             if (state.sessions.isEmpty()) {
                 item {
@@ -74,6 +110,45 @@ fun ActivityLogScreen(viewModel: ActivityLogViewModel, onOpenSession: (Long) -> 
             }
         }
     }
+}
+
+/**
+ * How the sessions have actually felt. Lives with the training log rather than the dashboard —
+ * it is a look back, not a thing to do today. The message and the offer to dial the week back are
+ * the whole reason the chart exists: spotting the pattern is the app's job, not hers.
+ */
+@Composable
+private fun EffortCard(state: ActivityLogUiState, onDialBack: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text("How training's felt lately", style = MaterialTheme.typography.titleMedium)
+            EffortTrend(
+                readings = state.recentEffort,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+            )
+            effortMessage(state.effortSignal)?.let { message ->
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                TextButton(onClick = onDialBack, contentPadding = PaddingValues(0.dp)) {
+                    Text("Dial this week back", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+    }
+}
+
+private fun effortMessage(signal: EffortSignal): String? = when (signal) {
+    EffortSignal.NONE -> null
+    EffortSignal.WATCH -> "Sessions have been feeling harder lately. Nothing alarming — worth keeping an eye on."
+    EffortSignal.DIAL_BACK -> "The last three all felt rough. That's usually the body asking for less, not more."
 }
 
 /** What's accumulated so far, stated flatly. The point is to see the work add up. */

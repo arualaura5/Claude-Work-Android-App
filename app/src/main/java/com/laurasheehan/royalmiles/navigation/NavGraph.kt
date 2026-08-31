@@ -54,6 +54,7 @@ fun RoyalMilesNavHost(
     navController: NavHostController,
     repository: PlanRepository,
     athleteProfileRepository: AthleteProfileRepository,
+    coachRepository: CoachRepository,
 ) {
     NavHost(navController = navController, startDestination = Routes.DASHBOARD) {
         composable(Routes.DASHBOARD) {
@@ -63,6 +64,7 @@ fun RoyalMilesNavHost(
                     initializer {
                         DashboardViewModel(
                             repository = repository,
+                            coachRepository = coachRepository,
                             raceDate = RaceConfig.RACE_DATE,
                             celebrations = CelebrationStore(context.applicationContext),
                         )
@@ -86,10 +88,9 @@ fun RoyalMilesNavHost(
             )
         }
         composable(Routes.COACH) {
-            val context = androidx.compose.ui.platform.LocalContext.current
             val viewModel: CoachViewModel = viewModel(
                 factory = viewModelFactory {
-                    initializer { CoachViewModel(CoachRepository(context.applicationContext)) }
+                    initializer { CoachViewModel(coachRepository) }
                 },
             )
             CoachScreen(viewModel = viewModel)

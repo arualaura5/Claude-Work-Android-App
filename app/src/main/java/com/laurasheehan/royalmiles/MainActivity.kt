@@ -43,13 +43,14 @@ class MainActivity : ComponentActivity() {
         val app = application as RoyalMilesApp
         val repository = app.repository
         val athleteProfileRepository = app.athleteProfileRepository
+        val coachRepository = app.coachRepository
 
         setContent {
             RoyalMilesTheme {
                 LaunchedEffect(Unit) {
                     repository.ensureSeeded(raceDate = RaceConfig.RACE_DATE, peakLongRunKm = RaceConfig.PEAK_LONG_RUN_KM)
                 }
-                RoyalMilesRoot(repository, athleteProfileRepository)
+                RoyalMilesRoot(repository, athleteProfileRepository, coachRepository)
             }
         }
     }
@@ -72,6 +73,7 @@ private fun NavLabel(text: String) {
 private fun RoyalMilesRoot(
     repository: com.laurasheehan.royalmiles.data.PlanRepository,
     athleteProfileRepository: com.laurasheehan.royalmiles.data.AthleteProfileRepository,
+    coachRepository: com.laurasheehan.royalmiles.data.coach.CoachRepository,
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -144,6 +146,7 @@ private fun RoyalMilesRoot(
                 navController = navController,
                 repository = repository,
                 athleteProfileRepository = athleteProfileRepository,
+                coachRepository = coachRepository,
             )
         }
     }

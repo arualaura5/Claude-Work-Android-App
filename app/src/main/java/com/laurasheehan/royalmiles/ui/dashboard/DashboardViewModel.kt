@@ -5,12 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.laurasheehan.royalmiles.core.gamification.Badge
 import com.laurasheehan.royalmiles.core.model.SessionType
 import com.laurasheehan.royalmiles.core.model.TrainingPhase
-import com.laurasheehan.royalmiles.core.progress.WeekSummaries
 import com.laurasheehan.royalmiles.core.progress.WeekSummary
 import com.laurasheehan.royalmiles.data.CelebrationStore
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.data.Stats
+import com.laurasheehan.royalmiles.data.coach.CoachRepository
+import com.laurasheehan.royalmiles.data.coach.CoachState
 import com.laurasheehan.royalmiles.ui.components.Affirmations
 import com.laurasheehan.royalmiles.ui.components.LongRunPoint
 import java.time.DayOfWeek
@@ -48,12 +49,15 @@ data class DashboardUiState(
     val totalWeeks: Int = 0,
     val weekCommencing: LocalDate? = null,
     val longRuns: List<LongRunPoint> = emptyList(),
+    val coachMotivation: String? = null,
+    val coachKeyReminder: String? = null,
     /** The Sunday/Monday week wrap, when there is a week worth wrapping and it hasn't been seen. */
     val weekWrap: WeekSummary? = null,
 )
 
 class DashboardViewModel(
     private val repository: PlanRepository,
+    coachRepository: CoachRepository,
     private val raceDate: LocalDate,
     private val celebrations: CelebrationStore? = null,
 ) : ViewModel() {
@@ -72,12 +76,14 @@ class DashboardViewModel(
     val uiState: StateFlow<DashboardUiState> = combine(
         repository.observeStats(),
         repository.observeWeeks(),
+        coachRepository.state,
         wrapDismissals,
-    ) { stats, weeks, _ ->
+    ) { stats, weeks, coachState, _ ->
         val allSessions = weeks.flatMap { it.sessions }
         val today = LocalDate.now()
         val currentWeek = weeks.firstOrNull { !it.startDate.isAfter(today) && it.startDate.plusDays(6) >= today }
         val planStarted = weeks.any { !it.startDate.isAfter(today) }
+        val coaching = (coachState as? CoachState.Loaded)?.payload?.coaching
 
         val longRunSessions = allSessions
             .filter { it.type == SessionType.LONG_RUN || it.type == SessionType.RACE }
@@ -110,6 +116,8 @@ class DashboardViewModel(
             totalWeeks = weeks.size,
             weekCommencing = currentWeek?.startDate,
             longRuns = ladder(longRunSessions, furthestRun),
+            coachMotivation = coaching?.motivation,
+            coachKeyReminder = coaching?.keyReminder,
             weekWrap = weekWrapFor(stats, today),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
@@ -213,10 +221,6 @@ class DashboardViewModel(
         viewModelScope.launch { repository.markIncomplete(sessionId) }
     }
 
-    fun scaleDownThisWeek() {
-        val week = uiState.value.weekCommencing ?: WeekSummaries.weekCommencing(LocalDate.now())
-        viewModelScope.launch { repository.scaleDownWeek(week) }
-    }
 }
 
 private val RUN_TYPES = setOf(SessionType.EASY_RUN, SessionType.LONG_RUN, SessionType.RACE)

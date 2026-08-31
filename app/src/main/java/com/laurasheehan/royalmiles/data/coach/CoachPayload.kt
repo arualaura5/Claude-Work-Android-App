@@ -100,6 +100,8 @@ data class CoachPayload(
         val onTrack: Boolean,
         val actionPoints: List<ActionPoint>,
         val coachNote: String?,
+        val motivation: String?,
+        val keyReminder: String?,
         val dataDate: String?,
         val generatedAt: String?,
     ) {
@@ -203,6 +205,8 @@ data class CoachPayload(
                             )
                         }.filter { it.title.isNotBlank() },
                         coachNote = coaching.str("coach_note"),
+                        motivation = coaching.str("motivation"),
+                        keyReminder = coaching.str("key_reminder"),
                         dataDate = coaching.str("data_date"),
                         generatedAt = coaching.str("generated_at"),
                     )
