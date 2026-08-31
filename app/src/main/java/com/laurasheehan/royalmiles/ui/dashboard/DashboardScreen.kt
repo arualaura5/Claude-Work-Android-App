@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.laurasheehan.royalmiles.BuildConfig
 import com.laurasheehan.royalmiles.core.gamification.Badge
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.ui.components.BadgeChip
@@ -253,6 +255,20 @@ fun DashboardScreen(
                 )
             }
             moreCountItem(total = state.upNextTotal, shown = state.upNext.size)
+
+            // Which build this is. Every APK arrives named app-debug.apk, so without this there
+            // is no way to tell from inside the app whether an update actually landed.
+            item {
+                Text(
+                    "Build ${BuildConfig.GIT_SHA} · ${BuildConfig.BUILD_DATE}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp, bottom = 8.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }

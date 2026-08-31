@@ -1,3 +1,17 @@
+/** Short commit of the source this APK was built from, or "unknown" outside a git checkout. */
+fun gitSha(): String = try {
+    val process = ProcessBuilder("git", "rev-parse", "--short", "HEAD")
+        .directory(rootDir)
+        .redirectErrorStream(true)
+        .start()
+    process.inputStream.bufferedReader().readText().trim().take(12).ifEmpty { "unknown" }
+} catch (e: Exception) {
+    "unknown"
+}
+
+fun buildDate(): String =
+    java.time.LocalDate.now().toString()
+
 plugins {
     id("com.android.application") version "8.7.0"
     id("org.jetbrains.kotlin.android") version "2.0.21"
@@ -15,6 +29,11 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+
+        // Stamped so the running app can say which build it is. Every APK is called
+        // app-debug.apk, and without this there is no way to tell one install from the next.
+        buildConfigField("String", "GIT_SHA", "\"${gitSha()}\"")
+        buildConfigField("String", "BUILD_DATE", "\"${buildDate()}\"")
     }
 
     // Pinned so every build — including CI, which runs on a fresh machine every time — signs
@@ -50,6 +69,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
