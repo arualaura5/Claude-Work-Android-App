@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-private const val CURRENT_PLAN_VERSION = 3
+private const val CURRENT_PLAN_VERSION = 4
 private val PLAN_REGENERATION_CUTOVER: LocalDate = LocalDate.of(2026, 8, 31)
 
 data class UiWeek(

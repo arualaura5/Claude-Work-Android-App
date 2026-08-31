@@ -212,7 +212,7 @@ object TrainingPlanGenerator {
     private fun roundToHalf(value: Double): Double = round(value * 2) / 2.0
 
     private const val EFFORT_CAP_NOTE =
-        "Keep heart rate under 150. Ease off or take a brief walking break to bring it back down if it drifts."
+        "Keep heart rate under 160. Ease off or take a brief walking break to bring it back down if it drifts."
     private const val GATE_CHECK_NOTE =
         "Gate check. If this run or the days after it bring pain, altered gait, calf/Achilles/plantar symptoms or poor recovery, hold next week at 13 km instead of 15."
     private const val RACE_NOTE =
