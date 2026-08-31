@@ -27,6 +27,12 @@ jobs:
       - name: Run core module unit tests
         run: ./gradlew :core:test --console=plain
 
+      # The app module holds the regeneration logic that protects the training log, and until
+      # now none of its tests ran anywhere. Room migrations still aren't covered — that needs
+      # schema export and an instrumented test — but everything else here is.
+      - name: Run app module unit tests
+        run: ./gradlew :app:testDebugUnitTest --console=plain
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --console=plain
 
