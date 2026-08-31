@@ -24,7 +24,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-private const val CURRENT_PLAN_VERSION = 4
+/** Bumped whenever the generated plan changes shape, so an installed app regenerates.
+ *  Not private: tests assert against it rather than duplicating the number. */
+internal const val CURRENT_PLAN_VERSION = 4
 private val PLAN_REGENERATION_CUTOVER: LocalDate = LocalDate.of(2026, 8, 31)
 
 data class UiWeek(
