@@ -111,7 +111,7 @@ class TrainingPlanGeneratorTest {
         )
 
         val longRuns = plan.weeks.take(5).map { it.sessions.first { session -> session.type == SessionType.LONG_RUN } }
-        assertTrue(longRuns.filterNot { it.targetDistanceKm == 13.0 }.all { it.notes.contains("Keep heart rate under 150") })
+        assertTrue(longRuns.filterNot { it.targetDistanceKm == 13.0 }.all { it.notes.contains("Keep heart rate under 160") })
         assertTrue(longRuns.first { it.targetDistanceKm == 13.0 }.notes.startsWith("Gate check."))
         assertTrue(plan.weeks.last().sessions.first { it.type == SessionType.RACE }.notes.startsWith("First 14 km"))
     }
