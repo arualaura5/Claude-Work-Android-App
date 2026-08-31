@@ -13,5 +13,9 @@ val RoyalMilesTypography = Typography(
     bodyLarge = TextStyle(fontWeight = FontWeight.Normal, fontSize = 16.sp),
     bodyMedium = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp),
     labelLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 0.5.sp),
+    // Sits between labelSmall and labelLarge, and carries their SemiBold-or-heavier weight.
+    // Previously undefined, so a dozen labels across Coach, session cards and progress
+    // components were quietly falling back to Material's baseline rather than this scale.
+    labelMedium = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 12.sp, letterSpacing = 0.5.sp),
     labelSmall = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 11.sp, letterSpacing = 0.5.sp),
 )
