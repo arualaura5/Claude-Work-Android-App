@@ -106,4 +106,11 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     testImplementation(kotlin("test"))
+
+    // org.json ships in the stubbed android.jar that local unit tests compile against, where
+    // every method throws "not mocked". The coach payload parser is hand-rolled on JSONObject,
+    // so without a real implementation on the test classpath none of its tests can run.
+    // Preferred over unitTests.isReturnDefaultValues, which would silence the failure by
+    // returning nulls and zeroes rather than actually parsing anything.
+    testImplementation("org.json:json:20240303")
 }
