@@ -11,7 +11,7 @@ import com.laurasheehan.royalmiles.RaceConfig
 
 @Database(
     entities = [SessionEntity::class, PlanMetaEntity::class, AthleteProfileEntity::class, EventEntity::class],
-    version = 9,
+    version = 10,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -195,9 +195,39 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Same shape as the migration that added isSkipped: one nullable-in-spirit column
-                // with a default, so every existing row keeps its meaning. Nothing is rewritten.
+                // Same shape as the migration that added isSkipped: one column with a default.
                 db.execSQL("ALTER TABLE sessions ADD COLUMN supersededByCoach INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // DEFAULT 0 in 8-9 left every swap accepted before that column existed labelled
+                // "Didn't do it" forever — the exact wrong reading the column was added to fix,
+                // preserved permanently for the sessions that actually prompted it.
+                //
+                // This is a separate migration rather than an edit to 8-9 because 8-9 has already
+                // run on the device that hit the problem, and a migration that has run never runs
+                // again. Editing it would have fixed nothing and hidden that fact.
+                //
+                // A replaced session is identifiable from data already present: it is skipped, and
+                // the same day carries a custom session whose notes open with the adaptation
+                // record acceptCoachReplacement writes. That marker is only ever written on the
+                // accept path, so this cannot catch a session she skipped herself. It runs once,
+                // at migration time, and is idempotent.
+                db.execSQL(
+                    """
+                    UPDATE sessions SET supersededByCoach = 1
+                    WHERE isSkipped = 1
+                      AND supersededByCoach = 0
+                      AND EXISTS (
+                        SELECT 1 FROM sessions AS replacement
+                        WHERE replacement.date = sessions.date
+                          AND replacement.isCustom = 1
+                          AND replacement.notes LIKE 'Was:%'
+                      )
+                    """.trimIndent(),
+                )
             }
         }
 
@@ -217,6 +247,7 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_6_7,
                     MIGRATION_7_8,
                     MIGRATION_8_9,
+                    MIGRATION_9_10,
                 )
                     .build().also { instance = it }
             }
