@@ -184,7 +184,10 @@ class DashboardViewModel(
                             weekNumber = suggestionState.session.weekNumber,
                             targetDistanceKm = replacement.targetDistanceKm,
                             targetDurationMin = replacement.targetDurationMin,
-                            notes = replacement.notes,
+                            // notes is optional in the payload but not nullable on the entity.
+                            // acceptCoachReplacement rebuilds this field with the full record
+                            // anyway — this only carries the coach's own note through to it.
+                            notes = replacement.notes.orEmpty(),
                         ),
                     )
                 }
