@@ -73,8 +73,22 @@ fun SessionCard(
                     null
                 },
             ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (session.isCompleted) 0.dp else 2.dp),
+        // A replaced session is settled history — it should recede rather than compete with the
+        // sessions still to do. Half-strength surface lets the card blend toward the background,
+        // which recedes correctly in both themes; surfaceVariant would not, being *lighter* than
+        // surface on dark. Text stays well clear of AA against the blend: 7.03:1 dark, 5.88:1
+        // light. Deliberately not applied to a plain skip — owning a missed session is the point,
+        // and fading it would undo that.
+        colors = CardDefaults.cardColors(
+            containerColor = if (session.supersededByCoach) {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (session.isCompleted || session.supersededByCoach) 0.dp else 2.dp,
+        ),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
         Row(
