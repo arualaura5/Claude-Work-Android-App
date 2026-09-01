@@ -195,7 +195,13 @@ class DashboardViewModel(
             if (!applied) return@launch
             suggestionDecisions?.markAccepted(suggestion.date)
             suggestionDecisionChanges.value += 1
-            _affirmations.tryEmit("Suggestion accepted.")
+            // Names the result, not the action - the button already named the action.
+            _affirmations.tryEmit(
+                when (suggestion.action) {
+                    CoachPayload.Coaching.SuggestionAction.SKIP -> "Skipped."
+                    CoachPayload.Coaching.SuggestionAction.REPLACE -> "Swapped."
+                },
+            )
         }
     }
 
@@ -203,7 +209,7 @@ class DashboardViewModel(
         val suggestion = uiState.value.coachSuggestion?.suggestion ?: return
         suggestionDecisions?.markDismissed(suggestion.date)
         suggestionDecisionChanges.value += 1
-        _affirmations.tryEmit("Suggestion dismissed.")
+        _affirmations.tryEmit("Kept as planned.")
     }
 
     /**

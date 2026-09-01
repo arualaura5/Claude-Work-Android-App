@@ -116,6 +116,10 @@ data class CoachPayload(
         data class Suggestion(
             val action: SuggestionAction,
             val date: String,
+            // The coach's own sentence, shown verbatim as the card's headline. Never assembled
+            // here from type and duration: coach-voiced copy derived from other fields reads as
+            // the app impersonating her coach, and is a standing rejection.
+            val headline: String,
             val reason: String?,
             val replaceWith: Replacement?,
         ) {
@@ -260,6 +264,9 @@ data class CoachPayload(
                 else -> return null
             }
             val date = suggestion.str("date") ?: return null
+            // Without the coach's own headline there is nothing to say on the card, and the app
+            // must not write one for her. No headline, no suggestion.
+            val headline = suggestion.str("headline") ?: return null
             val replacement = when (action) {
                 Coaching.SuggestionAction.REPLACE -> suggestion.optJSONObject("replace_with")?.parseReplacement() ?: return null
                 Coaching.SuggestionAction.SKIP -> null
@@ -267,6 +274,7 @@ data class CoachPayload(
             return Coaching.Suggestion(
                 action = action,
                 date = date,
+                headline = headline,
                 reason = suggestion.str("reason"),
                 replaceWith = replacement,
             )

@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -22,6 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -293,54 +298,72 @@ private fun CoachSuggestionCard(
     val suggestion = state.suggestion
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
+        // Filled, not white. Every other card on this screen is a calm surface; the one that
+        // asks her to change her training has to read as a different kind of object entirely,
+        // or it gets scrolled past. onPrimaryContainer measures 8.05:1 on light and 7.11:1 on
+        // dark, so nothing here needs an alpha that would drop it under AA.
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
-        Column {
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            // Left accent bar — the house pattern for priority. Ink rather than gold: gold on
+            // the light container measures 1.27:1 and simply disappears.
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .background(MaterialTheme.colorScheme.primary),
+                    .fillMaxHeight()
+                    .width(5.dp)
+                    .background(MaterialTheme.colorScheme.onPrimaryContainer),
             )
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = "Coach suggests",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
+                        text = "YOUR COACH",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
+                    // The coach's sentence, verbatim. The app does not write this.
                     Text(
-                        text = suggestion.proposalText(state.session),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        text = suggestion.headline,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
+                // Italic carries voice here, the way it does on the hero and the key reminder.
                 suggestion.reason?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OutlinedButton(onClick = onDismiss) {
-                        Text("Dismiss")
-                    }
-                    FilledTonalButton(
+                    Button(
                         onClick = onAccept,
-                        modifier = Modifier.padding(start = 8.dp),
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            contentColor = MaterialTheme.colorScheme.primaryContainer,
+                        ),
                     ) {
-                        Text("Accept")
+                        // The control names the action; the toast names the result.
+                        Text(suggestion.acceptLabel())
+                    }
+                    TextButton(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                    ) {
+                        Text("Keep it")
                     }
                 }
             }
@@ -348,14 +371,11 @@ private fun CoachSuggestionCard(
     }
 }
 
-private fun com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.Suggestion.proposalText(
-    session: SessionEntity,
-): String = when (action) {
-    com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.SuggestionAction.SKIP ->
-        "Skip ${session.type.label().lowercase()}"
-    com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.SuggestionAction.REPLACE ->
-        "Replace ${session.type.label().lowercase()} with ${replaceWith?.title.orEmpty()}"
-}
+private fun com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.Suggestion.acceptLabel(): String =
+    when (action) {
+        com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.SuggestionAction.SKIP -> "Skip it"
+        com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.SuggestionAction.REPLACE -> "Swap it"
+    }
 
 @Composable
 private fun CoachTopNote(motivation: String?, keyReminder: String?) {

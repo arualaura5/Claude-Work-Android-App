@@ -23,6 +23,7 @@ class CoachPayloadTest {
                     "suggestion": {
                       "action": "replace",
                       "date": "2026-09-01",
+                      "headline": "Let us swap today for an easy 20 minute spin.",
                       "reason": "Symptoms arrived after last night was measured.",
                       "replace_with": {
                         "type": "CYCLE",
@@ -39,6 +40,7 @@ class CoachPayloadTest {
         val suggestion = payload.coaching?.suggestion
         assertEquals(CoachPayload.Coaching.SuggestionAction.REPLACE, suggestion?.action)
         assertEquals("2026-09-01", suggestion?.date)
+        assertEquals("Let us swap today for an easy 20 minute spin.", suggestion?.headline)
         assertEquals("Symptoms arrived after last night was measured.", suggestion?.reason)
         assertEquals(SessionType.CYCLE, suggestion?.replaceWith?.type)
         assertEquals("Easy spin - illness hold", suggestion?.replaceWith?.title)
@@ -73,6 +75,7 @@ class CoachPayloadTest {
                     "suggestion": {
                       "action": "replace",
                       "date": "2026-09-01",
+                      "headline": "Let us swap today for an easy 20 minute spin.",
                       "replace_with": {
                         "type": "PILATES",
                         "title": "Easy movement"
@@ -94,7 +97,33 @@ class CoachPayloadTest {
                     "suggestion": {
                       "action": "replace",
                       "date": "2026-09-01",
+                      "headline": "Let us swap today for an easy 20 minute spin.",
                       "reason": "No upside today."
+                    }
+                """.trimIndent(),
+            ),
+        )
+
+        assertNull(payload.coaching?.suggestion)
+    }
+
+    @Test
+    fun `suggestion without a headline yields no suggestion`() {
+        // The headline is the coach's own sentence, and the app must not write one for her.
+        // A suggestion with nothing to say is not shown at all.
+        val payload = CoachPayload.parse(
+            basePayload(
+                coachingExtra = """
+                    ,
+                    "suggestion": {
+                      "action": "replace",
+                      "date": "2026-09-01",
+                      "reason": "No upside today.",
+                      "replace_with": {
+                        "type": "CYCLE",
+                        "title": "Easy spin",
+                        "target_duration_min": 20
+                      }
                     }
                 """.trimIndent(),
             ),
