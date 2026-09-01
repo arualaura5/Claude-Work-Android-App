@@ -11,6 +11,8 @@ import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.data.Stats
 import com.laurasheehan.royalmiles.data.coach.CoachRepository
+import com.laurasheehan.royalmiles.data.coach.CoachPayload
+import com.laurasheehan.royalmiles.data.coach.CoachSuggestionDecisions
 import com.laurasheehan.royalmiles.data.coach.CoachState
 import com.laurasheehan.royalmiles.ui.components.Affirmations
 import com.laurasheehan.royalmiles.ui.components.LongRunPoint
@@ -51,8 +53,14 @@ data class DashboardUiState(
     val longRuns: List<LongRunPoint> = emptyList(),
     val coachMotivation: String? = null,
     val coachKeyReminder: String? = null,
+    val coachSuggestion: CoachSuggestionUiState? = null,
     /** The Sunday/Monday week wrap, when there is a week worth wrapping and it hasn't been seen. */
     val weekWrap: WeekSummary? = null,
+)
+
+data class CoachSuggestionUiState(
+    val suggestion: CoachPayload.Coaching.Suggestion,
+    val session: SessionEntity,
 )
 
 class DashboardViewModel(
@@ -60,6 +68,8 @@ class DashboardViewModel(
     coachRepository: CoachRepository,
     private val raceDate: LocalDate,
     private val celebrations: CelebrationStore? = null,
+    private val suggestionDecisions: CoachSuggestionDecisions? = null,
+    private val todayProvider: () -> LocalDate = { LocalDate.now() },
 ) : ViewModel() {
 
     private val _affirmations = MutableSharedFlow<String>(extraBufferCapacity = 1)
@@ -69,6 +79,7 @@ class DashboardViewModel(
     val celebration: StateFlow<Celebration?> = _celebration.asStateFlow()
 
     private val wrapDismissals = MutableStateFlow(0)
+    private val suggestionDecisionChanges = MutableStateFlow(0)
 
     /** What to record as seen when the current celebration is dismissed. */
     private var pendingSeen: Pair<Set<String>, Int>? = null
@@ -78,9 +89,10 @@ class DashboardViewModel(
         repository.observeWeeks(),
         coachRepository.state,
         wrapDismissals,
-    ) { stats, weeks, coachState, _ ->
+        suggestionDecisionChanges,
+    ) { stats, weeks, coachState, _, _ ->
         val allSessions = weeks.flatMap { it.sessions }
-        val today = LocalDate.now()
+        val today = todayProvider()
         val currentWeek = weeks.firstOrNull { !it.startDate.isAfter(today) && it.startDate.plusDays(6) >= today }
         val planStarted = weeks.any { !it.startDate.isAfter(today) }
         val coaching = (coachState as? CoachState.Loaded)?.payload?.coaching
@@ -118,6 +130,7 @@ class DashboardViewModel(
             longRuns = ladder(longRunSessions, furthestRun),
             coachMotivation = coaching?.motivation,
             coachKeyReminder = coaching?.keyReminder,
+            coachSuggestion = visibleCoachSuggestion(coaching?.suggestion, allSessions, today, suggestionDecisions),
             weekWrap = weekWrapFor(stats, today),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
@@ -148,6 +161,46 @@ class DashboardViewModel(
         val summary = uiState.value.weekWrap ?: return
         celebrations?.dismissWeekWrap(summary.weekCommencing.toString())
         wrapDismissals.value += 1
+    }
+
+    fun acceptCoachSuggestion() {
+        val suggestionState = uiState.value.coachSuggestion ?: return
+        viewModelScope.launch {
+            val suggestion = suggestionState.suggestion
+            var applied = true
+            when (suggestion.action) {
+                CoachPayload.Coaching.SuggestionAction.SKIP -> repository.markSkipped(suggestionState.session.id)
+                CoachPayload.Coaching.SuggestionAction.REPLACE -> {
+                    val replacement = suggestion.replaceWith ?: return@launch
+                    applied = repository.acceptCoachReplacement(
+                        replacedSessionId = suggestionState.session.id,
+                        reason = suggestion.reason,
+                        replacement = SessionEntity(
+                            eventId = suggestionState.session.eventId,
+                            date = suggestionState.session.date,
+                            type = replacement.type,
+                            title = replacement.title,
+                            phase = suggestionState.session.phase,
+                            weekNumber = suggestionState.session.weekNumber,
+                            targetDistanceKm = replacement.targetDistanceKm,
+                            targetDurationMin = replacement.targetDurationMin,
+                            notes = replacement.notes,
+                        ),
+                    )
+                }
+            }
+            if (!applied) return@launch
+            suggestionDecisions?.markAccepted(suggestion.date)
+            suggestionDecisionChanges.value += 1
+            _affirmations.tryEmit("Suggestion accepted.")
+        }
+    }
+
+    fun dismissCoachSuggestion() {
+        val suggestion = uiState.value.coachSuggestion?.suggestion ?: return
+        suggestionDecisions?.markDismissed(suggestion.date)
+        suggestionDecisionChanges.value += 1
+        _affirmations.tryEmit("Suggestion dismissed.")
     }
 
     /**
@@ -221,6 +274,21 @@ class DashboardViewModel(
         viewModelScope.launch { repository.markIncomplete(sessionId) }
     }
 
+}
+
+internal fun visibleCoachSuggestion(
+    suggestion: CoachPayload.Coaching.Suggestion?,
+    sessions: List<SessionEntity>,
+    today: LocalDate,
+    suggestionDecisions: CoachSuggestionDecisions?,
+): CoachSuggestionUiState? {
+    suggestion ?: return null
+    val suggestionDate = runCatching { LocalDate.parse(suggestion.date) }.getOrNull() ?: return null
+    if (suggestionDate != today) return null
+    if (suggestionDecisions?.isDismissed(suggestion.date) == true) return null
+    if (suggestionDecisions?.isAccepted(suggestion.date) == true) return null
+    val session = sessions.firstOrNull { it.date == suggestionDate && !it.isCompleted } ?: return null
+    return CoachSuggestionUiState(suggestion = suggestion, session = session)
 }
 
 private val RUN_TYPES = setOf(SessionType.EASY_RUN, SessionType.LONG_RUN, SessionType.RACE)

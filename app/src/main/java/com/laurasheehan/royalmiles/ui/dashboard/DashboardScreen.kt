@@ -24,10 +24,12 @@ import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
@@ -57,6 +59,7 @@ import com.laurasheehan.royalmiles.ui.components.BadgeChip
 import com.laurasheehan.royalmiles.ui.components.CelebrationDialog
 import com.laurasheehan.royalmiles.ui.components.LongRunProgression
 import com.laurasheehan.royalmiles.ui.components.SessionCard
+import com.laurasheehan.royalmiles.ui.components.label
 import com.laurasheehan.royalmiles.ui.components.StreakChip
 import com.laurasheehan.royalmiles.ui.components.WeekWrapCard
 import com.laurasheehan.royalmiles.ui.components.XpBar
@@ -191,6 +194,15 @@ fun DashboardScreen(
             if (state.today.isEmpty()) {
                 item { Text("Nothing scheduled today. Rest counts too.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             } else {
+                state.coachSuggestion?.let { suggestion ->
+                    item(key = "coach-suggestion-${suggestion.suggestion.date}") {
+                        CoachSuggestionCard(
+                            state = suggestion,
+                            onAccept = viewModel::acceptCoachSuggestion,
+                            onDismiss = viewModel::dismissCoachSuggestion,
+                        )
+                    }
+                }
                 items(state.today, key = { it.id }) { session ->
                     SessionCard(
                         session = session,
@@ -270,6 +282,79 @@ fun DashboardScreen(
             }
         }
     }
+}
+
+@Composable
+private fun CoachSuggestionCard(
+    state: CoachSuggestionUiState,
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val suggestion = state.suggestion
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .background(MaterialTheme.colorScheme.primary),
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Coach suggests",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = suggestion.proposalText(state.session),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                suggestion.reason?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedButton(onClick = onDismiss) {
+                        Text("Dismiss")
+                    }
+                    FilledTonalButton(
+                        onClick = onAccept,
+                        modifier = Modifier.padding(start = 8.dp),
+                    ) {
+                        Text("Accept")
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.Suggestion.proposalText(
+    session: SessionEntity,
+): String = when (action) {
+    com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.SuggestionAction.SKIP ->
+        "Skip ${session.type.label().lowercase()}"
+    com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.SuggestionAction.REPLACE ->
+        "Replace ${session.type.label().lowercase()} with ${replaceWith?.title.orEmpty()}"
 }
 
 @Composable

@@ -33,7 +33,7 @@ class PlanRepositoryTest {
     @Test
     fun `addCustomSession forces Royal Parks event id`() = runBlocking {
         val sessionDao = FakeSessionDao()
-        val repository = PlanRepository(sessionDao, FakePlanMetaDao(null), transaction = { block -> block() })
+        val repository = PlanRepository(sessionDao, FakePlanMetaDao(null), runInTransaction = { block -> block() })
 
         val id = repository.addCustomSession(
             SessionEntity(
@@ -49,6 +49,124 @@ class PlanRepositoryTest {
         val inserted = sessionDao.getById(id)
         assertEquals(RaceConfig.ROYAL_PARKS_EVENT_ID, inserted?.eventId)
         assertEquals(true, inserted?.isCustom)
+    }
+
+    @Test
+    fun `accepting coach replace skips original and inserts custom replacement for original event`() = runBlocking {
+        val sessionDao = FakeSessionDao()
+        val repository = PlanRepository(sessionDao, FakePlanMetaDao(null), runInTransaction = { block -> block() })
+        val original = sessionDao.insertAndGet(
+            SessionEntity(
+                eventId = RaceConfig.RICHMOND_EVENT_ID,
+                date = LocalDate.of(2026, 11, 2),
+                type = SessionType.EASY_RUN,
+                title = "Easy run",
+                phase = TrainingPhase.BASE,
+                weekNumber = 1,
+                targetDistanceKm = 5.0,
+            ),
+        )
+
+        val accepted = repository.acceptCoachReplacement(
+            replacedSessionId = original.id,
+            reason = "Symptoms arrived after last night was measured.",
+            replacement = SessionEntity(
+                eventId = RaceConfig.ROYAL_PARKS_EVENT_ID,
+                date = LocalDate.of(2026, 9, 1),
+                type = SessionType.CYCLE,
+                title = "Easy spin - illness hold",
+                phase = TrainingPhase.TAPER,
+                weekNumber = 99,
+                targetDurationMin = 20,
+                notes = "Conversational only.",
+            ),
+        )
+
+        assertTrue(accepted)
+        val skipped = sessionDao.getById(original.id)
+        assertEquals(true, skipped?.isSkipped)
+        assertEquals(false, skipped?.isCompleted)
+
+        val replacement = sessionDao.getAll().single { it.id != original.id }
+        assertEquals(SessionType.CYCLE, replacement.type)
+        assertEquals("Easy spin - illness hold", replacement.title)
+        assertEquals(20, replacement.targetDurationMin)
+        assertEquals(true, replacement.isCustom)
+        assertEquals(RaceConfig.RICHMOND_EVENT_ID, replacement.eventId)
+        assertEquals(original.date, replacement.date)
+        assertEquals(original.weekNumber, replacement.weekNumber)
+        assertEquals(original.phase, replacement.phase)
+        assertEquals(
+            "Was: Easy Run, 5.0 km - \"Easy run\".\n" +
+                "Changed to Cycle, 20 min - \"Easy spin - illness hold\" because: Symptoms arrived after last night was measured.\n" +
+                "Conversational only.",
+            replacement.notes,
+        )
+    }
+
+    @Test
+    fun `coach replacement notes describe original replacement reason and instructions`() {
+        val original = SessionEntity(
+            eventId = RaceConfig.ROYAL_PARKS_EVENT_ID,
+            date = LocalDate.of(2026, 9, 1),
+            type = SessionType.EASY_RUN,
+            title = "Tuesday shakeout",
+            phase = TrainingPhase.BASE,
+            weekNumber = 2,
+            targetDistanceKm = 5.0,
+        )
+        val replacement = SessionEntity(
+            eventId = RaceConfig.ROYAL_PARKS_EVENT_ID,
+            date = LocalDate.of(2026, 9, 1),
+            type = SessionType.CYCLE,
+            title = "Easy spin",
+            phase = TrainingPhase.BASE,
+            weekNumber = 2,
+            targetDurationMin = 20,
+            notes = "Conversational only. Stop at 10 minutes if the head is worse.",
+        )
+
+        assertEquals(
+            "Was: Easy Run, 5.0 km - \"Tuesday shakeout\".\n" +
+                "Changed to Cycle, 20 min - \"Easy spin\" because: symptoms arrived after last night was measured.\n" +
+                "Conversational only. Stop at 10 minutes if the head is worse.",
+            coachReplacementNotes(
+                original = original,
+                replacement = replacement,
+                reason = "symptoms arrived after last night was measured",
+            ),
+        )
+    }
+
+    @Test
+    fun `coach replacement notes omit empty optional clauses cleanly`() {
+        val original = SessionEntity(
+            eventId = RaceConfig.ROYAL_PARKS_EVENT_ID,
+            date = LocalDate.of(2026, 9, 3),
+            type = SessionType.YOGA,
+            title = "Yoga / mobility",
+            phase = TrainingPhase.BASE,
+            weekNumber = 2,
+        )
+        val replacement = SessionEntity(
+            eventId = RaceConfig.ROYAL_PARKS_EVENT_ID,
+            date = LocalDate.of(2026, 9, 3),
+            type = SessionType.REST,
+            title = "Rest day",
+            phase = TrainingPhase.BASE,
+            weekNumber = 2,
+            notes = " ",
+        )
+
+        assertEquals(
+            "Was: Yoga - \"Yoga / mobility\".\n" +
+                "Changed to Rest - \"Rest day\".",
+            coachReplacementNotes(
+                original = original,
+                replacement = replacement,
+                reason = "",
+            ),
+        )
     }
 
     @Test
@@ -107,7 +225,7 @@ class PlanRepositoryTest {
                 planVersion = 1,
             ),
         )
-        val repository = PlanRepository(sessionDao, planMetaDao, transaction = { block -> block() })
+        val repository = PlanRepository(sessionDao, planMetaDao, runInTransaction = { block -> block() })
 
         val completed = sessionDao.insertAndGet(
             SessionEntity(
@@ -212,7 +330,7 @@ class PlanRepositoryTest {
     @Test
     fun `markIncomplete clears logged metrics but preserves source activity link`() = runBlocking {
         val sessionDao = FakeSessionDao()
-        val repository = PlanRepository(sessionDao, FakePlanMetaDao(null), transaction = { block -> block() })
+        val repository = PlanRepository(sessionDao, FakePlanMetaDao(null), runInTransaction = { block -> block() })
         val session = sessionDao.insertAndGet(
             SessionEntity(
                 eventId = RaceConfig.ROYAL_PARKS_EVENT_ID,
@@ -255,7 +373,7 @@ class PlanRepositoryTest {
     @Test
     fun `scaleDownWeek cascades future long runs without touching completed skipped or custom rows`() = runBlocking {
         val sessionDao = FakeSessionDao()
-        val repository = PlanRepository(sessionDao, FakePlanMetaDao(null), transaction = { block -> block() })
+        val repository = PlanRepository(sessionDao, FakePlanMetaDao(null), runInTransaction = { block -> block() })
         val week4 = LocalDate.of(2026, 9, 21)
         val week4LongRun = sessionDao.insertAndGet(longRun(week4.plusDays(6), 13.0, 4))
         val week5LongRun = sessionDao.insertAndGet(longRun(week4.plusWeeks(1).plusDays(6), 15.0, 5))

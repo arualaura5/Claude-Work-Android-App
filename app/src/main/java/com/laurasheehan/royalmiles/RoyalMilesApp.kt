@@ -24,7 +24,7 @@ class RoyalMilesApp : Application() {
         repository = PlanRepository(
             database.sessionDao(),
             database.planMetaDao(),
-            transaction = { block -> database.withTransaction { block() } },
+            runInTransaction = { block -> database.withTransaction { block() } },
         )
         athleteProfileRepository = AthleteProfileRepository(database.athleteProfileDao())
         coachRepository = CoachRepository(applicationContext)

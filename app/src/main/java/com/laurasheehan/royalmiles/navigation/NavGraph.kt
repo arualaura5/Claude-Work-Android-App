@@ -14,6 +14,7 @@ import com.laurasheehan.royalmiles.data.AthleteProfileRepository
 import com.laurasheehan.royalmiles.data.CelebrationStore
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.coach.CoachRepository
+import com.laurasheehan.royalmiles.data.coach.CoachSuggestionDecisionStore
 import com.laurasheehan.royalmiles.data.health.HealthConnectRepository
 import com.laurasheehan.royalmiles.data.health.HealthDiagnostics
 import com.laurasheehan.royalmiles.ui.diagnostics.DiagnosticsScreen
@@ -67,6 +68,7 @@ fun RoyalMilesNavHost(
                             coachRepository = coachRepository,
                             raceDate = RaceConfig.RACE_DATE,
                             celebrations = CelebrationStore(context.applicationContext),
+                            suggestionDecisions = CoachSuggestionDecisionStore(context.applicationContext),
                         )
                     }
                 },

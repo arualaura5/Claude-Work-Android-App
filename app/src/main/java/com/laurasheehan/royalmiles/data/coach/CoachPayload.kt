@@ -1,5 +1,6 @@
 package com.laurasheehan.royalmiles.data.coach
 
+import com.laurasheehan.royalmiles.core.model.SessionType
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -104,12 +105,33 @@ data class CoachPayload(
         val keyReminder: String?,
         val dataDate: String?,
         val generatedAt: String?,
+        val suggestion: Suggestion?,
     ) {
         data class ActionPoint(
             val title: String,
             val priority: String,
             val body: String,
         )
+
+        data class Suggestion(
+            val action: SuggestionAction,
+            val date: String,
+            val reason: String?,
+            val replaceWith: Replacement?,
+        ) {
+            data class Replacement(
+                val type: SessionType,
+                val title: String,
+                val targetDurationMin: Int?,
+                val targetDistanceKm: Double?,
+                val notes: String?,
+            )
+        }
+
+        enum class SuggestionAction {
+            REPLACE,
+            SKIP,
+        }
     }
 
     companion object {
@@ -209,6 +231,7 @@ data class CoachPayload(
                         keyReminder = coaching.str("key_reminder"),
                         dataDate = coaching.str("data_date"),
                         generatedAt = coaching.str("generated_at"),
+                        suggestion = coaching.parseSuggestion(),
                     )
                 },
                 coachingAbsentReason = root.str("coaching_absent_reason"),
@@ -228,6 +251,40 @@ data class CoachPayload(
 
         private fun JSONObject.int(key: String): Int? =
             if (isNull(key)) null else optDouble(key).takeIf { !it.isNaN() }?.toInt()
+
+        private fun JSONObject.parseSuggestion(): Coaching.Suggestion? {
+            val suggestion = optJSONObject("suggestion") ?: return null
+            val action = when (suggestion.optString("action", "")) {
+                "replace" -> Coaching.SuggestionAction.REPLACE
+                "skip" -> Coaching.SuggestionAction.SKIP
+                else -> return null
+            }
+            val date = suggestion.str("date") ?: return null
+            val replacement = when (action) {
+                Coaching.SuggestionAction.REPLACE -> suggestion.optJSONObject("replace_with")?.parseReplacement() ?: return null
+                Coaching.SuggestionAction.SKIP -> null
+            }
+            return Coaching.Suggestion(
+                action = action,
+                date = date,
+                reason = suggestion.str("reason"),
+                replaceWith = replacement,
+            )
+        }
+
+        private fun JSONObject.parseReplacement(): Coaching.Suggestion.Replacement? {
+            val type = runCatching { SessionType.valueOf(optString("type", "")) }.getOrNull()
+                ?.takeUnless { it == SessionType.RACE }
+                ?: return null
+            val title = str("title") ?: return null
+            return Coaching.Suggestion.Replacement(
+                type = type,
+                title = title,
+                targetDurationMin = int("target_duration_min"),
+                targetDistanceKm = dbl("target_distance_km"),
+                notes = str("notes"),
+            )
+        }
 
         private fun <T> JSONArray?.map(transform: (JSONObject) -> T): List<T> {
             val array = this ?: return emptyList()

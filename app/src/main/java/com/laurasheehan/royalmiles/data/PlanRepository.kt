@@ -19,6 +19,7 @@ import com.laurasheehan.royalmiles.core.progress.WeekSummary
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -76,7 +77,7 @@ data class Stats(
 class PlanRepository(
     private val sessionDao: SessionDao,
     private val planMetaDao: PlanMetaDao,
-    private val transaction: suspend (suspend () -> Unit) -> Unit,
+    private val runInTransaction: suspend (suspend () -> Unit) -> Unit,
 ) {
     suspend fun ensureSeeded(raceDate: LocalDate, today: LocalDate = LocalDate.now(), peakLongRunKm: Double = 15.0) {
         val existingCount = sessionDao.count()
@@ -112,7 +113,7 @@ class PlanRepository(
             existingMeta.raceDate == raceDate
         ) return
 
-        transaction {
+        runInTransaction {
             val plan = TrainingPlanGenerator.generate(
                 raceName = RaceConfig.ROYAL_PARKS_EVENT_NAME,
                 raceDate = raceDate,
@@ -264,7 +265,7 @@ class PlanRepository(
             !it.date.isBefore(weekCommencing) && !it.date.isAfter(weekEnd) && it.canBeScaled
         }
 
-        transaction {
+        runInTransaction {
             week.filter { it.type == SessionType.LONG_RUN }.forEach { session ->
                 val reduced = session.targetDistanceKm?.let { roundToHalf(it * 0.75) }
                 sessionDao.update(session.copy(targetDistanceKm = reduced))
@@ -297,7 +298,7 @@ class PlanRepository(
             var previousLongRunKm = longRunsByWeek[weekCommencing]
                 ?.mapNotNull { it.targetDistanceKm }
                 ?.maxOrNull()
-                ?: return@transaction
+                ?: return@runInTransaction
 
             for ((_, longRuns) in longRunsByWeek.tailMap(weekCommencing.plusWeeks(1))) {
                 val session = longRuns.minByOrNull { it.date } ?: continue
@@ -318,8 +319,45 @@ class PlanRepository(
 
     suspend fun deleteSession(session: SessionEntity) = sessionDao.delete(session)
 
-    suspend fun addCustomSession(session: SessionEntity) =
-        sessionDao.insert(session.copy(eventId = RaceConfig.ROYAL_PARKS_EVENT_ID, isCustom = true))
+    suspend fun addCustomSession(
+        session: SessionEntity,
+        eventId: String = RaceConfig.ROYAL_PARKS_EVENT_ID,
+    ) = sessionDao.insert(session.copy(eventId = eventId, isCustom = true))
+
+    suspend fun acceptCoachReplacement(
+        replacedSessionId: Long,
+        replacement: SessionEntity,
+        reason: String?,
+    ): Boolean {
+        val existing = sessionDao.getById(replacedSessionId) ?: return false
+        runInTransaction {
+            sessionDao.update(
+                existing.copy(
+                    isCompleted = false,
+                    isSkipped = true,
+                    actualDistanceKm = null,
+                    actualDurationMin = null,
+                    effortRating = null,
+                    completedAt = null,
+                ),
+            )
+            sessionDao.insert(
+                replacement.copy(
+                    date = existing.date,
+                    weekNumber = existing.weekNumber,
+                    phase = existing.phase,
+                    eventId = existing.eventId,
+                    isCustom = true,
+                    notes = coachReplacementNotes(
+                        original = existing,
+                        replacement = replacement,
+                        reason = reason,
+                    ),
+                ),
+            )
+        }
+        return true
+    }
 
     /**
      * Badges care about which planned *slot* got done, so they're matched against the session's
@@ -416,6 +454,52 @@ private fun SessionEntity.toCoreSession(): Session = Session(
 )
 
 private fun SessionEntity.slotKey(): String = listOf(date.toString(), type.name, title).joinToString("|")
+
+internal fun coachReplacementNotes(
+    original: SessionEntity,
+    replacement: SessionEntity,
+    reason: String?,
+): String {
+    val changedLine = buildString {
+        append("Changed to ")
+        append(replacement.noteSummary())
+        val reasonText = reason?.trim()?.takeIf { it.isNotBlank() }
+        if (reasonText == null) {
+            append(".")
+        } else {
+            append(" because: ").append(reasonText.withTerminalPunctuation())
+        }
+    }
+    return listOfNotNull(
+        "Was: ${original.noteSummary()}.",
+        changedLine,
+        replacement.notes.trim().takeIf { it.isNotBlank() },
+    ).joinToString("\n")
+}
+
+private fun SessionEntity.noteSummary(): String = buildString {
+    append(type.noteLabel())
+    targetText()?.let { append(", ").append(it) }
+    title.trim().takeIf { it.isNotBlank() }?.let { append(" - \"").append(it).append("\"") }
+}
+
+private fun SessionEntity.targetText(): String? =
+    targetDistanceKm?.let { String.format(Locale.US, "%.1f km", it) }
+        ?: targetDurationMin?.let { "$it min" }
+
+private fun SessionType.noteLabel(): String = when (this) {
+    SessionType.EASY_RUN -> "Easy Run"
+    SessionType.LONG_RUN -> "Long Run"
+    SessionType.STRENGTH -> "Strength"
+    SessionType.YOGA -> "Yoga"
+    SessionType.CYCLE -> "Cycle"
+    SessionType.SWIM -> "Swim"
+    SessionType.REST -> "Rest"
+    SessionType.RACE -> "Race"
+}
+
+private fun String.withTerminalPunctuation(): String =
+    if (lastOrNull() in setOf('.', '!', '?')) this else "$this."
 
 private val SessionEntity.canBeScaled: Boolean
     get() = !isCompleted && !isSkipped && !isCustom
