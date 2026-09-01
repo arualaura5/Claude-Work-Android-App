@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -113,6 +114,26 @@ fun SessionCard(
             }
             if (session.isCompleted) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = "Completed", tint = ComebackGold)
+            } else if (session.supersededByCoach) {
+                // A session she and her coach agreed to change is not a session she failed to do.
+                // Same struck-through row so the day still reads honestly, but stated as what it
+                // was — replaced — and in muted ink rather than the red reserved for a real miss.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.SwapHoriz,
+                        contentDescription = "Replaced",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        "Replaced",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else if (session.isSkipped) {
                 // Struck through and in red, at her request. Owning a missed session is the point —
                 // the app shouldn't be so careful about her feelings that the state is hard to read.

@@ -86,6 +86,8 @@ class PlanRepositoryTest {
         val skipped = sessionDao.getById(original.id)
         assertEquals(true, skipped?.isSkipped)
         assertEquals(false, skipped?.isCompleted)
+        // The distinction that keeps the log honest: an agreed change is not a missed session.
+        assertEquals(true, skipped?.supersededByCoach)
 
         val replacement = sessionDao.getAll().single { it.id != original.id }
         assertEquals(SessionType.CYCLE, replacement.type)

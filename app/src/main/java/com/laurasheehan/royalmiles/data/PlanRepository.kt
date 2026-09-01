@@ -335,6 +335,9 @@ class PlanRepository(
                 existing.copy(
                     isCompleted = false,
                     isSkipped = true,
+                    // Not a session she failed to do — one she and her coach agreed to change.
+                    // Only this path sets it; skipping a session herself stays a plain skip.
+                    supersededByCoach = true,
                     actualDistanceKm = null,
                     actualDurationMin = null,
                     effortRating = null,

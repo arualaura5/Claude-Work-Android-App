@@ -33,6 +33,14 @@ data class SessionEntity(
      */
     val isSkipped: Boolean = false,
     /**
+     * Skipped because she accepted a coach suggestion to replace it, not because it failed to
+     * happen. Both are skipped as far as the plan is concerned, but they read back as very
+     * different things: one is a decision she made with her coach, the other is a session she
+     * missed. Labelling an agreed change "Didn't do it" tells her she failed at something she
+     * chose to do. The replacement session's notes carry what it was and why it changed.
+     */
+    val supersededByCoach: Boolean = false,
+    /**
      * Metrics captured from Health Connect at match time. Stored rather than re-read on demand so
      * the training history accumulates into something a coaching layer can actually reason over
      * later — Health Connect only retains a rolling window, and these are the numbers that make a

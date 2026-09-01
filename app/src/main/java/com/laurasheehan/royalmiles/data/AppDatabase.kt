@@ -11,7 +11,7 @@ import com.laurasheehan.royalmiles.RaceConfig
 
 @Database(
     entities = [SessionEntity::class, PlanMetaEntity::class, AthleteProfileEntity::class, EventEntity::class],
-    version = 8,
+    version = 9,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -193,6 +193,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Same shape as the migration that added isSkipped: one nullable-in-spirit column
+                // with a default, so every existing row keeps its meaning. Nothing is rewritten.
+                db.execSQL("ALTER TABLE sessions ADD COLUMN supersededByCoach INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+
         fun getInstance(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -207,6 +216,7 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_5_6,
                     MIGRATION_6_7,
                     MIGRATION_7_8,
+                    MIGRATION_8_9,
                 )
                     .build().also { instance = it }
             }
