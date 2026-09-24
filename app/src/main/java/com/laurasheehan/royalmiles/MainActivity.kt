@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -36,6 +37,7 @@ import androidx.navigation.compose.rememberNavController
 import com.laurasheehan.royalmiles.navigation.RoyalMilesNavHost
 import com.laurasheehan.royalmiles.navigation.Routes
 import com.laurasheehan.royalmiles.ui.theme.RoyalMilesTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,6 +54,15 @@ class MainActivity : ComponentActivity() {
                 }
                 RoyalMilesRoot(repository, athleteProfileRepository, coachRepository)
             }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Failures stay silent here: the Coach tab states the data date, and its Refresh reports errors.
+        val coachRepository = (application as RoyalMilesApp).coachRepository
+        if (coachRepository.isRemoteConnected()) {
+            lifecycleScope.launch { coachRepository.refreshFromRememberedSource() }
         }
     }
 }

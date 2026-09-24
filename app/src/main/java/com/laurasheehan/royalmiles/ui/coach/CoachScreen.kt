@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Insights
@@ -43,20 +44,26 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -92,12 +99,24 @@ fun CoachScreen(viewModel: CoachViewModel) {
         onResult = { uri -> uri?.let(viewModel::import) },
     )
 
+    var showConnect by remember { mutableStateOf(false) }
+
     state.error?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
             confirmButton = { TextButton(onClick = viewModel::dismissError) { Text("OK") } },
-            title = { Text("Import failed") },
+            title = { Text("Coach update failed") },
             text = { Text(message) },
+        )
+    }
+
+    if (showConnect) {
+        ConnectDialog(
+            onDismiss = { showConnect = false },
+            onConnect = { address, key ->
+                showConnect = false
+                viewModel.connect(address, key)
+            },
         )
     }
 
@@ -125,10 +144,13 @@ fun CoachScreen(viewModel: CoachViewModel) {
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     } else {
-                                        Icon(Icons.Filled.Refresh, contentDescription = "Re-read the file")
+                                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh coach data")
                                     }
                                 }
                             }
+                        }
+                        IconButton(onClick = { showConnect = true }, enabled = !state.loading) {
+                            Icon(Icons.Filled.Cloud, contentDescription = "Connect to the cloud coach")
                         }
                         // Tonal rather than plain: this is the one action that works with nothing
                         // loaded yet, so it should read as a small button, not just another icon
@@ -150,6 +172,7 @@ fun CoachScreen(viewModel: CoachViewModel) {
             EmptyState(
                 loading = state.loading,
                 onPick = { picker.launch(arrayOf("application/json", "*/*")) },
+                onConnect = { showConnect = true },
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
             return@Scaffold
@@ -193,7 +216,12 @@ fun CoachScreen(viewModel: CoachViewModel) {
 }
 
 @Composable
-private fun EmptyState(loading: Boolean, onPick: () -> Unit, modifier: Modifier = Modifier) {
+private fun EmptyState(
+    loading: Boolean,
+    onPick: () -> Unit,
+    onConnect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier.padding(horizontal = 28.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
@@ -242,14 +270,24 @@ private fun EmptyState(loading: Boolean, onPick: () -> Unit, modifier: Modifier 
                         textAlign = TextAlign.Center,
                     )
                     Text(
-                        "Garmin doesn't share HRV with Health Connect, so this comes from the dashboard on the " +
-                            "laptop instead. Run export_coach_payload.py there, put the coach.json it writes " +
-                            "somewhere this phone can reach, and pick it here.",
+                        "Garmin doesn't share HRV with Health Connect, so this comes from the cloud coach " +
+                            "instead. Connect once with its address and key and it refreshes each time the app " +
+                            "opens. You can still pick a coach.json file by hand.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         lineHeight = 20.sp,
                     )
-                    Button(onClick = onPick, modifier = Modifier.padding(top = 4.dp)) {
+                    Button(onClick = onConnect, modifier = Modifier.padding(top = 4.dp)) {
+                        Icon(
+                            Icons.Filled.Cloud,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .padding(end = 6.dp),
+                        )
+                        Text("Connect to the cloud coach")
+                    }
+                    TextButton(onClick = onPick) {
                         Icon(
                             Icons.Filled.FileOpen,
                             contentDescription = null,
@@ -622,4 +660,49 @@ private fun WarningsCard(warnings: List<String>) {
             }
         }
     }
+}
+
+@Composable
+private fun ConnectDialog(onDismiss: () -> Unit, onConnect: (address: String, key: String) -> Unit) {
+    var address by remember { mutableStateOf("") }
+    var key by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Connect to the cloud coach") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Enter the Worker's address and the coach key. The key can only read coaching, " +
+                        "and it stays on this phone.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    label = { Text("Address") },
+                    placeholder = { Text("https://….workers.dev") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = key,
+                    onValueChange = { key = it },
+                    label = { Text("Coach key") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConnect(address, key) },
+                enabled = address.isNotBlank() && key.isNotBlank(),
+            ) { Text("Connect") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

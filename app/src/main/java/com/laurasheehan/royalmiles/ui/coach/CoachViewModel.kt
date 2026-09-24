@@ -56,6 +56,17 @@ class CoachViewModel(
         }
     }
 
+    fun connect(address: String, key: String) {
+        viewModelScope.launch {
+            _transient.value = TransientState(loading = true)
+            val result = repository.connectRemote(address, key)
+            _transient.value = TransientState(
+                loading = false,
+                error = result.exceptionOrNull()?.let { "Couldn't connect to the cloud coach. ${it.message}" },
+            )
+        }
+    }
+
     fun refresh() {
         viewModelScope.launch {
             _transient.value = TransientState(loading = true)

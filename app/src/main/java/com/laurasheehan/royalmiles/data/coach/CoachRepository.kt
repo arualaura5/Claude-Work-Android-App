@@ -10,18 +10,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
 /**
- * Holds the coach payload imported from the laptop.
+ * Holds the coach payload, from one of two sources: the cloud coach (fetched from the Worker that
+ * serves its latest live coach.json) or a file picked on the phone.
  *
  * SharedPreferences rather than Room, following [com.laurasheehan.royalmiles.data.CelebrationStore]:
- * this is a cached copy of a document the laptop owns, not training data the user created. Losing it
- * costs one re-import from a file that still exists on the laptop — a far better failure than putting
- * a schema migration in front of it. The raw JSON is stored verbatim so a payload written by a newer
- * exporter survives an app downgrade and re-parses cleanly.
+ * this is a cached copy of a document the coach owns, not training data the user created. Losing it
+ * costs one refresh — a far better failure than putting a schema migration in front of it. The raw
+ * JSON is stored verbatim so a payload written by a newer exporter survives an app downgrade and
+ * re-parses cleanly.
  *
- * The picked file's URI is persisted too, so "Refresh" can re-read it without asking for the file
- * again. That works because [android.content.ContentResolver.takePersistableUriPermission] survives
- * reboots — but only for as long as the source app allows, so a failed re-read falls back to asking
- * for the file rather than treating it as an error.
+ * Whichever source was used last is remembered so "Refresh" can re-read it. For a picked file that
+ * relies on [android.content.ContentResolver.takePersistableUriPermission], which survives reboots
+ * but only for as long as the source app allows, so a failed re-read asks for the file again.
  */
 class CoachRepository(context: Context) {
 
@@ -31,10 +31,33 @@ class CoachRepository(context: Context) {
     private val _state = MutableStateFlow(load())
     val state: StateFlow<CoachState> = _state.asStateFlow()
 
-    /** Re-reads the remembered file. Null return means there is nothing remembered to re-read. */
+    fun isRemoteConnected(): Boolean = remote() != null
+
+    /** Re-reads the remembered source. Null return means there is nothing remembered to re-read. */
     suspend fun refreshFromRememberedSource(): Result<Unit>? {
+        remote()?.let { (address, key) -> return fetchRemote(address, key) }
         val uri = rememberedUri() ?: return null
         return import(uri)
+    }
+
+    /** Saves the cloud coach's address and key, but only once they have fetched a valid payload. */
+    suspend fun connectRemote(address: String, key: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val normalised = CoachRemote.normaliseAddress(address)
+            val trimmedKey = key.trim()
+            require(trimmedKey.isNotEmpty()) { "Enter the coach key." }
+            val json = CoachRemote.fetch(normalised, trimmedKey)
+            val payload = parseRemotePayload(json)
+            store(
+                json = json,
+                payload = payload,
+                source = prefs.edit()
+                    .putString(KEY_REMOTE_ADDRESS, normalised)
+                    .putString(KEY_REMOTE_KEY, trimmedKey)
+                    .remove(KEY_URI),
+                sourceRemembered = true,
+            )
+        }
     }
 
     suspend fun import(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
@@ -52,31 +75,54 @@ class CoachRepository(context: Context) {
                 )
             }.isSuccess
 
-            val importedAtMillis = System.currentTimeMillis()
+            // Picking a file is a choice of source: the cloud coach would otherwise overwrite it
+            // on the next refresh.
+            val edit = prefs.edit().remove(KEY_REMOTE_ADDRESS).remove(KEY_REMOTE_KEY)
+            if (sourceRemembered) edit.putString(KEY_URI, uri.toString()) else edit.remove(KEY_URI)
 
-            val edit = prefs.edit()
-                .putString(KEY_JSON, json)
-                .putLong(KEY_IMPORTED_AT, importedAtMillis)
-
-            if (sourceRemembered) {
-                edit.putString(KEY_URI, uri.toString())
-            } else {
-                edit.remove(KEY_URI)
-            }
-
-            edit.apply()
-
-            _state.value = CoachState.Loaded(
-                payload = payload,
-                importedAtMillis = importedAtMillis,
-                sourceRemembered = sourceRemembered,
-            )
+            store(json = json, payload = payload, source = edit, sourceRemembered = sourceRemembered)
         }
     }
 
     fun clear() {
         prefs.edit().clear().apply()
         _state.value = CoachState.Empty
+    }
+
+    private suspend fun fetchRemote(address: String, key: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val json = CoachRemote.fetch(address, key)
+            store(
+                json = json,
+                payload = parseRemotePayload(json),
+                source = prefs.edit(),
+                sourceRemembered = true,
+            )
+        }
+    }
+
+    private fun store(
+        json: String,
+        payload: CoachPayload,
+        source: android.content.SharedPreferences.Editor,
+        sourceRemembered: Boolean,
+    ) {
+        val importedAtMillis = System.currentTimeMillis()
+        source
+            .putString(KEY_JSON, json)
+            .putLong(KEY_IMPORTED_AT, importedAtMillis)
+            .apply()
+        _state.value = CoachState.Loaded(
+            payload = payload,
+            importedAtMillis = importedAtMillis,
+            sourceRemembered = sourceRemembered,
+        )
+    }
+
+    private fun remote(): Pair<String, String>? {
+        val address = prefs.getString(KEY_REMOTE_ADDRESS, null) ?: return null
+        val key = prefs.getString(KEY_REMOTE_KEY, null) ?: return null
+        return address to key
     }
 
     private fun rememberedUri(): Uri? = prefs.getString(KEY_URI, null)?.let(Uri::parse)
@@ -105,13 +151,23 @@ class CoachRepository(context: Context) {
             )
         }
 
+    private fun parseRemotePayload(json: String): CoachPayload =
+        runCatching {
+            CoachPayload.parse(json)
+        }.getOrElse { error ->
+            throw IllegalArgumentException(
+                "The coach server sent something that isn't a coach payload. (${error.message})",
+                error,
+            )
+        }
+
     private fun load(): CoachState {
         val json = prefs.getString(KEY_JSON, null) ?: return CoachState.Empty
         return runCatching {
             CoachState.Loaded(
                 payload = CoachPayload.parse(json),
                 importedAtMillis = prefs.getLong(KEY_IMPORTED_AT, 0L),
-                sourceRemembered = rememberedUri() != null,
+                sourceRemembered = rememberedUri() != null || remote() != null,
             )
         }.getOrElse { CoachState.Empty }
     }
@@ -120,6 +176,8 @@ class CoachRepository(context: Context) {
         const val KEY_JSON = "payload_json"
         const val KEY_URI = "source_uri"
         const val KEY_IMPORTED_AT = "imported_at"
+        const val KEY_REMOTE_ADDRESS = "remote_address"
+        const val KEY_REMOTE_KEY = "remote_key"
     }
 }
 
