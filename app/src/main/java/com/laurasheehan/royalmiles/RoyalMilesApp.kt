@@ -33,7 +33,11 @@ class RoyalMilesApp : Application() {
         )
         athleteProfileRepository = AthleteProfileRepository(database.athleteProfileDao())
         coachRepository = CoachRepository(applicationContext)
-        workoutAutoImporter = WorkoutAutoImporter(repository, HealthConnectRepository(applicationContext))
+        workoutAutoImporter = WorkoutAutoImporter(
+            repository = repository,
+            healthConnect = HealthConnectRepository(applicationContext),
+            fetchFeed = coachRepository::fetchActivityFeed,
+        )
 
         ReminderScheduler.createChannel(this)
         ReminderScheduler.schedule(this)

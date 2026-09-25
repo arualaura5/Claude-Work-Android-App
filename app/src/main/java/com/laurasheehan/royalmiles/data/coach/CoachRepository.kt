@@ -40,6 +40,15 @@ class CoachRepository(context: Context) {
         return import(uri)
     }
 
+    /**
+     * The cloud refresh's activity feed, raw, from the connected Worker. Null when no Worker is
+     * connected; throws when it is but the fetch fails.
+     */
+    suspend fun fetchActivityFeed(): String? = withContext(Dispatchers.IO) {
+        val (address, key) = remote() ?: return@withContext null
+        CoachRemote.fetch(CoachRemote.activitiesAddress(address), key)
+    }
+
     /** Saves the cloud coach's address and key, but only once they have fetched a valid payload. */
     suspend fun connectRemote(address: String, key: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {

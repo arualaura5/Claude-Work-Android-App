@@ -21,6 +21,10 @@ internal object CoachRemote {
         return if (trimmed.endsWith("/coach.json")) trimmed else "$trimmed/coach.json"
     }
 
+    /** The activity feed sits next to coach.json on the same Worker, behind the same key. */
+    fun activitiesAddress(coachAddress: String): String =
+        coachAddress.removeSuffix("/coach.json") + "/activities.json"
+
     fun failureMessage(code: Int): String = when (code) {
         401, 403 -> "The coach key was rejected. Check it matches the one set on the Worker."
         404 -> "No live coaching has been published yet."

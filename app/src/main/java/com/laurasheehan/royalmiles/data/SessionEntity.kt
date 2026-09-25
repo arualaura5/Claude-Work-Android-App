@@ -45,6 +45,9 @@ data class SessionEntity(
     /** Source app package and its own activity id, kept so the original activity stays reachable. */
     val sourceApp: String? = null,
     val sourceActivityId: String? = null,
+    /** Garmin's aerobic training effect (0-5) and training load, from the cloud activity feed. */
+    val aerobicTrainingEffect: Double? = null,
+    val trainingLoad: Double? = null,
 ) {
     /** Garmin puts its activity id in Health Connect's clientRecordId, so this link is buildable. */
     val garminUrl: String?

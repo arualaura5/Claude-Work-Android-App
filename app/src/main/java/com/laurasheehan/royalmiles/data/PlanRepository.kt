@@ -179,6 +179,8 @@ class PlanRepository(
         elevationGainM: Int? = null,
         sourceApp: String? = null,
         sourceActivityId: String? = null,
+        aerobicTrainingEffect: Double? = null,
+        trainingLoad: Double? = null,
     ) {
         val existing = sessionDao.getById(id) ?: return
         sessionDao.update(
@@ -195,6 +197,8 @@ class PlanRepository(
                 actualMaxHeartRate = maxHeartRate ?: existing.actualMaxHeartRate,
                 actualCalories = calories ?: existing.actualCalories,
                 actualElevationGainM = elevationGainM ?: existing.actualElevationGainM,
+                aerobicTrainingEffect = aerobicTrainingEffect ?: existing.aerobicTrainingEffect,
+                trainingLoad = trainingLoad ?: existing.trainingLoad,
             ),
         )
     }
@@ -232,6 +236,8 @@ class PlanRepository(
                 actualMaxHeartRate = null,
                 actualCalories = null,
                 actualElevationGainM = null,
+                aerobicTrainingEffect = null,
+                trainingLoad = null,
             ),
         )
     }

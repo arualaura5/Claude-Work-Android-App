@@ -1,5 +1,6 @@
 package com.laurasheehan.royalmiles.ui.activity
 
+import kotlin.math.roundToInt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -226,6 +227,14 @@ private fun LoggedSessionCard(session: SessionEntity, onClick: () -> Unit) {
                 )
             }
 
+            trainingEffectLine(session)?.let { line ->
+                Text(
+                    line,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             session.effortRating?.let { rating ->
                 Text(
                     "Felt like $rating/5",
@@ -266,3 +275,9 @@ private fun loggedMetrics(session: SessionEntity): List<String> = buildList {
     session.actualCalories?.let { add("$it kcal") }
     session.actualElevationGainM?.let { add("${it}m elev") }
 }
+
+/** Garmin's own read of the session, when it came through the cloud activity feed. */
+private fun trainingEffectLine(session: SessionEntity): String? = buildList {
+    session.aerobicTrainingEffect?.let { add("Aerobic effect %.1f".format(it)) }
+    session.trainingLoad?.let { add("load %d".format(it.roundToInt())) }
+}.takeIf { it.isNotEmpty() }?.joinToString(" · ")

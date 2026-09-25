@@ -24,6 +24,14 @@ class CoachRemoteTest {
     }
 
     @Test
+    fun `activity feed lives next to coach json on the same worker`() {
+        assertEquals(
+            "https://coach.example.workers.dev/activities.json",
+            CoachRemote.activitiesAddress("https://coach.example.workers.dev/coach.json"),
+        )
+    }
+
+    @Test
     fun `plain http is refused so the key never travels unencrypted`() {
         assertFailsWith<IllegalArgumentException> {
             CoachRemote.normaliseAddress("http://coach.example.workers.dev")

@@ -64,7 +64,7 @@ class MainActivity : ComponentActivity() {
         if (coachRepository.isRemoteConnected()) {
             lifecycleScope.launch { coachRepository.refreshFromRememberedSource() }
         }
-        // Same silence for workouts: anything Health Connect can't provide is still on the Sync screen.
+        // Same silence for workouts: from the Garmin feed, else Health Connect; the Sync screen still covers the rest.
         val importer = (application as RoyalMilesApp).workoutAutoImporter
         lifecycleScope.launch { runCatching { importer.importNew() } }
     }
