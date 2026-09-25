@@ -2,7 +2,7 @@ name: Android build
 
 on:
   push:
-    branches: [main, "claude/**"]
+    branches: [main, "claude/**", "codex/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -36,6 +36,9 @@ jobs:
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --console=plain
 
+      - name: Give APK a unique commit-based name
+        run: mv app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/royal-miles-${GITHUB_SHA::7}.apk"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -61,18 +64,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Same idea for claude/** branches, so an in-progress build has a tap-to-install link too —
+      # Same idea for development branches, so an in-progress build has a tap-to-install link too —
       # not just main's stable one. One release per branch (tag derived from the branch name, "/"
       # replaced since a literal slash would nest it under a different ref namespace) so pushing
       # again updates the same release instead of piling up new ones. prerelease + make_latest:
       # false keeps it out of the "Latest" badge that main's release owns.
       - name: Compute branch release tag
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/claude/')
+        if: github.event_name == 'push' && (startsWith(github.ref, 'refs/heads/claude/') || startsWith(github.ref, 'refs/heads/codex/'))
         id: branch_tag
         run: echo "tag=royal-miles-branch-${GITHUB_REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
 
       - name: Publish latest debug APK for this branch as a release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/claude/')
+        if: github.event_name == 'push' && (startsWith(github.ref, 'refs/heads/claude/') || startsWith(github.ref, 'refs/heads/codex/'))
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.branch_tag.outputs.tag }}

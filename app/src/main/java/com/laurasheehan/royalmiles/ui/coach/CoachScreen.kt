@@ -271,8 +271,8 @@ private fun EmptyState(
                     )
                     Text(
                         "Garmin doesn't share HRV with Health Connect, so this comes from the cloud coach " +
-                            "instead. Connect once with its address and key and it refreshes each time the app " +
-                            "opens. You can still pick a coach.json file by hand.",
+                            "instead. Connect once with its address and key and it refreshes when Coach opens. " +
+                            "You can still use Refresh or pick a coach.json file by hand.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         lineHeight = 20.sp,
