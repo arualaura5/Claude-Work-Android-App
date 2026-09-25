@@ -6,6 +6,8 @@ import com.laurasheehan.royalmiles.data.AppDatabase
 import com.laurasheehan.royalmiles.data.AthleteProfileRepository
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.coach.CoachRepository
+import com.laurasheehan.royalmiles.data.health.HealthConnectRepository
+import com.laurasheehan.royalmiles.data.health.WorkoutAutoImporter
 import com.laurasheehan.royalmiles.notifications.ReminderScheduler
 
 class RoyalMilesApp : Application() {
@@ -18,6 +20,9 @@ class RoyalMilesApp : Application() {
     lateinit var coachRepository: CoachRepository
         private set
 
+    lateinit var workoutAutoImporter: WorkoutAutoImporter
+        private set
+
     override fun onCreate() {
         super.onCreate()
         val database = AppDatabase.getInstance(this)
@@ -28,6 +33,7 @@ class RoyalMilesApp : Application() {
         )
         athleteProfileRepository = AthleteProfileRepository(database.athleteProfileDao())
         coachRepository = CoachRepository(applicationContext)
+        workoutAutoImporter = WorkoutAutoImporter(repository, HealthConnectRepository(applicationContext))
 
         ReminderScheduler.createChannel(this)
         ReminderScheduler.schedule(this)

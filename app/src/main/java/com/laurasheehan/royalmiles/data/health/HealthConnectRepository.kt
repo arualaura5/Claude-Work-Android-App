@@ -105,6 +105,27 @@ data class ExternalWorkout(
             ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING -> SessionType.STRENGTH
             else -> SessionType.EASY_RUN
         }
+
+    /**
+     * The session type to log this as automatically, or null when it isn't training the plan
+     * tracks. Stricter than [guessedType]: a walk must not quietly turn into a logged run, so
+     * anything unrecognised is left for the Sync screen, where a person decides.
+     */
+    val importableType: SessionType?
+        get() = when (exerciseType) {
+            ExerciseSessionRecord.EXERCISE_TYPE_RUNNING,
+            ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL,
+            -> SessionType.EASY_RUN
+            ExerciseSessionRecord.EXERCISE_TYPE_BIKING,
+            ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY,
+            -> SessionType.CYCLE
+            ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL,
+            ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER,
+            -> SessionType.SWIM
+            ExerciseSessionRecord.EXERCISE_TYPE_YOGA -> SessionType.YOGA
+            ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING -> SessionType.STRENGTH
+            else -> null
+        }
 }
 
 /**
@@ -172,7 +193,11 @@ class HealthConnectRepository(private val context: Context) {
     private suspend fun granted(): Set<String> =
         HealthConnectClient.getOrCreate(context).permissionController.getGrantedPermissions()
 
-    suspend fun recentWorkouts(days: Long = 7): List<ExternalWorkout> {
+    /**
+     * 30 days, not a week: a run only reaches the Activity log once it's attached to a session, and
+     * a one-week window meant a run not dealt with within 7 days dropped out of reach for good.
+     */
+    suspend fun recentWorkouts(days: Long = 30): List<ExternalWorkout> {
         val client = HealthConnectClient.getOrCreate(context)
         val response = client.readRecords(
             ReadRecordsRequest(
