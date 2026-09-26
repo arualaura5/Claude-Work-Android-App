@@ -91,6 +91,7 @@ fun RoyalMilesNavHost(
                 onInstallUpdate = updater::install,
                 onAllowUpdateInstalls = updater::openInstallPermission,
                 onUpdateLater = updater::later,
+                onCheckUpdates = { updater.check(manual = true) },
             )
         }
         composable(Routes.ACTIVITY) {

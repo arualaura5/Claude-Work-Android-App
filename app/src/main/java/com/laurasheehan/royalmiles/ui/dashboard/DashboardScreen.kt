@@ -2,7 +2,10 @@ package com.laurasheehan.royalmiles.ui.dashboard
 
 import com.laurasheehan.royalmiles.data.update.UpdateState
 import com.laurasheehan.royalmiles.ui.update.UpdateCard
+import com.laurasheehan.royalmiles.ui.update.buildLineStatus
+import com.laurasheehan.royalmiles.ui.update.showsCard
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -91,6 +94,7 @@ fun DashboardScreen(
     onInstallUpdate: () -> Unit = {},
     onAllowUpdateInstalls: () -> Unit = {},
     onUpdateLater: () -> Unit = {},
+    onCheckUpdates: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val celebration by viewModel.celebration.collectAsStateWithLifecycle()
@@ -141,7 +145,7 @@ fun DashboardScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            if (update != UpdateState.None) {
+            if (update.showsCard) {
                 item(key = "update") {
                     UpdateCard(update, onInstall = onInstallUpdate, onAllowInstalls = onAllowUpdateInstalls, onLater = onUpdateLater)
                 }
@@ -286,13 +290,15 @@ fun DashboardScreen(
 
             // Which build this is. Every APK arrives named app-debug.apk, so without this there
             // is no way to tell from inside the app whether an update actually landed.
+            // Tapping it checks GitHub for a newer build there and then.
             item {
                 Text(
-                    "Build ${BuildConfig.GIT_SHA} · ${BuildConfig.BUILD_DATE}",
+                    "Build ${BuildConfig.GIT_SHA} · ${BuildConfig.BUILD_DATE} · ${buildLineStatus(update)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clickable(onClick = onCheckUpdates)
                         .padding(top = 16.dp, bottom = 8.dp),
                     textAlign = TextAlign.Center,
                 )

@@ -56,6 +56,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Every time the app comes to the front, not just on a cold start: Android keeps it alive in
+    // the background for days, and an update check that only runs at launch would rarely run.
+    override fun onStart() {
+        super.onStart()
+        (application as RoyalMilesApp).updater.check()
+    }
+
     private fun showCrashReport(app: RoyalMilesApp, crashReport: String) {
         setContent {
             Column(
@@ -92,9 +99,6 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             RoyalMilesTheme {
-                LaunchedEffect(Unit) {
-                    app.updater.check()
-                }
                 LaunchedEffect(Unit) {
                     repository.ensureSeeded(raceDate = RaceConfig.RACE_DATE, peakLongRunKm = RaceConfig.PEAK_LONG_RUN_KM)
                 }

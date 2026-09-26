@@ -89,7 +89,9 @@ class ChatRepository(context: Context) {
             )
             append(newMessage(ChatMessage.Role.RESEARCH, reply.text).copy(citations = reply.citations, basis = reply.basis))
             reply
-        }.onFailure { append(newMessage(ChatMessage.Role.NOTICE, it.message ?: "The research didn't come back.")) }
+        }.onFailure {
+            append(newMessage(ChatMessage.Role.NOTICE, it.message ?: "The research didn't come back.").copy(failedResearch = true))
+        }
     }
 
     fun setProposalState(messageId: String, state: ChatMessage.ProposalState) {
@@ -130,6 +132,18 @@ class ChatRepository(context: Context) {
             if (it.id == messageId) it.copy(memoryState = state, memory = memory ?: it.memory) else it
         }
         save()
+    }
+
+    /**
+     * The question behind the last message, when that message says it failed: her question and
+     * the notice are taken out of the thread so Send again doesn't leave a duplicate behind.
+     */
+    fun takeFailed(noticeId: String): FailedQuestion? {
+        val failed = ChatStore.failedQuestion(_messages.value) ?: return null
+        if (failed.noticeId != noticeId) return null
+        _messages.value = _messages.value.dropLast(2)
+        save()
+        return failed
     }
 
     fun clearConversation() {
@@ -211,8 +225,18 @@ class ChatRepository(context: Context) {
     }
 }
 
+/** A question that got a failure notice instead of an answer. */
+data class FailedQuestion(val noticeId: String, val text: String, val research: Boolean)
+
 /** Plain JSON so the stored conversation needs no schema migration. */
 internal object ChatStore {
+    /** Only the latest exchange: her question, then a notice in place of the answer. */
+    fun failedQuestion(messages: List<ChatMessage>): FailedQuestion? {
+        val notice = messages.lastOrNull()?.takeIf { it.role == ChatMessage.Role.NOTICE } ?: return null
+        val question = messages.getOrNull(messages.size - 2)?.takeIf { it.role == ChatMessage.Role.USER } ?: return null
+        return FailedQuestion(notice.id, question.text, notice.failedResearch)
+    }
+
     fun encode(messages: List<ChatMessage>): String = JSONArray().apply {
         messages.forEach { message ->
             put(
@@ -226,7 +250,8 @@ internal object ChatStore {
                     .put("citations", JSONArray(message.citations))
                     .putOpt("basis", message.basis)
                     .putOpt("memory", message.memory?.let(ChatProtocol::memoryJson))
-                    .put("memory_state", message.memoryState.name),
+                    .put("memory_state", message.memoryState.name)
+                    .put("failed_research", message.failedResearch),
             )
         }
     }.toString()
@@ -253,6 +278,7 @@ internal object ChatStore {
                 memory = item.optJSONObject("memory")?.let(ChatProtocol::parseMemoryProposal),
                 memoryState = runCatching { ChatMessage.MemoryState.valueOf(item.optString("memory_state")) }
                     .getOrDefault(ChatMessage.MemoryState.NONE),
+                failedResearch = item.optBoolean("failed_research", false),
             )
         }
     }

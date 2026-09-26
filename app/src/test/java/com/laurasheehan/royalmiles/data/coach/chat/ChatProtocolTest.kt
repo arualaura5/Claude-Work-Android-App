@@ -207,4 +207,60 @@ class ChatProtocolTest {
         assertEquals("about_me", json.getString("kind"))
         assertEquals("2026-10-31", json.getString("expires"))
     }
+
+    private fun msg(id: String, role: ChatMessage.Role, text: String, failedResearch: Boolean = false) =
+        ChatMessage(id = id, role = role, text = text, createdAtMillis = 0, failedResearch = failedResearch)
+
+    @Test
+    fun `a question answered by a failure notice can be sent again`() {
+        val failed = ChatStore.failedQuestion(
+            listOf(
+                msg("c1", ChatMessage.Role.COACH, "Earlier answer."),
+                msg("u2", ChatMessage.Role.USER, "So did I just starve or is it water?"),
+                msg("n3", ChatMessage.Role.NOTICE, "Today's coach limit is reached (15 of 15). No model was called."),
+            ),
+        )
+        assertEquals(FailedQuestion("n3", "So did I just starve or is it water?", research = false), failed)
+    }
+
+    @Test
+    fun `a failed web search is sent again as a web search`() {
+        val failed = ChatStore.failedQuestion(
+            listOf(
+                msg("u1", ChatMessage.Role.USER, "Caffeine and half marathons?"),
+                msg("n2", ChatMessage.Role.NOTICE, "Research limit reached.", failedResearch = true),
+            ),
+        )
+        assertTrue(failed!!.research)
+    }
+
+    @Test
+    fun `only the latest exchange offers Send again`() {
+        assertNull(
+            ChatStore.failedQuestion(
+                listOf(
+                    msg("u1", ChatMessage.Role.USER, "q"),
+                    msg("n2", ChatMessage.Role.NOTICE, "failed"),
+                    msg("u3", ChatMessage.Role.USER, "asked again"),
+                    msg("c4", ChatMessage.Role.COACH, "answered"),
+                ),
+            ),
+        )
+        // A notice that isn't about her question, e.g. a note that didn't save.
+        assertNull(
+            ChatStore.failedQuestion(
+                listOf(msg("c1", ChatMessage.Role.COACH, "answer"), msg("n2", ChatMessage.Role.NOTICE, "That note wasn't saved.")),
+            ),
+        )
+        assertNull(ChatStore.failedQuestion(emptyList()))
+    }
+
+    @Test
+    fun `the research flag survives being stored on the phone`() {
+        val stored = ChatStore.encode(listOf(msg("n1", ChatMessage.Role.NOTICE, "failed", failedResearch = true)))
+        assertTrue(ChatStore.decode(stored).single().failedResearch)
+        // Notices saved before this existed read back as chat.
+        val older = """[{"id":"n1","role":"NOTICE","text":"failed","created_at":0,"proposal_state":"NONE","citations":[]}]"""
+        assertFalse(ChatStore.decode(older).single().failedResearch)
+    }
 }
