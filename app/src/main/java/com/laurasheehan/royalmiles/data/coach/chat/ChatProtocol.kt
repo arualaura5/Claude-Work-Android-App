@@ -79,7 +79,13 @@ data class CoachReply(
     val memory: MemoryProposal? = null,
 )
 
-data class ResearchReply(val text: String, val citations: List<String>, val usage: ChatUsage?)
+data class ResearchReply(
+    val text: String,
+    val citations: List<String>,
+    val usage: ChatUsage?,
+    /** Who searched, e.g. "Searched by Claude on your laptop". */
+    val basis: String? = null,
+)
 
 /** The wire format shared with scripts/cloud/coach_chat_worker.js. */
 object ChatProtocol {
@@ -211,7 +217,15 @@ object ChatProtocol {
             citations = citations?.let { array -> (0 until array.length()).mapNotNull { array.optString(it).takeIf(String::isNotBlank) } }
                 .orEmpty(),
             usage = root.optJSONObject("usage")?.let(::parseUsage),
+            basis = researcherLabel(research.optString("provider", "")),
         )
+    }
+
+    fun researcherLabel(provider: String): String? = when (provider) {
+        "claude" -> "Searched by Claude on your laptop"
+        "codex" -> "Searched by Codex on your laptop"
+        "perplexity" -> "Searched by Perplexity"
+        else -> null
     }
 
     fun parseUsage(json: JSONObject): ChatUsage {

@@ -109,6 +109,15 @@ class ChatProtocolTest {
             """{"research":{"text":"Two sessions a week.","citations":["https://a.example","https://b.example"]}}""",
         )
         assertEquals(listOf("https://a.example", "https://b.example"), reply.citations)
+        assertNull(reply.basis)
+    }
+
+    @Test
+    fun `research replies say who searched`() {
+        val laptop = ChatProtocol.parseResearchReply("""{"research":{"text":"t","citations":[],"provider":"codex"}}""")
+        assertEquals("Searched by Codex on your laptop", laptop.basis)
+        val api = ChatProtocol.parseResearchReply("""{"research":{"text":"t","citations":[],"provider":"perplexity"}}""")
+        assertEquals("Searched by Perplexity", api.basis)
     }
 
     @Test

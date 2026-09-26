@@ -63,7 +63,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.laurasheehan.royalmiles.data.coach.CoachPayload
 import com.laurasheehan.royalmiles.data.coach.chat.ChatMessage
@@ -231,6 +230,7 @@ internal fun ChatContent(
                         onDismiss = { onDismiss(message) },
                         onRemember = { onRemember(message, it) },
                         onNotNow = { onNotNow(message) },
+                        onOpenLink = onOpenLink,
                     )
                     ChatMessage.Role.RESEARCH -> ResearchCard(message, onOpenLink)
                     ChatMessage.Role.NOTICE -> Notice(message.text)
@@ -288,6 +288,7 @@ private fun CoachBubble(
     onDismiss: () -> Unit,
     onRemember: (MemoryProposal) -> Unit,
     onNotNow: () -> Unit,
+    onOpenLink: (String) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth(0.92f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Surface(
@@ -295,7 +296,7 @@ private fun CoachBubble(
             shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
         ) {
             Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(message.text, style = MaterialTheme.typography.bodyMedium, lineHeight = 21.sp)
+                MarkdownText(message.text, onOpenLink = onOpenLink)
                 message.basis?.let {
                     Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -523,7 +524,7 @@ private fun ResearchCard(message: ChatMessage, onOpenLink: (String) -> Unit) {
                 Icon(Icons.Filled.Public, contentDescription = null, modifier = Modifier.size(16.dp))
                 Text("Web research · not your coach's own view", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
             }
-            Text(message.text, style = MaterialTheme.typography.bodyMedium, lineHeight = 21.sp)
+            MarkdownText(message.text, citations = message.citations, onOpenLink = onOpenLink)
             message.citations.forEachIndexed { index, url ->
                 Text(
                     "[${index + 1}] ${url.removePrefix("https://").removePrefix("www.").take(60)}",
@@ -531,6 +532,9 @@ private fun ResearchCard(message: ChatMessage, onOpenLink: (String) -> Unit) {
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable { onOpenLink(url) },
                 )
+            }
+            message.basis?.let {
+                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -553,6 +557,7 @@ private fun Thinking(research: Boolean, laptop: Boolean) {
         CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
         Text(
             when {
+                research && laptop -> "Searching the web on your laptop…"
                 research -> "Searching the web…"
                 laptop -> "Your coach is thinking on your laptop…"
                 else -> "Your coach is thinking…"
