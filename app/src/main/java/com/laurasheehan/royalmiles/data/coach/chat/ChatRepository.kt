@@ -87,7 +87,7 @@ class ChatRepository(context: Context) {
             val reply = ChatProtocol.parseResearchReply(
                 request(base, token, "POST", "/chat/v1/research", ChatProtocol.researchRequest(question)),
             )
-            append(newMessage(ChatMessage.Role.RESEARCH, reply.text).copy(citations = reply.citations))
+            append(newMessage(ChatMessage.Role.RESEARCH, reply.text).copy(citations = reply.citations, basis = reply.basis))
             reply
         }.onFailure { append(newMessage(ChatMessage.Role.NOTICE, it.message ?: "The research didn't come back.")) }
     }

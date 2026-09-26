@@ -180,11 +180,16 @@ class CoachScreenshotTest {
             ChatMessage(
                 id = "r1",
                 role = ChatMessage.Role.RESEARCH,
-                text = "Yes, modestly. Reviews of recreational and trained runners find heavy and plyometric strength " +
-                    "work twice a week improves running economy by around 2–8%, with no loss of endurance when " +
-                    "sessions are kept apart from hard runs. Evidence for injury prevention is suggestive but weaker.",
+                text = "**Yes, modestly.** Reviews of recreational and trained runners find:\n\n" +
+                    "- Heavy and plyometric strength work **twice a week** improves running economy by around 2–8% [1]\n" +
+                    "- No loss of endurance when sessions are kept apart from hard runs [1][2]\n" +
+                    "- Evidence for *injury prevention* is suggestive but weaker [2]\n\n" +
+                    "### In practice\n" +
+                    "1. Lift heavy on an easy-run day\n" +
+                    "2. Keep 48 h between lifting and intervals",
                 createdAtMillis = 1,
                 citations = listOf("https://pubmed.ncbi.nlm.nih.gov/example-review", "https://bjsm.bmj.com/example"),
+                basis = "Searched by Claude on your laptop",
             ),
         )
 
