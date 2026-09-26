@@ -30,8 +30,11 @@ android {
         applicationId = "com.laurasheehan.royalmiles"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // CI's run number, so every build is numbered higher than the last and the in-app
+        // updater can tell which is newer. Local builds stay at 1.
+        val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = runNumber
+        versionName = "1.$runNumber"
 
         // Stamped so the running app can say which build it is. Every APK is called
         // app-debug.apk, and without this there is no way to tell one install from the next.
