@@ -33,6 +33,9 @@ class CoachRepository(context: Context) {
 
     fun isRemoteConnected(): Boolean = runCatching { remote() != null }.getOrDefault(false)
 
+    /** The cloud coach's address and key, which also open the Garmin activity feed. */
+    fun cloudCredentials(): Pair<String, String>? = runCatching { remote() }.getOrNull()
+
     /** Re-reads the remembered source. Null return means there is nothing remembered to re-read. */
     suspend fun refreshFromRememberedSource(): Result<Unit>? {
         val remote = runCatching { remote() }.getOrElse { return Result.failure(it) }

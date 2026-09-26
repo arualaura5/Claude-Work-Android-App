@@ -141,10 +141,9 @@ fun RoyalMilesNavHost(
             SessionEditScreen(viewModel = viewModel, onDone = { navController.popBackStack() })
         }
         composable(Routes.SYNC) {
-            val context = androidx.compose.ui.platform.LocalContext.current
             val viewModel: SyncViewModel = viewModel(
                 factory = viewModelFactory {
-                    initializer { SyncViewModel(repository, HealthConnectRepository(context.applicationContext)) }
+                    initializer { SyncViewModel(repository, coachRepository) }
                 },
             )
             SyncScreen(
