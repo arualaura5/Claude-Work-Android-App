@@ -65,8 +65,26 @@ class CoachScreenshotTest {
         }
     }
 
+    @Test
+    fun chatRememberThis() {
+        paparazzi.snapshot {
+            RoyalMilesTheme(darkTheme = true) {
+                chat(ChatUiState(connected = true, usage = SampleUsage, messages = SampleRemember))
+            }
+        }
+    }
+
+    @Test
+    fun whatYourCoachKnows() {
+        paparazzi.snapshot {
+            RoyalMilesTheme(darkTheme = true) {
+                chat(ChatUiState(connected = true, usage = SampleUsage, memoryNotes = SampleNotes), showMemory = true)
+            }
+        }
+    }
+
     @androidx.compose.runtime.Composable
-    private fun chat(state: ChatUiState) = ChatContent(
+    private fun chat(state: ChatUiState, showMemory: Boolean = false) = ChatContent(
         state = state,
         onBack = {},
         onSend = {},
@@ -76,6 +94,11 @@ class CoachScreenshotTest {
         onConnect = { _, _ -> },
         onClear = {},
         onOpenLink = {},
+        onRemember = { _, _ -> },
+        onNotNow = {},
+        onLoadMemory = {},
+        onForget = {},
+        initialShowMemory = showMemory,
     )
 
     private companion object {
@@ -125,6 +148,31 @@ class CoachScreenshotTest {
                 proposalState = ChatMessage.ProposalState.PENDING,
                 basis = "Claude on your laptop · Garmin data to 2026-09-26 · plan as of 2026-09-26 08:30",
             ),
+        )
+
+        val SampleRemember = listOf(
+            ChatMessage(id = "u3", role = ChatMessage.Role.USER, text = "My left calf always tightens on hilly routes, so I avoid them.", createdAtMillis = 0),
+            ChatMessage(
+                id = "c3",
+                role = ChatMessage.Role.COACH,
+                text = "That's worth planning around. Keep hills out of your easy runs for now, and we'll add calf raises " +
+                    "to Tuesday's strength so they can come back gradually.",
+                createdAtMillis = 1,
+                basis = "Claude on your laptop · Garmin data to 2026-09-26",
+                memory = com.laurasheehan.royalmiles.data.coach.chat.MemoryProposal(
+                    kind = com.laurasheehan.royalmiles.data.coach.chat.MemoryKind.ABOUT_ME,
+                    text = "My left calf tightens on hilly routes, so I avoid hills for now.",
+                    reason = "She said so, and it affects route and strength choices.",
+                    expires = null,
+                ),
+                memoryState = ChatMessage.MemoryState.PENDING,
+            ),
+        )
+
+        val SampleNotes = listOf(
+            com.laurasheehan.royalmiles.data.coach.chat.MemoryNote("n1", com.laurasheehan.royalmiles.data.coach.chat.MemoryKind.ABOUT_ME, "My left calf tightens on hilly routes, so I avoid hills for now.", null, "2026-09-26T16:40:00Z", false),
+            com.laurasheehan.royalmiles.data.coach.chat.MemoryNote("n2", com.laurasheehan.royalmiles.data.coach.chat.MemoryKind.ABOUT_ME, "Busy stretch at work, so my evening runs are short.", "2026-10-15", "2026-09-26T16:42:00Z", false),
+            com.laurasheehan.royalmiles.data.coach.chat.MemoryNote("n3", com.laurasheehan.royalmiles.data.coach.chat.MemoryKind.PHILOSOPHY, "Strength works better for me on Tuesdays than Thursdays.", null, "2026-09-26T16:45:00Z", false),
         )
 
         val SampleResearch = listOf(

@@ -22,8 +22,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -66,6 +68,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.laurasheehan.royalmiles.data.coach.CoachPayload
 import com.laurasheehan.royalmiles.data.coach.chat.ChatMessage
 import com.laurasheehan.royalmiles.data.coach.chat.ChatUsage
+import com.laurasheehan.royalmiles.data.coach.chat.MemoryKind
+import com.laurasheehan.royalmiles.data.coach.chat.MemoryNote
+import com.laurasheehan.royalmiles.data.coach.chat.MemoryProposal
 import com.laurasheehan.royalmiles.ui.sync.openUrl
 import com.laurasheehan.royalmiles.ui.theme.BlushPink
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
@@ -84,6 +89,10 @@ fun ChatScreen(viewModel: ChatViewModel, onBack: () -> Unit) {
         onConnect = viewModel::connect,
         onClear = viewModel::clearConversation,
         onOpenLink = { openUrl(context, it) },
+        onRemember = viewModel::remember,
+        onNotNow = viewModel::notNow,
+        onLoadMemory = viewModel::loadMemory,
+        onForget = viewModel::forget,
     )
 }
 
@@ -105,7 +114,23 @@ internal fun ChatContent(
     onConnect: (String, String) -> Unit,
     onClear: () -> Unit,
     onOpenLink: (String) -> Unit,
+    onRemember: (ChatMessage, MemoryProposal) -> Unit,
+    onNotNow: (ChatMessage) -> Unit,
+    onLoadMemory: () -> Unit,
+    onForget: (MemoryNote) -> Unit,
+    initialShowMemory: Boolean = false,
 ) {
+    var showMemory by remember { mutableStateOf(initialShowMemory) }
+    if (showMemory) {
+        MemoryPanel(
+            notes = state.memoryNotes,
+            error = state.memoryError,
+            onLoad = onLoadMemory,
+            onForget = onForget,
+            onBack = { showMemory = false },
+        )
+        return
+    }
     var showConnect by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
@@ -151,6 +176,11 @@ internal fun ChatContent(
                     }
                 },
                 actions = {
+                    if (state.connected) {
+                        IconButton(onClick = { showMemory = true }) {
+                            Icon(Icons.Filled.Psychology, contentDescription = "What your coach knows")
+                        }
+                    }
                     if (state.messages.isNotEmpty()) {
                         IconButton(onClick = { confirmClear = true }) {
                             Icon(Icons.Filled.DeleteSweep, contentDescription = "Clear conversation")
@@ -195,7 +225,13 @@ internal fun ChatContent(
             items(state.messages, key = { it.id }) { message ->
                 when (message.role) {
                     ChatMessage.Role.USER -> UserBubble(message)
-                    ChatMessage.Role.COACH -> CoachBubble(message, onAccept = { onAccept(message) }, onDismiss = { onDismiss(message) })
+                    ChatMessage.Role.COACH -> CoachBubble(
+                        message,
+                        onAccept = { onAccept(message) },
+                        onDismiss = { onDismiss(message) },
+                        onRemember = { onRemember(message, it) },
+                        onNotNow = { onNotNow(message) },
+                    )
                     ChatMessage.Role.RESEARCH -> ResearchCard(message, onOpenLink)
                     ChatMessage.Role.NOTICE -> Notice(message.text)
                 }
@@ -246,7 +282,13 @@ private fun UserBubble(message: ChatMessage) {
 }
 
 @Composable
-private fun CoachBubble(message: ChatMessage, onAccept: () -> Unit, onDismiss: () -> Unit) {
+private fun CoachBubble(
+    message: ChatMessage,
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit,
+    onRemember: (MemoryProposal) -> Unit,
+    onNotNow: () -> Unit,
+) {
     Column(modifier = Modifier.fillMaxWidth(0.92f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -262,6 +304,154 @@ private fun CoachBubble(message: ChatMessage, onAccept: () -> Unit, onDismiss: (
         val proposal = message.proposal
         if (proposal != null) {
             ProposalCard(proposal, message.proposalState, onAccept, onDismiss)
+        }
+        val memory = message.memory
+        if (memory != null && message.memoryState != ChatMessage.MemoryState.NONE) {
+            RememberCard(memory, message.memoryState, onRemember, onNotNow)
+        }
+    }
+}
+
+/** The coach offering to remember something. Nothing is kept unless she taps Save. */
+@Composable
+private fun RememberCard(
+    memory: MemoryProposal,
+    state: ChatMessage.MemoryState,
+    onRemember: (MemoryProposal) -> Unit,
+    onNotNow: () -> Unit,
+) {
+    var editing by remember { mutableStateOf(false) }
+    if (editing) {
+        EditMemoryDialog(memory, onDismiss = { editing = false }, onSave = { edited -> editing = false; onRemember(edited) })
+    }
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(Icons.Filled.Psychology, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                Text(
+                    "Remember this? · ${memory.kind.label}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(memory.text, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            memory.expires?.let {
+                Text("Until $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            when (state) {
+                ChatMessage.MemoryState.PENDING -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { onRemember(memory) }) { Text("Save") }
+                    OutlinedButton(onClick = { editing = true }) { Text("Edit") }
+                    TextButton(onClick = onNotNow) { Text("Not now") }
+                }
+                ChatMessage.MemoryState.SAVED -> StateLine("Saved to what your coach knows", MaterialTheme.colorScheme.primary)
+                ChatMessage.MemoryState.DISMISSED -> StateLine("Not saved", MaterialTheme.colorScheme.onSurfaceVariant)
+                ChatMessage.MemoryState.NONE -> Unit
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditMemoryDialog(memory: MemoryProposal, onDismiss: () -> Unit, onSave: (MemoryProposal) -> Unit) {
+    var text by remember { mutableStateOf(memory.text) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit before saving") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { if (it.length <= 280) text = it },
+                label = { Text(memory.kind.label) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(memory.copy(text = text.trim())) }, enabled = text.trim().length >= 5) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** Everything the coach has been allowed to remember, with a way to take any of it back. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MemoryPanel(
+    notes: List<MemoryNote>?,
+    error: String?,
+    onLoad: () -> Unit,
+    onForget: (MemoryNote) -> Unit,
+    onBack: () -> Unit,
+) {
+    LaunchedEffect(Unit) { onLoad() }
+    var confirm by remember { mutableStateOf<MemoryNote?>(null) }
+    confirm?.let { note ->
+        AlertDialog(
+            onDismissRequest = { confirm = null },
+            title = { Text("Forget this?") },
+            text = { Text(note.text) },
+            confirmButton = { TextButton(onClick = { confirm = null; onForget(note) }) { Text("Forget") } },
+            dismissButton = { TextButton(onClick = { confirm = null }) { Text("Keep it") } },
+        )
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+                title = { Text("What your coach knows") },
+            )
+        },
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            item {
+                Text(
+                    "Only notes you saved from chat. Your coach and the morning coaching both read them. Tap the bin to take one back.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            error?.let { item { Text(it, color = BlushPink, style = MaterialTheme.typography.bodySmall) } }
+            when {
+                notes == null -> item { CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp) }
+                notes.isEmpty() -> item { Text("Nothing yet. When your coach offers to remember something in chat, tap Save.") }
+                else -> MemoryKind.entries.forEach { kind ->
+                    val group = notes.filter { it.kind == kind }
+                    if (group.isNotEmpty()) {
+                        item(key = kind.name) {
+                            Text(kind.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        items(group, key = { it.id }) { note -> MemoryRow(note, onForget = { confirm = note }) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemoryRow(note: MemoryNote, onForget: () -> Unit) {
+    Card(shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.padding(start = 14.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(note.text, style = MaterialTheme.typography.bodyMedium)
+                val detail = listOfNotNull(
+                    note.expires?.let { if (note.expired) "Expired $it" else "Until $it" },
+                    note.createdAt?.take(10)?.let { "saved $it" },
+                ).joinToString(" · ")
+                if (detail.isNotEmpty()) {
+                    Text(detail, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            IconButton(onClick = onForget) { Icon(Icons.Filled.DeleteOutline, contentDescription = "Forget this") }
         }
     }
 }

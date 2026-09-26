@@ -8,6 +8,8 @@ import com.laurasheehan.royalmiles.data.coach.applyCoachSuggestion
 import com.laurasheehan.royalmiles.data.coach.chat.ChatMessage
 import com.laurasheehan.royalmiles.data.coach.chat.ChatRepository
 import com.laurasheehan.royalmiles.data.coach.chat.ChatUsage
+import com.laurasheehan.royalmiles.data.coach.chat.MemoryNote
+import com.laurasheehan.royalmiles.data.coach.chat.MemoryProposal
 import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,6 +30,9 @@ data class ChatUiState(
     val connectError: String? = null,
     /** Bumped on every successful connect, so an open connection dialog knows to close. */
     val connectionVersion: Int = 0,
+    /** What the coach knows about her; null until the list has been loaded. */
+    val memoryNotes: List<MemoryNote>? = null,
+    val memoryError: String? = null,
 )
 
 class ChatViewModel(
@@ -44,6 +49,8 @@ class ChatViewModel(
         val usage: ChatUsage? = null,
         val connectError: String? = null,
         val connectionVersion: Int = 0,
+        val memoryNotes: List<MemoryNote>? = null,
+        val memoryError: String? = null,
     )
 
     private val coachConnection = coach.cloudCredentials()
@@ -60,6 +67,8 @@ class ChatViewModel(
             suggestedKey = coachConnection?.second,
             connectError = t.connectError,
             connectionVersion = t.connectionVersion,
+            memoryNotes = t.memoryNotes,
+            memoryError = t.memoryError,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ChatUiState(connected = chat.isConnected()))
 
@@ -129,4 +138,31 @@ class ChatViewModel(
     }
 
     fun clearConversation() = chat.clearConversation()
+
+    /** Saves what the coach offered to remember, as she edited it. Only called from her tap. */
+    fun remember(message: ChatMessage, proposal: MemoryProposal) {
+        viewModelScope.launch {
+            chat.remember(proposal, message.id)
+                .onSuccess { notes -> transient.value = transient.value.copy(memoryNotes = notes, memoryError = null) }
+                .onFailure { error -> chat.addNotice(error.message ?: "That note wasn't saved.") }
+        }
+    }
+
+    fun notNow(message: ChatMessage) = chat.setMemoryState(message.id, ChatMessage.MemoryState.DISMISSED)
+
+    fun loadMemory() {
+        viewModelScope.launch {
+            chat.memoryNotes()
+                .onSuccess { notes -> transient.value = transient.value.copy(memoryNotes = notes, memoryError = null) }
+                .onFailure { error -> transient.value = transient.value.copy(memoryError = error.message ?: "Couldn't load the notes.") }
+        }
+    }
+
+    fun forget(note: MemoryNote) {
+        viewModelScope.launch {
+            chat.forget(note.id)
+                .onSuccess { notes -> transient.value = transient.value.copy(memoryNotes = notes, memoryError = null) }
+                .onFailure { error -> transient.value = transient.value.copy(memoryError = error.message ?: "Couldn't delete that note.") }
+        }
+    }
 }

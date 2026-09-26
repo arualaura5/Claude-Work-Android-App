@@ -19,10 +19,41 @@ data class ChatMessage(
     val citations: List<String> = emptyList(),
     /** Which data an answer was based on, so an old answer can be judged by its date. */
     val basis: String? = null,
+    /** Something the coach offered to remember; saved only if she taps Save. */
+    val memory: MemoryProposal? = null,
+    val memoryState: MemoryState = MemoryState.NONE,
 ) {
     enum class Role { USER, COACH, RESEARCH, NOTICE }
     enum class ProposalState { NONE, PENDING, ACCEPTED, DISMISSED }
+    enum class MemoryState { NONE, PENDING, SAVED, DISMISSED }
 }
+
+data class MemoryProposal(
+    val kind: MemoryKind,
+    val text: String,
+    val reason: String?,
+    /** For temporary things, like a busy month. */
+    val expires: String?,
+)
+
+enum class MemoryKind(val wire: String, val label: String) {
+    ABOUT_ME("about_me", "About you"),
+    PHILOSOPHY("philosophy", "Your philosophy");
+
+    companion object {
+        fun from(wire: String?): MemoryKind? = entries.firstOrNull { it.wire == wire }
+    }
+}
+
+/** A note she approved, as stored by the chat Worker. */
+data class MemoryNote(
+    val id: String,
+    val kind: MemoryKind,
+    val text: String,
+    val expires: String?,
+    val createdAt: String?,
+    val expired: Boolean,
+)
 
 data class ChatUsage(
     val chatEnabled: Boolean,
@@ -45,6 +76,7 @@ data class CoachReply(
     val proposalJson: String?,
     val basis: String?,
     val usage: ChatUsage?,
+    val memory: MemoryProposal? = null,
 )
 
 data class ResearchReply(val text: String, val citations: List<String>, val usage: ChatUsage?)
@@ -134,7 +166,40 @@ object ChatProtocol {
             proposalJson = proposalObject?.takeIf { proposal != null }?.toString(),
             basis = context?.let(::basisLine),
             usage = root.optJSONObject("usage")?.let(::parseUsage),
+            memory = reply.optJSONObject("memory")?.let(::parseMemoryProposal),
         )
+    }
+
+    fun parseMemoryProposal(json: JSONObject): MemoryProposal? {
+        val kind = MemoryKind.from(json.optString("kind")) ?: return null
+        val text = json.optString("text", "").trim().takeIf { it.isNotEmpty() } ?: return null
+        return MemoryProposal(
+            kind = kind,
+            text = text,
+            reason = json.optString("reason", "").trim().takeIf { it.isNotEmpty() && it != "null" },
+            expires = json.optString("expires", "").takeIf { !json.isNull("expires") && it.isNotBlank() },
+        )
+    }
+
+    fun memoryJson(proposal: MemoryProposal): JSONObject = JSONObject()
+        .put("kind", proposal.kind.wire)
+        .put("text", proposal.text)
+        .putOpt("reason", proposal.reason)
+        .put("expires", proposal.expires ?: JSONObject.NULL)
+
+    fun parseNotes(json: String): List<MemoryNote> {
+        val array = JSONObject(json).optJSONArray("notes") ?: return emptyList()
+        return (0 until array.length()).mapNotNull { index ->
+            val note = array.optJSONObject(index) ?: return@mapNotNull null
+            MemoryNote(
+                id = note.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null,
+                kind = MemoryKind.from(note.optString("kind")) ?: return@mapNotNull null,
+                text = note.optString("text"),
+                expires = note.optString("expires", "").takeIf { !note.isNull("expires") && it.isNotBlank() },
+                createdAt = note.optString("created_at", "").takeIf { it.isNotBlank() },
+                expired = note.optBoolean("expired", false),
+            )
+        }
     }
 
     fun parseResearchReply(json: String): ResearchReply {

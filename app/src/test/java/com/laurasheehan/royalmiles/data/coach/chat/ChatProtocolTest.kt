@@ -155,4 +155,47 @@ class ChatProtocolTest {
         assertNull(ChatRepository.suggestedAddress("https://coach.example.com/coach.json"))
         assertEquals("https://royal-miles-chat.example.workers.dev", ChatRepository.normaliseAddress(" https://royal-miles-chat.example.workers.dev/ "))
     }
+
+    @Test
+    fun `a memory proposal is parsed, stored with the message and re-read`() {
+        val reply = ChatProtocol.parseCoachReply(
+            """{"reply":{"text":"Noted.","proposal":null,"memory":{"kind":"about_me","text":"Prefers morning runs.","reason":"She said so.","expires":null}}}""",
+        )
+        val memory = reply.memory!!
+        assertEquals(MemoryKind.ABOUT_ME, memory.kind)
+        assertNull(memory.expires)
+        val message = ChatMessage(
+            id = "m", role = ChatMessage.Role.COACH, text = "Noted.", createdAtMillis = 0,
+            memory = memory, memoryState = ChatMessage.MemoryState.PENDING,
+        )
+        val decoded = ChatStore.decode(ChatStore.encode(listOf(message))).single()
+        assertEquals(memory, decoded.memory)
+        assertEquals(ChatMessage.MemoryState.PENDING, decoded.memoryState)
+    }
+
+    @Test
+    fun `an unknown memory kind is ignored`() {
+        val reply = ChatProtocol.parseCoachReply("""{"reply":{"text":"ok","memory":{"kind":"diagnosis","text":"x"}}}""")
+        assertNull(reply.memory)
+    }
+
+    @Test
+    fun `saved notes parse with their kind and expiry`() {
+        val notes = ChatProtocol.parseNotes(
+            """{"notes":[{"id":"n1","kind":"philosophy","text":"Strength on Tuesdays.","expires":null,"created_at":"2026-09-26T10:00:00Z","expired":false},
+               {"id":"n2","kind":"about_me","text":"Busy month.","expires":"2026-09-20","expired":true},
+               {"id":"","kind":"about_me","text":"no id"}]}""",
+        )
+        assertEquals(listOf("n1", "n2"), notes.map { it.id })
+        assertEquals(MemoryKind.PHILOSOPHY, notes[0].kind)
+        assertTrue(notes[1].expired)
+        assertEquals("2026-09-20", notes[1].expires)
+    }
+
+    @Test
+    fun `what is sent when she saves a note`() {
+        val json = ChatProtocol.memoryJson(MemoryProposal(MemoryKind.ABOUT_ME, "Busy month.", null, "2026-10-31"))
+        assertEquals("about_me", json.getString("kind"))
+        assertEquals("2026-10-31", json.getString("expires"))
+    }
 }
