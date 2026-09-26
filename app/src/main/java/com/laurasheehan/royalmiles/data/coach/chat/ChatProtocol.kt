@@ -35,6 +35,8 @@ data class ChatUsage(
     val monthlyBudgetUsd: Double,
     val researchCallsMonth: Int,
     val researchMonthlyCap: Int,
+    /** Her laptop is online, so Claude or Codex answer on her subscriptions before Gemini is used. */
+    val laptopConnected: Boolean = false,
 )
 
 data class CoachReply(
@@ -160,6 +162,7 @@ object ChatProtocol {
             monthlyBudgetUsd = caps.optDouble("monthly_budget_usd", 0.0),
             researchCallsMonth = json.optInt("research_calls_month", 0),
             researchMonthlyCap = caps.optInt("research_monthly_calls", 0),
+            laptopConnected = json.optBoolean("laptop_connected", false),
         )
     }
 
@@ -175,6 +178,13 @@ object ChatProtocol {
         }
     }
 
+    fun providerLabel(provider: String): String? = when (provider) {
+        "claude" -> "Claude on your laptop"
+        "codex" -> "Codex on your laptop"
+        "gemini" -> "Gemini"
+        else -> null
+    }
+
     private fun basisLine(context: JSONObject): String? {
         val dataDate = context.optString("data_date", "").takeIf { it.isNotBlank() && it != "null" }
         val planAt = context.optString("plan_generated_at", "").takeIf { it.isNotBlank() && it != "null" }
@@ -182,6 +192,7 @@ object ChatProtocol {
             (0 until array.length()).mapNotNull { array.optString(it).takeIf(String::isNotBlank) }
         }.orEmpty()
         val parts = listOfNotNull(
+            providerLabel(context.optString("provider", "")),
             dataDate?.let { "Garmin data to $it" },
             planAt?.let { "plan as of ${it.take(16).replace('T', ' ')}" },
             knowledge.takeIf { it.isNotEmpty() }?.let { "using ${it.joinToString()}" },

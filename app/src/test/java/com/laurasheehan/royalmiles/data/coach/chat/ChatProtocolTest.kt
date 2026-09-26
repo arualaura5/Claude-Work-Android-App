@@ -74,9 +74,9 @@ class ChatProtocolTest {
               "headline":"Swap Monday for an easy spin.","reason":"Legs are heavy.",
               "replace_with":{"type":"CYCLE","title":"Easy spin","target_duration_min":30,"target_distance_km":null,"notes":null}},
               "proposal_rejected_reason":null},
-             "context":{"data_date":"2026-09-26","plan_generated_at":"2026-09-26T08:30:00","knowledge":["endurance-nutrition"]},
+             "context":{"provider":"claude","data_date":"2026-09-26","plan_generated_at":"2026-09-26T08:30:00","knowledge":["endurance-nutrition"]},
              "usage":{"chat_enabled":true,"calls_today":2,"calls_month":14,"cost_month_usd":0.24,
-              "caps":{"daily_calls":15,"monthly_calls":150,"monthly_budget_usd":3}}}
+              "laptop_connected":true,"caps":{"daily_calls":15,"monthly_calls":150,"monthly_budget_usd":3}}}
             """.trimIndent(),
         )
         assertEquals("Take Monday easy.", reply.text)
@@ -84,9 +84,13 @@ class ChatProtocolTest {
         assertEquals(CoachPayload.Coaching.SuggestionAction.REPLACE, proposal.action)
         assertEquals(SessionType.CYCLE, proposal.replaceWith!!.type)
         assertEquals(30, proposal.replaceWith!!.targetDurationMin)
-        assertEquals("Garmin data to 2026-09-26 · plan as of 2026-09-26 08:30 · using endurance-nutrition", reply.basis)
+        assertEquals(
+            "Claude on your laptop · Garmin data to 2026-09-26 · plan as of 2026-09-26 08:30 · using endurance-nutrition",
+            reply.basis,
+        )
         assertEquals(2, reply.usage!!.callsToday)
         assertEquals(3.0, reply.usage!!.monthlyBudgetUsd)
+        assertTrue(reply.usage!!.laptopConnected)
     }
 
     @Test

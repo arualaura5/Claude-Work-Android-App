@@ -201,7 +201,7 @@ internal fun ChatContent(
                 }
             }
             if (state.sending) {
-                item(key = "thinking") { Thinking(state.researchMode) }
+                item(key = "thinking") { Thinking(state.researchMode, state.usage?.laptopConnected == true) }
             }
         }
     }
@@ -212,7 +212,11 @@ private fun UsageLine(usage: ChatUsage) {
     val text = if (!usage.chatEnabled) {
         "Switched off · no model calls"
     } else {
-        "Today ${usage.callsToday} of ${usage.dailyCap} · $${"%.2f".format(usage.costMonthUsd)} of $${"%.2f".format(usage.monthlyBudgetUsd)} this month"
+        listOfNotNull(
+            "Laptop on".takeIf { usage.laptopConnected },
+            "Today ${usage.callsToday} of ${usage.dailyCap}",
+            "$${"%.2f".format(usage.costMonthUsd)} of $${"%.2f".format(usage.monthlyBudgetUsd)}",
+        ).joinToString(" · ")
     }
     Text(
         text,
@@ -354,11 +358,15 @@ private fun Notice(text: String) {
 }
 
 @Composable
-private fun Thinking(research: Boolean) {
+private fun Thinking(research: Boolean, laptop: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
         Text(
-            if (research) "Searching the web…" else "Your coach is thinking…",
+            when {
+                research -> "Searching the web…"
+                laptop -> "Your coach is thinking on your laptop…"
+                else -> "Your coach is thinking…"
+            },
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

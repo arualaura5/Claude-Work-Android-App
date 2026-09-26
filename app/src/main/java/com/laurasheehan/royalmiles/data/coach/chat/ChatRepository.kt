@@ -130,8 +130,9 @@ class ChatRepository(context: Context) {
         try {
             connection.requestMethod = method
             connection.connectTimeout = 15_000
-            // Model answers can take a while; long enough for a thinking reply, short enough to give up.
-            connection.readTimeout = 60_000
+            // Her laptop gets up to ~110 s (Claude, then Codex) before the Worker falls back to
+            // Gemini, so the phone waits a little longer than that.
+            connection.readTimeout = 170_000
             connection.useCaches = false
             connection.setRequestProperty("Authorization", "Bearer $token")
             connection.setRequestProperty("Accept", "application/json")
