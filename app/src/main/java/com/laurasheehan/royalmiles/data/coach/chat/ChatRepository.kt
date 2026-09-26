@@ -72,6 +72,8 @@ class ChatRepository(context: Context) {
                         proposalJson = reply.proposalJson,
                         proposalState = if (reply.proposal != null) ChatMessage.ProposalState.PENDING else ChatMessage.ProposalState.NONE,
                         basis = reply.basis,
+                        memory = reply.memory,
+                        memoryState = if (reply.memory != null) ChatMessage.MemoryState.PENDING else ChatMessage.MemoryState.NONE,
                     ),
                 )
                 reply
@@ -96,6 +98,39 @@ class ChatRepository(context: Context) {
     }
 
     fun addNotice(text: String) = append(newMessage(ChatMessage.Role.NOTICE, text))
+
+    /** Saves a note she approved (possibly after editing it). Nothing is remembered without this. */
+    suspend fun remember(proposal: MemoryProposal, messageId: String?): Result<List<MemoryNote>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val (base, token) = connection() ?: error("Connect the coach chat first.")
+            val notes = ChatProtocol.parseNotes(
+                request(base, token, "POST", "/chat/v1/memory", ChatProtocol.memoryJson(proposal).put("source", "chat")),
+            )
+            if (messageId != null) setMemoryState(messageId, ChatMessage.MemoryState.SAVED, proposal)
+            notes
+        }
+    }
+
+    suspend fun memoryNotes(): Result<List<MemoryNote>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val (base, token) = connection() ?: error("Connect the coach chat first.")
+            ChatProtocol.parseNotes(request(base, token, "GET", "/chat/v1/memory", null))
+        }
+    }
+
+    suspend fun forget(id: String): Result<List<MemoryNote>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val (base, token) = connection() ?: error("Connect the coach chat first.")
+            ChatProtocol.parseNotes(request(base, token, "POST", "/chat/v1/memory/delete", JSONObject().put("id", id)))
+        }
+    }
+
+    fun setMemoryState(messageId: String, state: ChatMessage.MemoryState, memory: MemoryProposal? = null) {
+        _messages.value = _messages.value.map {
+            if (it.id == messageId) it.copy(memoryState = state, memory = memory ?: it.memory) else it
+        }
+        save()
+    }
 
     fun clearConversation() {
         _messages.value = emptyList()
@@ -189,7 +224,9 @@ internal object ChatStore {
                     .putOpt("proposal", message.proposalJson)
                     .put("proposal_state", message.proposalState.name)
                     .put("citations", JSONArray(message.citations))
-                    .putOpt("basis", message.basis),
+                    .putOpt("basis", message.basis)
+                    .putOpt("memory", message.memory?.let(ChatProtocol::memoryJson))
+                    .put("memory_state", message.memoryState.name),
             )
         }
     }.toString()
@@ -213,6 +250,9 @@ internal object ChatStore {
                     .getOrDefault(ChatMessage.ProposalState.NONE),
                 citations = citations?.let { list -> (0 until list.length()).map { list.optString(it) } }.orEmpty(),
                 basis = item.optString("basis", "").takeIf { it.isNotBlank() && !item.isNull("basis") },
+                memory = item.optJSONObject("memory")?.let(ChatProtocol::parseMemoryProposal),
+                memoryState = runCatching { ChatMessage.MemoryState.valueOf(item.optString("memory_state")) }
+                    .getOrDefault(ChatMessage.MemoryState.NONE),
             )
         }
     }
