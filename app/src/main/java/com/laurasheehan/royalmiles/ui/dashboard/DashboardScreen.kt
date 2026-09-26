@@ -1,5 +1,7 @@
 package com.laurasheehan.royalmiles.ui.dashboard
 
+import com.laurasheehan.royalmiles.data.update.UpdateState
+import com.laurasheehan.royalmiles.ui.update.UpdateCard
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -85,6 +87,10 @@ fun DashboardScreen(
     onOpenSession: (Long) -> Unit,
     onOpenSync: () -> Unit,
     onOpenCalendar: () -> Unit,
+    update: UpdateState = UpdateState.None,
+    onInstallUpdate: () -> Unit = {},
+    onAllowUpdateInstalls: () -> Unit = {},
+    onUpdateLater: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val celebration by viewModel.celebration.collectAsStateWithLifecycle()
@@ -135,6 +141,12 @@ fun DashboardScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (update != UpdateState.None) {
+                item(key = "update") {
+                    UpdateCard(update, onInstall = onInstallUpdate, onAllowInstalls = onAllowUpdateInstalls, onLater = onUpdateLater)
+                }
+            }
+
             item {
                 HeroHeader(
                     daysToRace = state.daysToRace,

@@ -93,6 +93,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             RoyalMilesTheme {
                 LaunchedEffect(Unit) {
+                    app.updater.check()
+                }
+                LaunchedEffect(Unit) {
                     repository.ensureSeeded(raceDate = RaceConfig.RACE_DATE, peakLongRunKm = RaceConfig.PEAK_LONG_RUN_KM)
                 }
                 RoyalMilesRoot(repository, athleteProfileRepository, coachRepository)

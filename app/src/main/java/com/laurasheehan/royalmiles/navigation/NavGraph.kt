@@ -10,6 +10,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.laurasheehan.royalmiles.RaceConfig
+import com.laurasheehan.royalmiles.RoyalMilesApp
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.laurasheehan.royalmiles.data.AthleteProfileRepository
 import com.laurasheehan.royalmiles.data.CelebrationStore
 import com.laurasheehan.royalmiles.data.PlanRepository
@@ -77,11 +80,17 @@ fun RoyalMilesNavHost(
                     }
                 },
             )
+            val updater = (context.applicationContext as RoyalMilesApp).updater
+            val update by updater.state.collectAsStateWithLifecycle()
             DashboardScreen(
                 viewModel = viewModel,
                 onOpenSession = { navController.navigate(Routes.session(it)) },
                 onOpenSync = { navController.navigate(Routes.SYNC) },
                 onOpenCalendar = { navController.navigate(Routes.CALENDAR) },
+                update = update,
+                onInstallUpdate = updater::install,
+                onAllowUpdateInstalls = updater::openInstallPermission,
+                onUpdateLater = updater::later,
             )
         }
         composable(Routes.ACTIVITY) {

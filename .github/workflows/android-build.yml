@@ -64,6 +64,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # What the app's update check reads. Uploaded after the APK, so it never points at a file
+      # that isn't there yet; the checksum lets the app refuse a download that doesn't match.
+      - name: Publish update.json for the in-app updater
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APK="royal-miles-${GITHUB_SHA::7}.apk"
+          SUM="$(sha256sum "app/build/outputs/apk/debug/$APK" | cut -d' ' -f1)"
+          BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          jq -n --argjson version_code "$GITHUB_RUN_NUMBER" --arg sha "${GITHUB_SHA::7}" \
+            --arg apk "$APK" --arg sha256 "$SUM" --arg built_at "$BUILT_AT" \
+            '{version_code: $version_code, sha: $sha, apk: $apk, sha256: $sha256, built_at: $built_at}' > update.json
+          cat update.json
+          gh release upload royal-miles-latest update.json --clobber
+
       # Same idea for development branches, so an in-progress build has a tap-to-install link too —
       # not just main's stable one. One release per branch (tag derived from the branch name, "/"
       # replaced since a literal slash would nest it under a different ref namespace) so pushing
