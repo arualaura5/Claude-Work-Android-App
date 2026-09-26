@@ -34,7 +34,7 @@ fun UpdateCard(
     onLater: () -> Unit,
 ) {
     val update: AvailableUpdate = when (state) {
-        UpdateState.None -> return
+        UpdateState.None, UpdateState.Checking, UpdateState.UpToDate, UpdateState.Unreachable -> return
         is UpdateState.Available -> state.update
         is UpdateState.Downloading -> state.update
         is UpdateState.NeedsPermission -> state.update
@@ -97,4 +97,17 @@ fun UpdateCard(
             }
         }
     }
+}
+
+/** Whether the state is something the dashboard card shows. */
+val UpdateState.showsCard: Boolean
+    get() = this is UpdateState.Available || this is UpdateState.Downloading ||
+        this is UpdateState.NeedsPermission || this is UpdateState.Installing || this is UpdateState.Failed
+
+/** The tappable build line at the bottom of the dashboard. */
+fun buildLineStatus(state: UpdateState): String = when (state) {
+    UpdateState.Checking -> "Checking…"
+    UpdateState.UpToDate -> "Up to date"
+    UpdateState.Unreachable -> "Couldn't reach GitHub"
+    else -> "Check for updates"
 }

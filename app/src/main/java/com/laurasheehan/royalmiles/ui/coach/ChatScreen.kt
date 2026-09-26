@@ -92,6 +92,7 @@ fun ChatScreen(viewModel: ChatViewModel, onBack: () -> Unit) {
         onNotNow = viewModel::notNow,
         onLoadMemory = viewModel::loadMemory,
         onForget = viewModel::forget,
+        onRetry = viewModel::retry,
     )
 }
 
@@ -117,6 +118,7 @@ internal fun ChatContent(
     onNotNow: (ChatMessage) -> Unit,
     onLoadMemory: () -> Unit,
     onForget: (MemoryNote) -> Unit,
+    onRetry: (ChatMessage) -> Unit = {},
     initialShowMemory: Boolean = false,
 ) {
     var showMemory by remember { mutableStateOf(initialShowMemory) }
@@ -221,6 +223,7 @@ internal fun ChatContent(
             if (state.messages.isEmpty()) {
                 item { EmptyThread(onAsk = { onSend(it) }, enabled = !state.sending) }
             }
+            val retryable = com.laurasheehan.royalmiles.data.coach.chat.ChatStore.failedQuestion(state.messages)?.noticeId
             items(state.messages, key = { it.id }) { message ->
                 when (message.role) {
                     ChatMessage.Role.USER -> UserBubble(message)
@@ -233,7 +236,10 @@ internal fun ChatContent(
                         onOpenLink = onOpenLink,
                     )
                     ChatMessage.Role.RESEARCH -> ResearchCard(message, onOpenLink)
-                    ChatMessage.Role.NOTICE -> Notice(message.text)
+                    ChatMessage.Role.NOTICE -> Notice(
+                        message.text,
+                        onRetry = if (message.id == retryable && !state.sending) ({ onRetry(message) }) else null,
+                    )
                 }
             }
             if (state.sending) {
@@ -541,14 +547,19 @@ private fun ResearchCard(message: ChatMessage, onOpenLink: (String) -> Unit) {
 }
 
 @Composable
-private fun Notice(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.labelMedium,
-        color = BlushPink,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-    )
+private fun Notice(text: String, onRetry: (() -> Unit)? = null) {
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            color = BlushPink,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+        )
+        if (onRetry != null) {
+            TextButton(onClick = onRetry) { Text("Send again") }
+        }
+    }
 }
 
 @Composable

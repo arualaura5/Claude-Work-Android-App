@@ -22,6 +22,8 @@ data class ChatMessage(
     /** Something the coach offered to remember; saved only if she taps Save. */
     val memory: MemoryProposal? = null,
     val memoryState: MemoryState = MemoryState.NONE,
+    /** On a failure notice: the question was web research, so Send again searches again. */
+    val failedResearch: Boolean = false,
 ) {
     enum class Role { USER, COACH, RESEARCH, NOTICE }
     enum class ProposalState { NONE, PENDING, ACCEPTED, DISMISSED }

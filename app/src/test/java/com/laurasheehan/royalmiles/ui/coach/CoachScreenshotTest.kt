@@ -48,6 +48,24 @@ class CoachScreenshotTest {
     }
 
     @Test
+    fun chatFailedMessage() {
+        paparazzi.snapshot {
+            RoyalMilesTheme(darkTheme = true) {
+                chat(
+                    ChatUiState(
+                        connected = true,
+                        usage = SampleUsage,
+                        messages = SampleConversation + listOf(
+                            ChatMessage(id = "u9", role = ChatMessage.Role.USER, text = "So did I just starve and not lose weight or is it water?", createdAtMillis = 2),
+                            ChatMessage(id = "n9", role = ChatMessage.Role.NOTICE, text = "Today's coach limit is reached (15 of 15). No model was called.", createdAtMillis = 3),
+                        ),
+                    ),
+                )
+            }
+        }
+    }
+
+    @Test
     fun chatConversation() {
         paparazzi.snapshot {
             RoyalMilesTheme(darkTheme = true) {
@@ -98,6 +116,7 @@ class CoachScreenshotTest {
         onNotNow = {},
         onLoadMemory = {},
         onForget = {},
+        onRetry = {},
         initialShowMemory = showMemory,
     )
 

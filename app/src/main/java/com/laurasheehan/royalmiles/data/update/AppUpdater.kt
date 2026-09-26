@@ -33,6 +33,10 @@ data class AvailableUpdate(
 sealed interface UpdateState {
     /** Up to date, not checked yet, or the check couldn't reach GitHub: nothing to show. */
     data object None : UpdateState
+    /** Only after she asked: shown on the build line, never as a card. */
+    data object Checking : UpdateState
+    data object UpToDate : UpdateState
+    data object Unreachable : UpdateState
     data class Available(val update: AvailableUpdate) : UpdateState
     data class Downloading(val update: AvailableUpdate, val progress: Float?) : UpdateState
     /** Android needs her to allow installs from Royal Miles once, in Settings. */
@@ -83,22 +87,33 @@ class AppUpdater(context: Context) {
 
     private val apkFile: File get() = File(appContext.cacheDir, "updates/royal-miles-update.apk")
 
-    /** Quietly does nothing when offline: an update prompt is a convenience, never an error. */
-    fun check() {
+    /**
+     * Quietly does nothing when offline: an automatic check is a convenience, never an error.
+     * When she asks (`manual`), it says what it found, and shows an update she'd put off.
+     */
+    fun check(manual: Boolean = false) {
         if (job?.isActive == true) return
+        if (manual) {
+            dismissed = false
+            _state.value = UpdateState.Checking
+        }
         job = scope.launch {
             val update = runCatching { UpdateProtocol.parse(fetch(UpdateProtocol.MANIFEST_URL)) }.getOrNull()
             if (update != null && !dismissed && UpdateProtocol.isNewer(update, BuildConfig.VERSION_CODE)) {
                 _state.value = UpdateState.Available(update)
             } else {
-                _state.value = UpdateState.None
+                _state.value = when {
+                    !manual -> UpdateState.None
+                    update == null -> UpdateState.Unreachable
+                    else -> UpdateState.UpToDate
+                }
                 // Once an update is installed, its downloaded copy has no further use.
                 if (update != null) apkFile.delete()
             }
         }
     }
 
-    /** Hidden until the app is next opened. */
+    /** Hidden until she checks by hand or the app restarts. */
     fun later() {
         dismissed = true
         _state.value = UpdateState.None

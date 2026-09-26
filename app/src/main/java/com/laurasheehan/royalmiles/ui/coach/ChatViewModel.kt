@@ -103,12 +103,21 @@ class ChatViewModel(
         transient.value = transient.value.copy(researchMode = !transient.value.researchMode)
     }
 
-    fun send(text: String) {
+    fun send(text: String) = send(text, transient.value.researchMode)
+
+    /** Asks the failed question again, as chat or research, whichever it was. */
+    fun retry(notice: ChatMessage) {
+        if (transient.value.sending) return
+        val failed = chat.takeFailed(notice.id) ?: return
+        send(failed.text, failed.research)
+    }
+
+    private fun send(text: String, research: Boolean) {
         val message = text.trim()
         if (message.isEmpty() || transient.value.sending) return
         viewModelScope.launch {
             transient.value = transient.value.copy(sending = true)
-            val usage = if (transient.value.researchMode) {
+            val usage = if (research) {
                 chat.research(message).getOrNull()?.usage
             } else {
                 chat.ask(message, plan.observeSessions().first(), today()).getOrNull()?.usage
