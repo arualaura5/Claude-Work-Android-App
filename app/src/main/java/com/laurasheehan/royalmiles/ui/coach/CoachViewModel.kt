@@ -45,6 +45,10 @@ class CoachViewModel(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CoachUiState())
 
+    init {
+        if (repository.isRemoteConnected()) refresh()
+    }
+
     fun import(uri: Uri) {
         viewModelScope.launch {
             _transient.value = TransientState(loading = true)

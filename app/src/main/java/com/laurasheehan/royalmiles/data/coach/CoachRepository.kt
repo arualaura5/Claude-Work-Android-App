@@ -31,12 +31,13 @@ class CoachRepository(context: Context) {
     private val _state = MutableStateFlow(load())
     val state: StateFlow<CoachState> = _state.asStateFlow()
 
-    fun isRemoteConnected(): Boolean = remote() != null
+    fun isRemoteConnected(): Boolean = runCatching { remote() != null }.getOrDefault(false)
 
     /** Re-reads the remembered source. Null return means there is nothing remembered to re-read. */
     suspend fun refreshFromRememberedSource(): Result<Unit>? {
-        remote()?.let { (address, key) -> return fetchRemote(address, key) }
-        val uri = rememberedUri() ?: return null
+        val remote = runCatching { remote() }.getOrElse { return Result.failure(it) }
+        remote?.let { (address, key) -> return fetchRemote(address, key) }
+        val uri = runCatching { rememberedUri() }.getOrElse { return Result.failure(it) } ?: return null
         return import(uri)
     }
 

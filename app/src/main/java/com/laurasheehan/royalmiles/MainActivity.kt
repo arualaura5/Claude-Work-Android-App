@@ -8,28 +8,34 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -37,12 +43,49 @@ import androidx.navigation.compose.rememberNavController
 import com.laurasheehan.royalmiles.navigation.RoyalMilesNavHost
 import com.laurasheehan.royalmiles.navigation.Routes
 import com.laurasheehan.royalmiles.ui.theme.RoyalMilesTheme
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as RoyalMilesApp
+        val crashReport = StartupCrashStore.read(app)
+        if (crashReport != null) {
+            showCrashReport(app, crashReport)
+        } else {
+            showNormalApp(app)
+        }
+    }
+
+    private fun showCrashReport(app: RoyalMilesApp, crashReport: String) {
+        setContent {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text("Royal Miles crashed", style = MaterialTheme.typography.headlineSmall)
+                SelectionContainer(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    Text(crashReport)
+                }
+                Button(
+                    onClick = {
+                        StartupCrashStore.delete(app)
+                        showNormalApp(app)
+                    },
+                ) {
+                    Text("Delete report and continue")
+                }
+            }
+        }
+    }
+
+    private fun showNormalApp(app: RoyalMilesApp) {
+        app.initializeDependencies()
         val repository = app.repository
         val athleteProfileRepository = app.athleteProfileRepository
         val coachRepository = app.coachRepository
@@ -54,15 +97,6 @@ class MainActivity : ComponentActivity() {
                 }
                 RoyalMilesRoot(repository, athleteProfileRepository, coachRepository)
             }
-        }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        // Failures stay silent here: the Coach tab states the data date, and its Refresh reports errors.
-        val coachRepository = (application as RoyalMilesApp).coachRepository
-        if (coachRepository.isRemoteConnected()) {
-            lifecycleScope.launch { coachRepository.refreshFromRememberedSource() }
         }
     }
 }

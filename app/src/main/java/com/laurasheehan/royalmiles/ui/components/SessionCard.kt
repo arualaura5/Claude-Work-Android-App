@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -72,8 +73,22 @@ fun SessionCard(
                     null
                 },
             ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (session.isCompleted) 0.dp else 2.dp),
+        // A replaced session is settled history — it should recede rather than compete with the
+        // sessions still to do. Half-strength surface lets the card blend toward the background,
+        // which recedes correctly in both themes; surfaceVariant would not, being *lighter* than
+        // surface on dark. Text stays well clear of AA against the blend: 7.03:1 dark, 5.88:1
+        // light. Deliberately not applied to a plain skip — owning a missed session is the point,
+        // and fading it would undo that.
+        colors = CardDefaults.cardColors(
+            containerColor = if (session.supersededByCoach) {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (session.isCompleted || session.supersededByCoach) 0.dp else 2.dp,
+        ),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
         Row(
@@ -113,6 +128,26 @@ fun SessionCard(
             }
             if (session.isCompleted) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = "Completed", tint = ComebackGold)
+            } else if (session.supersededByCoach) {
+                // A session she and her coach agreed to change is not a session she failed to do.
+                // Same struck-through row so the day still reads honestly, but stated as what it
+                // was — replaced — and in muted ink rather than the red reserved for a real miss.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.SwapHoriz,
+                        contentDescription = "Replaced",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        "Replaced",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else if (session.isSkipped) {
                 // Struck through and in red, at her request. Owning a missed session is the point —
                 // the app shouldn't be so careful about her feelings that the state is hard to read.
