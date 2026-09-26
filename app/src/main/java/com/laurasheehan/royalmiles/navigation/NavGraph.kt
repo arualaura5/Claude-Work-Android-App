@@ -23,6 +23,9 @@ import com.laurasheehan.royalmiles.ui.activity.ActivityLogScreen
 import com.laurasheehan.royalmiles.ui.activity.ActivityLogViewModel
 import com.laurasheehan.royalmiles.ui.calendar.CalendarScreen
 import com.laurasheehan.royalmiles.ui.calendar.CalendarViewModel
+import com.laurasheehan.royalmiles.data.coach.chat.ChatRepository
+import com.laurasheehan.royalmiles.ui.coach.ChatScreen
+import com.laurasheehan.royalmiles.ui.coach.ChatViewModel
 import com.laurasheehan.royalmiles.ui.coach.CoachScreen
 import com.laurasheehan.royalmiles.ui.coach.CoachViewModel
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardScreen
@@ -40,6 +43,7 @@ object Routes {
     const val CALENDAR = "calendar"
     const val ACTIVITY = "activity"
     const val COACH = "coach"
+    const val COACH_CHAT = "coach/chat"
     const val NUTRITION = "nutrition"
     const val NUTRITION_LEARN = "nutrition/learn"
     const val HEALTH_DIAGNOSTICS = "sync/diagnostics"
@@ -95,7 +99,22 @@ fun RoyalMilesNavHost(
                     initializer { CoachViewModel(coachRepository) }
                 },
             )
-            CoachScreen(viewModel = viewModel)
+            CoachScreen(viewModel = viewModel, onOpenChat = { navController.navigate(Routes.COACH_CHAT) })
+        }
+        composable(Routes.COACH_CHAT) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val viewModel: ChatViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer {
+                        ChatViewModel(
+                            chat = ChatRepository(context.applicationContext),
+                            plan = repository,
+                            coach = coachRepository,
+                        )
+                    }
+                },
+            )
+            ChatScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Routes.NUTRITION) {
             val context = androidx.compose.ui.platform.LocalContext.current

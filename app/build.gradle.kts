@@ -18,6 +18,8 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.0.21"
     id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
     id("com.google.devtools.ksp") version "2.0.21-1.0.28"
+    // Renders Compose screens to PNG on the JVM, so screens can be checked without an emulator.
+    id("app.cash.paparazzi") version "1.3.5"
 }
 
 android {
@@ -106,6 +108,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     testImplementation(kotlin("test"))
+    testImplementation("junit:junit:4.13.2")
 
     // org.json ships in the stubbed android.jar that local unit tests compile against, where
     // every method throws "not mocked". The coach payload parser is hand-rolled on JSONObject,
