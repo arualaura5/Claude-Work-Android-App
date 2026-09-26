@@ -14,6 +14,7 @@ import com.laurasheehan.royalmiles.data.coach.CoachRepository
 import com.laurasheehan.royalmiles.data.coach.CoachPayload
 import com.laurasheehan.royalmiles.data.coach.CoachSuggestionDecisions
 import com.laurasheehan.royalmiles.data.coach.CoachState
+import com.laurasheehan.royalmiles.data.coach.applyCoachSuggestion
 import com.laurasheehan.royalmiles.ui.components.Affirmations
 import com.laurasheehan.royalmiles.ui.components.LongRunPoint
 import java.time.DayOfWeek
@@ -167,32 +168,7 @@ class DashboardViewModel(
         val suggestionState = uiState.value.coachSuggestion ?: return
         viewModelScope.launch {
             val suggestion = suggestionState.suggestion
-            var applied = true
-            when (suggestion.action) {
-                CoachPayload.Coaching.SuggestionAction.SKIP -> repository.markSkipped(suggestionState.session.id)
-                CoachPayload.Coaching.SuggestionAction.REPLACE -> {
-                    val replacement = suggestion.replaceWith ?: return@launch
-                    applied = repository.acceptCoachReplacement(
-                        replacedSessionId = suggestionState.session.id,
-                        reason = suggestion.reason,
-                        replacement = SessionEntity(
-                            eventId = suggestionState.session.eventId,
-                            date = suggestionState.session.date,
-                            type = replacement.type,
-                            title = replacement.title,
-                            phase = suggestionState.session.phase,
-                            weekNumber = suggestionState.session.weekNumber,
-                            targetDistanceKm = replacement.targetDistanceKm,
-                            targetDurationMin = replacement.targetDurationMin,
-                            // notes is optional in the payload but not nullable on the entity.
-                            // acceptCoachReplacement rebuilds this field with the full record
-                            // anyway — this only carries the coach's own note through to it.
-                            notes = replacement.notes.orEmpty(),
-                        ),
-                    )
-                }
-            }
-            if (!applied) return@launch
+            if (!repository.applyCoachSuggestion(suggestion, suggestionState.session)) return@launch
             suggestionDecisions?.markAccepted(suggestion.date)
             suggestionDecisionChanges.value += 1
             // Names the result, not the action - the button already named the action.

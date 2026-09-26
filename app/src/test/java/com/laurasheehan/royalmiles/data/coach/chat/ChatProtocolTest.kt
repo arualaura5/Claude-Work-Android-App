@@ -1,0 +1,154 @@
+package com.laurasheehan.royalmiles.data.coach.chat
+
+import com.laurasheehan.royalmiles.core.model.SessionType
+import com.laurasheehan.royalmiles.core.model.TrainingPhase
+import com.laurasheehan.royalmiles.data.SessionEntity
+import com.laurasheehan.royalmiles.data.coach.CoachPayload
+import java.time.LocalDate
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class ChatProtocolTest {
+
+    private val today = LocalDate.of(2026, 9, 26)
+
+    private fun session(
+        daysFromToday: Long,
+        type: SessionType = SessionType.EASY_RUN,
+        completed: Boolean = false,
+        skipped: Boolean = false,
+    ) = SessionEntity(
+        id = daysFromToday + 100,
+        eventId = "royal-parks-2026",
+        date = today.plusDays(daysFromToday),
+        type = type,
+        title = "Session $daysFromToday",
+        phase = TrainingPhase.BUILD,
+        weekNumber = 1,
+        targetDistanceKm = 6.0,
+        isCompleted = completed,
+        isSkipped = skipped,
+        actualDistanceKm = if (completed) 6.3 else null,
+    )
+
+    private fun message(role: ChatMessage.Role, text: String) =
+        ChatMessage(id = text, role = role, text = text, createdAtMillis = 0)
+
+    @Test
+    fun `plan sent to the coach covers four weeks back and six ahead, with status`() {
+        val plan = ChatProtocol.planJson(
+            listOf(session(-40), session(-2, completed = true), session(-1, skipped = true), session(0), session(43)),
+            today,
+            "2026-09-26T08:30",
+        )
+        val sessions = plan.getJSONArray("sessions")
+        assertEquals(3, sessions.length())
+        assertEquals("done", sessions.getJSONObject(0).getString("status"))
+        assertEquals(6.3, sessions.getJSONObject(0).getDouble("actual_km"))
+        assertEquals("skipped", sessions.getJSONObject(1).getString("status"))
+        assertEquals("planned", sessions.getJSONObject(2).getString("status"))
+        assertEquals("EASY_RUN", sessions.getJSONObject(2).getString("type"))
+        assertFalse(sessions.getJSONObject(2).has("actual_km"))
+    }
+
+    @Test
+    fun `history carries only the last real turns, not notices or research`() {
+        val history = (1..8).map { message(if (it % 2 == 0) ChatMessage.Role.COACH else ChatMessage.Role.USER, "turn $it") } +
+            message(ChatMessage.Role.NOTICE, "limit reached") +
+            message(ChatMessage.Role.RESEARCH, "web result")
+        val json = ChatProtocol.historyJson(history)
+        assertEquals(ChatProtocol.HISTORY_TURNS, json.length())
+        assertEquals("user", json.getJSONObject(0).getString("role"))
+        assertEquals("turn 3", json.getJSONObject(0).getString("text"))
+        assertEquals("coach", json.getJSONObject(5).getString("role"))
+    }
+
+    @Test
+    fun `a coach reply with a valid proposal parses into the same suggestion shape as daily coaching`() {
+        val reply = ChatProtocol.parseCoachReply(
+            """
+            {"reply":{"text":"Take Monday easy.","proposal":{"action":"replace","date":"2026-09-28",
+              "headline":"Swap Monday for an easy spin.","reason":"Legs are heavy.",
+              "replace_with":{"type":"CYCLE","title":"Easy spin","target_duration_min":30,"target_distance_km":null,"notes":null}},
+              "proposal_rejected_reason":null},
+             "context":{"data_date":"2026-09-26","plan_generated_at":"2026-09-26T08:30:00","knowledge":["endurance-nutrition"]},
+             "usage":{"chat_enabled":true,"calls_today":2,"calls_month":14,"cost_month_usd":0.24,
+              "caps":{"daily_calls":15,"monthly_calls":150,"monthly_budget_usd":3}}}
+            """.trimIndent(),
+        )
+        assertEquals("Take Monday easy.", reply.text)
+        val proposal = reply.proposal!!
+        assertEquals(CoachPayload.Coaching.SuggestionAction.REPLACE, proposal.action)
+        assertEquals(SessionType.CYCLE, proposal.replaceWith!!.type)
+        assertEquals(30, proposal.replaceWith!!.targetDurationMin)
+        assertEquals("Garmin data to 2026-09-26 · plan as of 2026-09-26 08:30 · using endurance-nutrition", reply.basis)
+        assertEquals(2, reply.usage!!.callsToday)
+        assertEquals(3.0, reply.usage!!.monthlyBudgetUsd)
+    }
+
+    @Test
+    fun `a proposal the app cannot honour is dropped rather than shown`() {
+        val reply = ChatProtocol.parseCoachReply(
+            """{"reply":{"text":"ok","proposal":{"action":"replace","date":"2026-09-28","headline":"Race it","reason":"r",
+               "replace_with":{"type":"RACE","title":"Race"}}}}""",
+        )
+        assertNull(reply.proposal)
+        assertNull(reply.proposalJson)
+    }
+
+    @Test
+    fun `research replies keep their citations`() {
+        val reply = ChatProtocol.parseResearchReply(
+            """{"research":{"text":"Two sessions a week.","citations":["https://a.example","https://b.example"]}}""",
+        )
+        assertEquals(listOf("https://a.example", "https://b.example"), reply.citations)
+    }
+
+    @Test
+    fun `refusals show the worker's own sentence`() {
+        assertEquals(
+            "Today's coach limit is reached (15 of 15). No model was called.",
+            ChatProtocol.errorMessage("""{"error":"cap_reached","message":"Today's coach limit is reached (15 of 15). No model was called."}""", 429),
+        )
+        assertTrue(ChatProtocol.errorMessage(null, 401).contains("key"))
+    }
+
+    @Test
+    fun `the conversation round-trips through storage, proposals included`() {
+        val proposalJson = """{"action":"skip","date":"2026-09-30","headline":"Rest instead.","reason":"Tired."}"""
+        val messages = listOf(
+            message(ChatMessage.Role.USER, "hi"),
+            ChatMessage(
+                id = "c1",
+                role = ChatMessage.Role.COACH,
+                text = "Rest Wednesday.",
+                createdAtMillis = 5,
+                proposal = CoachPayload.suggestionFrom(org.json.JSONObject(proposalJson)),
+                proposalJson = proposalJson,
+                proposalState = ChatMessage.ProposalState.ACCEPTED,
+                basis = "Garmin data to 2026-09-26",
+            ),
+            ChatMessage(id = "r1", role = ChatMessage.Role.RESEARCH, text = "web", createdAtMillis = 6, citations = listOf("https://x.example")),
+        )
+        val decoded = ChatStore.decode(ChatStore.encode(messages))
+        assertEquals(messages.map { it.id }, decoded.map { it.id })
+        assertEquals(ChatMessage.ProposalState.ACCEPTED, decoded[1].proposalState)
+        assertEquals(CoachPayload.Coaching.SuggestionAction.SKIP, decoded[1].proposal!!.action)
+        assertEquals("Garmin data to 2026-09-26", decoded[1].basis)
+        assertNull(decoded[0].basis)
+        assertEquals(listOf("https://x.example"), decoded[2].citations)
+    }
+
+    @Test
+    fun `the chat address is guessed from the coach feed's address`() {
+        assertEquals(
+            "https://royal-miles-chat.example.workers.dev",
+            ChatRepository.suggestedAddress("https://royal-miles-coach.example.workers.dev/coach.json"),
+        )
+        assertNull(ChatRepository.suggestedAddress("https://coach.example.com/coach.json"))
+        assertEquals("https://royal-miles-chat.example.workers.dev", ChatRepository.normaliseAddress(" https://royal-miles-chat.example.workers.dev/ "))
+    }
+}

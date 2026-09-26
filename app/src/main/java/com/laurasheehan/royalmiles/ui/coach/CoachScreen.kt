@@ -5,11 +5,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,8 +27,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingFlat
@@ -46,6 +52,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -65,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -89,7 +97,7 @@ private val HeroCardCorner = RoundedCornerShape(HeroCardCornerDp)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CoachScreen(viewModel: CoachViewModel) {
+fun CoachScreen(viewModel: CoachViewModel, onOpenChat: () -> Unit = {}) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     // OpenDocument rather than GetContent: only OpenDocument returns a URI that can be given
@@ -120,6 +128,25 @@ fun CoachScreen(viewModel: CoachViewModel) {
         )
     }
 
+    CoachContent(
+        state = state,
+        onRefresh = viewModel::refresh,
+        onConnect = { showConnect = true },
+        onPick = { picker.launch(arrayOf("application/json", "*/*")) },
+        onOpenChat = onOpenChat,
+    )
+}
+
+/** Stateless, so it can be rendered in screenshot tests with sample data. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun CoachContent(
+    state: CoachUiState,
+    onRefresh: () -> Unit,
+    onConnect: () -> Unit,
+    onPick: () -> Unit,
+    onOpenChat: () -> Unit,
+) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -135,7 +162,7 @@ fun CoachScreen(viewModel: CoachViewModel) {
                             // The spinner takes the icon's own place rather than sitting beside it
                             // — the button still reads as "the refresh control", just mid-errand,
                             // instead of adding a second thing competing for attention next to it.
-                            IconButton(onClick = viewModel::refresh, enabled = !state.loading) {
+                            IconButton(onClick = onRefresh, enabled = !state.loading) {
                                 Crossfade(targetState = state.loading, label = "refreshIcon") { isLoading ->
                                     if (isLoading) {
                                         CircularProgressIndicator(
@@ -149,21 +176,21 @@ fun CoachScreen(viewModel: CoachViewModel) {
                                 }
                             }
                         }
-                        IconButton(onClick = { showConnect = true }, enabled = !state.loading) {
+                        IconButton(onClick = onConnect, enabled = !state.loading) {
                             Icon(Icons.Filled.Cloud, contentDescription = "Connect to the cloud coach")
                         }
                         // Tonal rather than plain: this is the one action that works with nothing
                         // loaded yet, so it should read as a small button, not just another icon
                         // lined up next to Refresh.
-                        FilledTonalIconButton(
-                            onClick = { picker.launch(arrayOf("application/json", "*/*")) },
-                            enabled = !state.loading,
-                        ) {
+                        FilledTonalIconButton(onClick = onPick, enabled = !state.loading) {
                             Icon(Icons.Filled.FileOpen, contentDescription = "Import coach.json")
                         }
                     }
                 },
             )
+        },
+        bottomBar = {
+            if (state.payload != null) SpeakToCoachBar(onOpenChat)
         },
     ) { padding ->
         val payload = state.payload
@@ -171,8 +198,8 @@ fun CoachScreen(viewModel: CoachViewModel) {
         if (payload == null) {
             EmptyState(
                 loading = state.loading,
-                onPick = { picker.launch(arrayOf("application/json", "*/*")) },
-                onConnect = { showConnect = true },
+                onPick = onPick,
+                onConnect = onConnect,
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
             return@Scaffold
@@ -191,15 +218,18 @@ fun CoachScreen(viewModel: CoachViewModel) {
                 item { ReadinessCard(readiness, payload.coverage) }
             }
 
+            // Flags sit straight under readiness and are never folded away: making the screen
+            // shorter must not make a warning easier to miss.
+            if (payload.warnings.isNotEmpty()) {
+                item { WarningsCard(payload.warnings) }
+            }
+
             // Explicit if/else rather than `?.let { } ?: item { }` — the let block's value would be
             // the trailing coachNote?.let, so a payload with coaching but no coach note returns null
             // and silently falls through to the "no coaching" card.
             val coaching = payload.coaching
             if (coaching != null) {
                 item { CoachingSummaryCard(coaching) }
-                items(coaching.actionPoints.size) { index ->
-                    ActionPointCard(coaching.actionPoints[index])
-                }
             } else {
                 item { NoCoachingCard(payload.coachingAbsentReason) }
             }
@@ -207,10 +237,24 @@ fun CoachScreen(viewModel: CoachViewModel) {
             payload.hrv?.let { hrv ->
                 item { HrvCard(hrv, payload.plan?.milestone) }
             }
+        }
+    }
+}
 
-            if (payload.warnings.isNotEmpty()) {
-                item { WarningsCard(payload.warnings) }
-            }
+@Composable
+private fun SpeakToCoachBar(onOpenChat: () -> Unit) {
+    Surface(tonalElevation = 3.dp) {
+        Button(
+            onClick = onOpenChat,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .height(52.dp),
+            shape = RoundedCornerShape(50),
+        ) {
+            Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("Speak to coach", style = MaterialTheme.typography.titleSmall)
         }
     }
 }
@@ -414,6 +458,8 @@ private fun ReadinessCard(readiness: CoachPayload.Readiness, coverage: CoachPayl
 private fun CoachingSummaryCard(coaching: CoachPayload.Coaching) {
     val rawAccent = if (coaching.onTrack) ComebackGold else BlushPink
     val accent by animateColorAsState(rawAccent, label = "coachingAccent")
+    var expanded by remember { mutableStateOf(false) }
+    val hasMore = coaching.actionPoints.isNotEmpty() || (coaching.statusSummary?.length ?: 0) > 180
     Card(
         shape = HeroCardCorner,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -454,24 +500,74 @@ private fun CoachingSummaryCard(coaching: CoachPayload.Coaching) {
                     )
                 }
             }
-            // A touch more line height than the rest of the screen's body text — this is the one
-            // paragraph on the page meant to be read start to finish, not scanned.
+            // Three lines by default: the gist first, the full paragraph on request.
             coaching.statusSummary?.let {
-                Text(it, style = MaterialTheme.typography.bodyLarge, lineHeight = 24.sp)
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyLarge,
+                    lineHeight = 24.sp,
+                    maxLines = if (expanded) Int.MAX_VALUE else 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            coaching.keyReminder?.let { reminder ->
+                Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(
+                        Icons.Filled.PushPin,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(18.dp).padding(top = 2.dp),
+                    )
+                    Text(reminder, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            if (coaching.actionPoints.isNotEmpty()) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                if (expanded) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        coaching.actionPoints.forEach { ActionPointCard(it) }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        coaching.actionPoints.forEach { ActionPointLine(it) }
+                    }
+                }
+            }
+            if (hasMore) {
+                TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(0.dp)) {
+                    Text(if (expanded) "Show less" else "Read the full coaching")
+                    Icon(
+                        if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
+private fun ActionPointLine(point: CoachPayload.Coaching.ActionPoint) {
+    val color = priorityColor(point.priority.lowercase())
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
+        Text(point.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun priorityColor(priority: String): Color = when (priority) {
+    "critical" -> BlushPink
+    "high" -> ComebackGold
+    "medium" -> MaterialTheme.colorScheme.primary
+    else -> MaterialTheme.colorScheme.onSurfaceVariant
+}
+
+@Composable
 private fun ActionPointCard(point: CoachPayload.Coaching.ActionPoint) {
     val priority = point.priority.lowercase()
-    val rawAccent = when (priority) {
-        "critical" -> BlushPink
-        "high" -> ComebackGold
-        "medium" -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    val rawAccent = priorityColor(priority)
     val accent by animateColorAsState(rawAccent, label = "actionPointAccent")
     // A second, redundant cue alongside colour for the two priorities that most want attention —
     // colour alone shouldn't be the only signal that something here is urgent.
@@ -525,15 +621,39 @@ private fun NoCoachingCard(reason: String?) {
 
 @Composable
 private fun HrvCard(hrv: CoachPayload.HrvMetrics, milestone: CoachPayload.PlanStatus.Milestone?) {
+    var expanded by remember { mutableStateOf(false) }
     Card(shape = CardCorner, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                "HRV & recovery",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        "HRV & recovery",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        listOfNotNull(
+                            hrv.hrv7d?.let { "HRV 7-day ${formatMetric(it)} ms" },
+                            hrv.rhr?.let { "RHR ${formatMetric(it)} bpm" },
+                            hrv.trend14d?.takeIf { it != "unknown" }?.let { "14d $it" },
+                        ).joinToString(" · "),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                    )
+                }
+                Icon(
+                    if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = if (expanded) "Hide HRV detail" else "Show HRV detail",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!expanded) return@Column
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
+                modifier = Modifier.padding(top = 6.dp),
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
 
             Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 MetricRow("HRV 7-day", hrv.hrv7d, "ms", milestone?.hrv7d)

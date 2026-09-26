@@ -256,8 +256,11 @@ data class CoachPayload(
         private fun JSONObject.int(key: String): Int? =
             if (isNull(key)) null else optDouble(key).takeIf { !it.isNaN() }?.toInt()
 
-        private fun JSONObject.parseSuggestion(): Coaching.Suggestion? {
-            val suggestion = optJSONObject("suggestion") ?: return null
+        private fun JSONObject.parseSuggestion(): Coaching.Suggestion? =
+            optJSONObject("suggestion")?.let(::suggestionFrom)
+
+        /** Shared with coach chat, whose proposals use the same shape and the same rules. */
+        fun suggestionFrom(suggestion: JSONObject): Coaching.Suggestion? {
             val action = when (suggestion.optString("action", "")) {
                 "replace" -> Coaching.SuggestionAction.REPLACE
                 "skip" -> Coaching.SuggestionAction.SKIP
