@@ -104,6 +104,7 @@ class CoachScreenshotTest {
             monthlyBudgetUsd = 3.0,
             researchCallsMonth = 1,
             researchMonthlyCap = 20,
+            laptopConnected = true,
         )
 
         val SampleConversation = listOf(
@@ -122,7 +123,7 @@ class CoachScreenshotTest {
                 createdAtMillis = 1,
                 proposal = SampleSuggestion,
                 proposalState = ChatMessage.ProposalState.PENDING,
-                basis = "Garmin data to 2026-09-26 · plan as of 2026-09-26 08:30",
+                basis = "Claude on your laptop · Garmin data to 2026-09-26 · plan as of 2026-09-26 08:30",
             ),
         )
 
