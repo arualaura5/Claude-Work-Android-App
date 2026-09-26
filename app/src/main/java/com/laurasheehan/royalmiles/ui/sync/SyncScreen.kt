@@ -1,6 +1,5 @@
 package com.laurasheehan.royalmiles.ui.sync
 
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -44,7 +43,7 @@ import java.time.format.DateTimeFormatter
 
 private val workoutDateFormat = DateTimeFormatter.ofPattern("EEE d MMM")
 
-/** Whatever Health Connect actually had for this workout — each part is skipped when absent. */
+/** Whatever Garmin recorded for this workout — each part is skipped when absent. */
 private fun workoutMetrics(workout: ExternalWorkout): List<String> = buildList {
     workout.distanceKm?.let { add("%.2f km".format(it)) }
     workout.paceMinPerKm?.let { pace ->
@@ -63,11 +62,6 @@ private fun workoutMetrics(workout: ExternalWorkout): List<String> = buildList {
 fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit, onOpenDiagnostics: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var pendingMatch by remember { mutableStateOf<ExternalWorkout?>(null) }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = remember { viewModel.permissionContract() },
-        onResult = { viewModel.onPermissionGranted() },
-    )
 
     Scaffold(
         topBar = {
@@ -91,34 +85,32 @@ fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit, onOpenDiagnostics: 
     ) { padding ->
         when {
             state.loading -> {}
-            !state.available -> {
+            !state.connected -> {
                 Column(
                     modifier = Modifier
                         .padding(padding)
                         .padding(24.dp),
                 ) {
                     Text(
-                        "Health Connect isn't available on this device. It ships with Android 14+ and " +
-                            "can be installed from the Play Store on most phones back to Android 9.",
+                        "Your Garmin workouts come through the cloud coach. Connect it once on the Coach " +
+                            "tab (cloud icon), then come back here to match workouts to sessions.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            !state.hasPermission -> {
+            state.error != null -> {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
                         .padding(padding)
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(
-                        "Connect Health Connect to see workouts logged by Strava, Garmin Connect or " +
-                            "Google Fit here, and match them to a session instead of typing it in.",
+                        "Couldn't load your Garmin workouts. ${state.error}",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Button(onClick = { permissionLauncher.launch(viewModel.permissionsToRequest) }) {
-                        Text("Connect Health Connect")
+                    Button(onClick = { viewModel.refresh() }) {
+                        Text("Try again")
                     }
                 }
             }
@@ -131,7 +123,12 @@ fun SyncScreen(viewModel: SyncViewModel, onDone: () -> Unit, onOpenDiagnostics: 
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     if (state.workouts.isEmpty()) {
-                        item { Text("No workouts in Health Connect from the last 7 days yet.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        item {
+                            Text(
+                                "Every Garmin workout from the last 60 days is already logged.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     items(state.workouts) { workout ->
                         WorkoutCard(workout = workout, onMatch = { pendingMatch = workout })

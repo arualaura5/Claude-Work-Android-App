@@ -4,19 +4,23 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.SessionEntity
+import com.laurasheehan.royalmiles.data.coach.CoachRepository
+import com.laurasheehan.royalmiles.data.garmin.GarminActivityFeed
 import com.laurasheehan.royalmiles.data.health.ExternalWorkout
-import com.laurasheehan.royalmiles.data.health.HealthConnectRepository
 import java.time.temporal.ChronoUnit
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class SyncUiState(
     val loading: Boolean = true,
-    val available: Boolean = false,
-    val hasPermission: Boolean = false,
+    /** The cloud coach is connected, so its key can open the Garmin feed. */
+    val connected: Boolean = false,
+    val error: String? = null,
     val workouts: List<ExternalWorkout> = emptyList(),
     val candidatesByWorkout: Map<ExternalWorkout, List<SessionEntity>> = emptyMap(),
     val justMatched: Boolean = false,
@@ -24,7 +28,7 @@ data class SyncUiState(
 
 class SyncViewModel(
     private val repository: PlanRepository,
-    private val healthConnect: HealthConnectRepository,
+    private val coachRepository: CoachRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SyncUiState())
@@ -36,15 +40,27 @@ class SyncViewModel(
 
     fun refresh() {
         viewModelScope.launch {
-            _uiState.update { it.copy(loading = true) }
-            val available = healthConnect.isAvailable()
-            val hasPermission = available && healthConnect.hasPermissions()
-            if (!available || !hasPermission) {
-                _uiState.update { it.copy(loading = false, available = available, hasPermission = hasPermission, workouts = emptyList()) }
+            _uiState.update { it.copy(loading = true, error = null) }
+            val credentials = coachRepository.cloudCredentials()
+            if (credentials == null) {
+                _uiState.update { it.copy(loading = false, connected = false, workouts = emptyList()) }
                 return@launch
             }
-            val workouts = healthConnect.recentWorkouts()
+            val (address, key) = credentials
+            val fetched = withContext(Dispatchers.IO) {
+                runCatching { GarminActivityFeed.fetch(address, key) }
+            }
+            val feed = fetched.getOrElse { error ->
+                _uiState.update {
+                    it.copy(loading = false, connected = true, error = error.message ?: "Couldn't load Garmin workouts.")
+                }
+                return@launch
+            }
+
             val allSessions = repository.observeSessions().first()
+            // An activity already linked to a session is logged; offering it again invites a double log.
+            val linkedIds = allSessions.mapNotNull { it.sourceActivityId }.toSet()
+            val workouts = feed.filter { it.sourceActivityId !in linkedIds }
             val candidates = workouts.associateWith { workout ->
                 allSessions.filter { session ->
                     session.sourceActivityId == null &&
@@ -59,23 +75,17 @@ class SyncViewModel(
                 )
             }
             _uiState.update {
-                it.copy(loading = false, available = true, hasPermission = true, workouts = workouts, candidatesByWorkout = candidates)
+                it.copy(loading = false, connected = true, workouts = workouts, candidatesByWorkout = candidates)
             }
         }
     }
-
-    fun onPermissionGranted() = refresh()
-
-    fun permissionContract() = healthConnect.requestPermissionsContract()
-
-    val permissionsToRequest: Set<String> get() = healthConnect.permissions
 
     fun match(workout: ExternalWorkout, session: SessionEntity) {
         viewModelScope.launch {
             repository.markComplete(
                 id = session.id,
-                // Prefer what was actually run over what was planned; fall back only if Health
-                // Connect has no distance for it.
+                // Prefer what was actually run over what was planned; fall back only if Garmin
+                // has no distance for it.
                 actualDistanceKm = if (session.isCompleted) {
                     workout.distanceKm.takeIf { session.actualDistanceKm == null }
                 } else {
