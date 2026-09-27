@@ -9,9 +9,11 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.laurasheehan.royalmiles.RaceConfig
 import com.laurasheehan.royalmiles.data.backup.SafetyCopies
+import com.laurasheehan.royalmiles.data.garmin.GarminDecisionDao
+import com.laurasheehan.royalmiles.data.garmin.GarminDecisionEntity
 
 @Database(
-    entities = [SessionEntity::class, PlanMetaEntity::class, AthleteProfileEntity::class, EventEntity::class],
+    entities = [SessionEntity::class, PlanMetaEntity::class, AthleteProfileEntity::class, EventEntity::class, GarminDecisionEntity::class],
     version = AppDatabase.VERSION,
     // Written to app/schemas/ at build time, so every future upgrade step can be tested against
     // the exact shape it starts from (app/src/androidTest/.../MigrationTest.kt).
@@ -23,10 +25,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun planMetaDao(): PlanMetaDao
     abstract fun athleteProfileDao(): AthleteProfileDao
     abstract fun eventDao(): EventDao
+    abstract fun garminDecisionDao(): GarminDecisionDao
 
     companion object {
         /** Raise with every schema change, add the matching Migration, and commit the new schema JSON. */
-        const val VERSION = 10
+        const val VERSION = 11
         const val NAME = "royalmiles.db"
 
         @Volatile private var instance: AppDatabase? = null
@@ -239,6 +242,25 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
 
+        /**
+         * A record of every Garmin activity decision (linked automatically, linked, swapped, done
+         * on another day, extra, ignored) and what it changed, so each can be undone exactly.
+         * A new table only; no existing row is touched. SQL copied from schemas/.../11.json.
+         */
+        internal val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `garmin_decisions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`activityId` TEXT NOT NULL, `decision` TEXT NOT NULL, `sessionId` INTEGER, `activityDate` TEXT NOT NULL, " +
+                        "`activityName` TEXT, `activityKind` TEXT, `distanceKm` REAL, `durationMin` INTEGER, `avgHeartRate` INTEGER, " +
+                        "`maxHeartRate` INTEGER, `previousSessionJson` TEXT, `replacedSessionJson` TEXT, `createdSessionId` INTEGER, " +
+                        "`decidedAtMillis` INTEGER NOT NULL, `acknowledged` INTEGER NOT NULL, `undoneAtMillis` INTEGER)",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_garmin_decisions_activityId` ON `garmin_decisions` (`activityId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_garmin_decisions_sessionId` ON `garmin_decisions` (`sessionId`)")
+            }
+        }
+
         /** Every upgrade step, oldest first. Also used to bring an older backup up to date. */
         val ALL_MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2,
@@ -250,6 +272,7 @@ abstract class AppDatabase : RoomDatabase() {
             MIGRATION_7_8,
             MIGRATION_8_9,
             MIGRATION_9_10,
+            MIGRATION_10_11,
         )
 
         fun getInstance(context: Context): AppDatabase =

@@ -6,6 +6,7 @@ import com.laurasheehan.royalmiles.data.AppDatabase
 import com.laurasheehan.royalmiles.data.AthleteProfileRepository
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.coach.CoachRepository
+import com.laurasheehan.royalmiles.data.garmin.GarminInbox
 import com.laurasheehan.royalmiles.data.update.AppUpdater
 import com.laurasheehan.royalmiles.notifications.ReminderScheduler
 import java.time.Instant
@@ -22,6 +23,9 @@ class RoyalMilesApp : Application() {
 
     /** Checks GitHub for a newer build; needs no database, so it exists from the start. */
     val updater: AppUpdater by lazy { AppUpdater(this) }
+
+    /** New Garmin activities, placed in her plan. Needs the database, so only after it's open. */
+    val garminInbox: GarminInbox by lazy { GarminInbox(AppDatabase.getInstance(this), coachRepository) }
 
     @Volatile
     var dependenciesInitialized: Boolean = false
