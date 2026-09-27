@@ -48,6 +48,23 @@ class CoachScreenshotTest {
     }
 
     @Test
+    fun chatRemembered() {
+        paparazzi.snapshot {
+            RoyalMilesTheme(darkTheme = true) {
+                chat(
+                    ChatUiState(
+                        connected = true,
+                        usage = SampleUsage,
+                        messages = SampleRemember.map {
+                            if (it.memory != null) it.copy(memoryState = ChatMessage.MemoryState.SAVED, memoryNoteId = "n1") else it
+                        },
+                    ),
+                )
+            }
+        }
+    }
+
+    @Test
     fun chatFailedMessage() {
         paparazzi.snapshot {
             RoyalMilesTheme(darkTheme = true) {

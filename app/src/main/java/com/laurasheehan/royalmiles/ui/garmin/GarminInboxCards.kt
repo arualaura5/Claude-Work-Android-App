@@ -56,17 +56,26 @@ fun GarminInboxCards(state: GarminInboxState, actions: GarminInboxActions, today
 @Composable
 private fun AutoLinkCard(link: AutoLink, actions: GarminInboxActions, today: LocalDate) {
     val decision = link.decision
-    GarminCard(title = "Linked from Garmin") {
+    val noun = decision.activityKind?.let { runCatching { ActivityKind.valueOf(it).noun }.getOrNull() } ?: "session"
+    GarminCard(title = "Matched to your planned $noun") {
         Text(
-            buildString {
-                append(summary(decision.distanceKm, decision.durationMin, decision.avgHeartRate, decision.activityKind))
-                link.session?.let { append(" → ${it.title}, ${day(it.date, today)}.") }
-            },
+            "From Garmin: " + summary(decision.distanceKm, decision.durationMin, decision.avgHeartRate, decision.activityKind),
             style = MaterialTheme.typography.bodyMedium,
         )
+        link.session?.let { session ->
+            Text(
+                "Planned: ${session.title}${planned(session)}, ${day(session.date, today)}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        Text(
+            "It's been counted as done. Is this the session you did?",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = { actions.keep(link) }) { Text("That's right") }
-            TextButton(onClick = { actions.notThisOne(link) }) { Text("Not this one") }
+            Button(onClick = { actions.keep(link) }) { Text("Yes, that's right") }
+            TextButton(onClick = { actions.notThisOne(link) }) { Text("No, not this one") }
         }
     }
 }

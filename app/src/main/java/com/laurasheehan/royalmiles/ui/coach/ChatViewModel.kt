@@ -159,6 +159,25 @@ class ChatViewModel(
 
     fun notNow(message: ChatMessage) = chat.setMemoryState(message.id, ChatMessage.MemoryState.DISMISSED)
 
+    /** Undo on a note the coach kept: it's deleted from what the coach knows. */
+    fun unremember(message: ChatMessage) {
+        viewModelScope.launch {
+            chat.unremember(message.id)
+                .onSuccess { notes -> transient.value = transient.value.copy(memoryNotes = notes, memoryError = null) }
+                .onFailure { error -> chat.addNotice(error.message ?: "That note wasn't removed.") }
+        }
+    }
+
+    /** Edit on a note the coach kept: the old wording is replaced by hers. */
+    fun rewrite(message: ChatMessage, proposal: MemoryProposal) {
+        viewModelScope.launch {
+            chat.unremember(message.id)
+            chat.remember(proposal, message.id)
+                .onSuccess { notes -> transient.value = transient.value.copy(memoryNotes = notes, memoryError = null) }
+                .onFailure { error -> chat.addNotice(error.message ?: "That note wasn't saved.") }
+        }
+    }
+
     fun loadMemory() {
         viewModelScope.launch {
             chat.memoryNotes()

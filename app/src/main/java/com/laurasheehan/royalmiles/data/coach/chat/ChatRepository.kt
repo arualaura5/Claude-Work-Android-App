@@ -73,16 +73,18 @@ class ChatRepository(context: Context) {
                 append(newMessage(ChatMessage.Role.USER, message))
                 val body = ChatProtocol.messageRequest(message, history, sessions, today, LocalDateTime.now().toString())
                 val reply = ChatProtocol.parseCoachReply(request(base, token, "POST", "/chat/v1/messages", body))
-                append(
-                    newMessage(ChatMessage.Role.COACH, reply.text).copy(
-                        proposal = reply.proposal,
-                        proposalJson = reply.proposalJson,
-                        proposalState = if (reply.proposal != null) ChatMessage.ProposalState.PENDING else ChatMessage.ProposalState.NONE,
-                        basis = reply.basis,
-                        memory = reply.memory,
-                        memoryState = if (reply.memory != null) ChatMessage.MemoryState.PENDING else ChatMessage.MemoryState.NONE,
-                    ),
+                val coachMessage = newMessage(ChatMessage.Role.COACH, reply.text).copy(
+                    proposal = reply.proposal,
+                    proposalJson = reply.proposalJson,
+                    proposalState = if (reply.proposal != null) ChatMessage.ProposalState.PENDING else ChatMessage.ProposalState.NONE,
+                    basis = reply.basis,
+                    memory = reply.memory,
+                    memoryState = if (reply.memory != null) ChatMessage.MemoryState.PENDING else ChatMessage.MemoryState.NONE,
                 )
+                append(coachMessage)
+                // Kept straight away, with Undo on the card. If it can't be saved now, the card
+                // falls back to asking.
+                reply.memory?.let { memory -> runCatching { remember(base, token, memory, coachMessage.id) } }
                 reply
             }.onFailure { append(newMessage(ChatMessage.Role.NOTICE, it.message ?: "The coach couldn't answer.")) }
         }
@@ -108,14 +110,35 @@ class ChatRepository(context: Context) {
 
     fun addNotice(text: String) = append(newMessage(ChatMessage.Role.NOTICE, text))
 
-    /** Saves a note she approved (possibly after editing it). Nothing is remembered without this. */
+    /** Saves a note (as the coach offered it, or as she edited it). */
     suspend fun remember(proposal: MemoryProposal, messageId: String?): Result<List<MemoryNote>> = withContext(Dispatchers.IO) {
         runCatching {
             val (base, token) = connection() ?: error("Connect the coach chat first.")
+            remember(base, token, proposal, messageId)
+        }
+    }
+
+    private fun remember(base: String, token: String, proposal: MemoryProposal, messageId: String?): List<MemoryNote> {
+        val notes = ChatProtocol.parseNotes(
+            request(base, token, "POST", "/chat/v1/memory", ChatProtocol.memoryJson(proposal).put("source", "chat")),
+        )
+        if (messageId != null) {
+            val saved = ChatProtocol.savedNoteId(notes, proposal)
+            setMemoryState(messageId, ChatMessage.MemoryState.SAVED, proposal, saved)
+        }
+        return notes
+    }
+
+    /** Undo on a remembered note: deleted from what the coach knows. */
+    suspend fun unremember(messageId: String): Result<List<MemoryNote>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val message = _messages.value.firstOrNull { it.id == messageId } ?: error("That message is gone.")
+            val noteId = message.memoryNoteId ?: error("That note isn't saved.")
+            val (base, token) = connection() ?: error("Connect the coach chat first.")
             val notes = ChatProtocol.parseNotes(
-                request(base, token, "POST", "/chat/v1/memory", ChatProtocol.memoryJson(proposal).put("source", "chat")),
+                request(base, token, "POST", "/chat/v1/memory/delete", JSONObject().put("id", noteId)),
             )
-            if (messageId != null) setMemoryState(messageId, ChatMessage.MemoryState.SAVED, proposal)
+            setMemoryState(messageId, ChatMessage.MemoryState.DISMISSED, noteId = null)
             notes
         }
     }
@@ -134,9 +157,9 @@ class ChatRepository(context: Context) {
         }
     }
 
-    fun setMemoryState(messageId: String, state: ChatMessage.MemoryState, memory: MemoryProposal? = null) {
+    fun setMemoryState(messageId: String, state: ChatMessage.MemoryState, memory: MemoryProposal? = null, noteId: String? = null) {
         _messages.value = _messages.value.map {
-            if (it.id == messageId) it.copy(memoryState = state, memory = memory ?: it.memory) else it
+            if (it.id == messageId) it.copy(memoryState = state, memory = memory ?: it.memory, memoryNoteId = noteId) else it
         }
         save()
     }
@@ -259,7 +282,8 @@ internal object ChatStore {
                     .putOpt("basis", message.basis)
                     .putOpt("memory", message.memory?.let(ChatProtocol::memoryJson))
                     .put("memory_state", message.memoryState.name)
-                    .put("failed_research", message.failedResearch),
+                    .put("failed_research", message.failedResearch)
+                    .putOpt("memory_note_id", message.memoryNoteId),
             )
         }
     }.toString()
@@ -287,6 +311,7 @@ internal object ChatStore {
                 memoryState = runCatching { ChatMessage.MemoryState.valueOf(item.optString("memory_state")) }
                     .getOrDefault(ChatMessage.MemoryState.NONE),
                 failedResearch = item.optBoolean("failed_research", false),
+                memoryNoteId = item.optString("memory_note_id", "").takeIf { it.isNotBlank() && !item.isNull("memory_note_id") },
             )
         }
     }

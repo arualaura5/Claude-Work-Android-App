@@ -156,10 +156,6 @@ fun DashboardScreen(
                 }
             }
 
-            if (garmin.pending.isNotEmpty() || garmin.autoLinked.isNotEmpty()) {
-                item(key = "garmin") { GarminInboxCards(garmin, garminActions) }
-            }
-
             item {
                 HeroHeader(
                     daysToRace = state.daysToRace,
@@ -169,6 +165,11 @@ fun DashboardScreen(
                     weekCommencing = state.weekCommencing,
                     onOpenSync = onOpenSync,
                 )
+            }
+
+            // Under the race banner: what Garmin recorded, matched to the plan for her to confirm.
+            if (garmin.pending.isNotEmpty() || garmin.autoLinked.isNotEmpty()) {
+                item(key = "garmin") { GarminInboxCards(garmin, garminActions) }
             }
 
             if (state.coachMotivation != null || state.coachKeyReminder != null) {
