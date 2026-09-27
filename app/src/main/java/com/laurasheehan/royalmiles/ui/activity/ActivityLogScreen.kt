@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.laurasheehan.royalmiles.core.progress.EffortSignal
+import com.laurasheehan.royalmiles.data.ActualsSource
 import com.laurasheehan.royalmiles.ui.components.EffortTrend
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -223,6 +224,19 @@ private fun LoggedSessionCard(session: SessionEntity, onClick: () -> Unit) {
                     metrics.joinToString(" · "),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (session.isLoggable) {
+                Text(
+                    "Distance and time not recorded",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            session.actualsSource.label?.let { label ->
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (session.actualsSource == ActualsSource.UNCERTAIN) ComebackGold else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 

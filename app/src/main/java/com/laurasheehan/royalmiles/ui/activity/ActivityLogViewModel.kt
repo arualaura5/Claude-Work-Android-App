@@ -39,8 +39,9 @@ class ActivityLogViewModel(private val repository: PlanRepository) : ViewModel()
         ActivityLogUiState(
             sessions = done,
             totalSessions = done.size,
-            totalDistanceKm = done.sumOf { it.actualDistanceKm ?: it.targetDistanceKm ?: 0.0 },
-            totalMinutes = done.sumOf { it.actualDurationMin ?: it.targetDurationMin ?: 0 },
+            // Recorded or entered figures only; sessions without them still count as sessions.
+            totalDistanceKm = done.sumOf { it.knownDistanceKm ?: 0.0 },
+            totalMinutes = done.sumOf { it.knownDurationMin ?: 0 },
             recentEffort = stats.recentEffort,
             effortSignal = stats.effortSignal,
         )

@@ -163,6 +163,9 @@ class SessionEditViewModel(
                 )
             } else {
                 val existing = sessionId?.let { repository.getSession(it) } ?: return@launch
+                // Figures she changed here are hers; unchanged ones keep their source.
+                val typedByHer = state.isCompleted && (actualDistance != null || actualDuration != null) &&
+                    (actualDistance != existing.actualDistanceKm || actualDuration != existing.actualDurationMin)
                 repository.updateSession(
                     existing.copy(
                         title = state.title.ifBlank { state.type.name },
@@ -176,8 +179,9 @@ class SessionEditViewModel(
                         notes = state.notes,
                         isCompleted = state.isCompleted,
                         isSkipped = state.isSkipped,
-                        actualDistanceKm = if (state.isCompleted) (actualDistance ?: distance) else null,
-                        actualDurationMin = if (state.isCompleted) (actualDuration ?: duration) else null,
+                        actualDistanceKm = if (state.isCompleted) actualDistance else null,
+                        actualDurationMin = if (state.isCompleted) actualDuration else null,
+                        sourceApp = if (typedByHer) SessionEntity.MANUAL_SOURCE else existing.sourceApp,
                         effortRating = if (state.isCompleted) state.effortRating else null,
                         completedAt = if (state.isCompleted) (existing.completedAt ?: LocalDate.now()) else null,
                         // Synced metrics belong to the completion; clearing it clears them too.
@@ -224,8 +228,9 @@ internal fun SessionEditUiState.toNewSessionEntity(
     notes = notes,
     isCompleted = isCompleted,
     isSkipped = isSkipped,
-    actualDistanceKm = if (isCompleted) actualDistance ?: distance else null,
-    actualDurationMin = if (isCompleted) actualDuration ?: duration else null,
+    actualDistanceKm = if (isCompleted) actualDistance else null,
+    actualDurationMin = if (isCompleted) actualDuration else null,
     effortRating = if (isCompleted) effortRating else null,
     completedAt = completedAt,
+    sourceApp = if (isCompleted && (actualDistance != null || actualDuration != null)) SessionEntity.MANUAL_SOURCE else null,
 )

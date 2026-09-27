@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.laurasheehan.royalmiles.data.ActualsSource
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
 import java.time.format.DateTimeFormatter
@@ -220,16 +221,18 @@ private fun EffortPrompt(onRate: (Int) -> Unit, modifier: Modifier = Modifier) {
 }
 
 /**
- * A completed session shows what she actually did; anything else shows what's planned. "You ran
- * 5.2km" beats "5km planned" every time, and the card was previously showing the target even after
- * the session was logged.
+ * A completed session shows what she actually did; anything else shows what's planned. When a
+ * completed session has no recorded figures, the planned ones are shown as planned, never as done.
  */
-private fun sessionSubtitle(session: SessionEntity): String {
+internal fun sessionSubtitle(session: SessionEntity): String {
     val parts = mutableListOf(session.date.format(cardDateFormat))
-    val distance = if (session.isCompleted) session.actualDistanceKm ?: session.targetDistanceKm else session.targetDistanceKm
-    val duration = if (session.isCompleted) session.actualDurationMin ?: session.targetDurationMin else session.targetDurationMin
-    distance?.let { parts.add("${formatKm(it)}km") }
-    duration?.let { parts.add("$it min") }
+    val recorded = session.isCompleted && session.actualsSource != ActualsSource.NONE
+    val distance = if (recorded) session.actualDistanceKm else session.targetDistanceKm
+    val duration = if (recorded) session.actualDurationMin else session.targetDurationMin
+    val planned = if (session.isCompleted && !recorded && (distance != null || duration != null)) "planned " else ""
+    distance?.let { parts.add("$planned${formatKm(it)}km") }
+    duration?.let { parts.add("${if (distance == null) planned else ""}$it min") }
+    if (session.isCompleted && session.actualsSource == ActualsSource.UNCERTAIN) parts.add("source uncertain")
     if (session.optional && !session.isCompleted) parts.add("optional")
     // Rest days carry no distance or duration, so name the type rather than showing a bare date.
     if (parts.size == 1) parts.add(session.type.label())
