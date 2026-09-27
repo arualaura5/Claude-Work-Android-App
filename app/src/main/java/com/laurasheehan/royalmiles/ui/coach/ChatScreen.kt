@@ -93,6 +93,8 @@ fun ChatScreen(viewModel: ChatViewModel, onBack: () -> Unit) {
         onLoadMemory = viewModel::loadMemory,
         onForget = viewModel::forget,
         onRetry = viewModel::retry,
+        onUnremember = viewModel::unremember,
+        onRewrite = viewModel::rewrite,
     )
 }
 
@@ -119,6 +121,8 @@ internal fun ChatContent(
     onLoadMemory: () -> Unit,
     onForget: (MemoryNote) -> Unit,
     onRetry: (ChatMessage) -> Unit = {},
+    onUnremember: (ChatMessage) -> Unit = {},
+    onRewrite: (ChatMessage, MemoryProposal) -> Unit = { _, _ -> },
     initialShowMemory: Boolean = false,
 ) {
     var showMemory by remember { mutableStateOf(initialShowMemory) }
@@ -233,6 +237,8 @@ internal fun ChatContent(
                         onDismiss = { onDismiss(message) },
                         onRemember = { onRemember(message, it) },
                         onNotNow = { onNotNow(message) },
+                        onUndo = { onUnremember(message) },
+                        onRewrite = { onRewrite(message, it) },
                         onOpenLink = onOpenLink,
                     )
                     ChatMessage.Role.RESEARCH -> ResearchCard(message, onOpenLink)
@@ -294,6 +300,8 @@ private fun CoachBubble(
     onDismiss: () -> Unit,
     onRemember: (MemoryProposal) -> Unit,
     onNotNow: () -> Unit,
+    onUndo: () -> Unit,
+    onRewrite: (MemoryProposal) -> Unit,
     onOpenLink: (String) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth(0.92f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -314,7 +322,7 @@ private fun CoachBubble(
         }
         val memory = message.memory
         if (memory != null && message.memoryState != ChatMessage.MemoryState.NONE) {
-            RememberCard(memory, message.memoryState, onRemember, onNotNow)
+            RememberCard(memory, message.memoryState, message.memoryNoteId != null, onRemember, onNotNow, onUndo, onRewrite)
         }
     }
 }
@@ -324,12 +332,20 @@ private fun CoachBubble(
 private fun RememberCard(
     memory: MemoryProposal,
     state: ChatMessage.MemoryState,
+    undoable: Boolean,
     onRemember: (MemoryProposal) -> Unit,
     onNotNow: () -> Unit,
+    onUndo: () -> Unit,
+    onRewrite: (MemoryProposal) -> Unit,
 ) {
     var editing by remember { mutableStateOf(false) }
+    val kept = state == ChatMessage.MemoryState.SAVED && undoable
     if (editing) {
-        EditMemoryDialog(memory, onDismiss = { editing = false }, onSave = { edited -> editing = false; onRemember(edited) })
+        EditMemoryDialog(
+            memory,
+            onDismiss = { editing = false },
+            onSave = { edited -> editing = false; if (kept) onRewrite(edited) else onRemember(edited) },
+        )
     }
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -340,7 +356,7 @@ private fun RememberCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(Icons.Filled.Psychology, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(
-                    "Remember this? · ${memory.kind.label}",
+                    if (kept) "Remembered · ${memory.kind.label}" else "Remember this? · ${memory.kind.label}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -355,7 +371,20 @@ private fun RememberCard(
                     OutlinedButton(onClick = { editing = true }) { Text("Edit") }
                     TextButton(onClick = onNotNow) { Text("Not now") }
                 }
-                ChatMessage.MemoryState.SAVED -> StateLine("Saved to what your coach knows", MaterialTheme.colorScheme.primary)
+                ChatMessage.MemoryState.SAVED -> if (kept) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Your coach will keep this in mind.",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { editing = true }) { Text("Edit") }
+                        TextButton(onClick = onUndo) { Text("Undo") }
+                    }
+                } else {
+                    StateLine("Saved to what your coach knows", MaterialTheme.colorScheme.primary)
+                }
                 ChatMessage.MemoryState.DISMISSED -> StateLine("Not saved", MaterialTheme.colorScheme.onSurfaceVariant)
                 ChatMessage.MemoryState.NONE -> Unit
             }

@@ -65,7 +65,7 @@ class ChatProtocolTest {
 
     @Test
     fun `history carries only the last real turns, not notices or research`() {
-        val history = (1..8).map { message(if (it % 2 == 0) ChatMessage.Role.COACH else ChatMessage.Role.USER, "turn $it") } +
+        val history = (1..14).map { message(if (it % 2 == 0) ChatMessage.Role.COACH else ChatMessage.Role.USER, "turn $it") } +
             message(ChatMessage.Role.NOTICE, "limit reached") +
             message(ChatMessage.Role.RESEARCH, "web result")
         val json = ChatProtocol.historyJson(history)
@@ -271,5 +271,42 @@ class ChatProtocolTest {
         // Notices saved before this existed read back as chat.
         val older = """[{"id":"n1","role":"NOTICE","text":"failed","created_at":0,"proposal_state":"NONE","citations":[]}]"""
         assertFalse(ChatStore.decode(older).single().failedResearch)
+    }
+
+    @Test
+    fun `an agreed replacement is sent as replaced, and the reason travels with it`() {
+        val longRun = session(0, type = SessionType.LONG_RUN).copy(isSkipped = true, supersededByCoach = true)
+        val comeback = session(0).copy(
+            id = 500,
+            title = "Comeback run",
+            isCustom = true,
+            notes = "Was: Long run. Changed to Comeback run because: just recovered from a virus.",
+        )
+        val plain = session(1).copy(notes = "Generated guidance the coach doesn't need")
+        val sent = ChatProtocol.planJson(listOf(longRun, comeback, plain), today, "2026-09-27T15:27").getJSONArray("sessions")
+        assertEquals("replaced", sent.getJSONObject(0).getString("status"))
+        assertTrue(sent.getJSONObject(1).getString("note").contains("recovered from a virus"))
+        assertFalse(sent.getJSONObject(2).has("note"))
+    }
+
+    @Test
+    fun `the note just kept is found among all her notes`() {
+        val proposal = MemoryProposal(MemoryKind.ABOUT_ME, "I've just recovered from a virus.", null, "2026-10-17")
+        val notes = listOf(
+            MemoryNote("old", MemoryKind.ABOUT_ME, "I've just recovered from a virus.", null, "2026-09-01T10:00:00Z", false),
+            MemoryNote("new", MemoryKind.ABOUT_ME, "I've just recovered from a virus.", "2026-10-17", "2026-09-27T15:30:00Z", false),
+            MemoryNote("other", MemoryKind.PHILOSOPHY, "Strength on Tuesdays.", null, "2026-09-27T15:31:00Z", false),
+        )
+        assertEquals("new", ChatProtocol.savedNoteId(notes, proposal))
+    }
+
+    @Test
+    fun `a kept note's id survives being stored on the phone`() {
+        val kept = message(ChatMessage.Role.COACH, "ok").copy(
+            memory = MemoryProposal(MemoryKind.ABOUT_ME, "Busy month.", null, null),
+            memoryState = ChatMessage.MemoryState.SAVED,
+            memoryNoteId = "n42",
+        )
+        assertEquals("n42", ChatStore.decode(ChatStore.encode(listOf(kept))).single().memoryNoteId)
     }
 }

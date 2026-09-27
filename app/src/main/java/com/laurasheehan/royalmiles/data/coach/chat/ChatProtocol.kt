@@ -22,6 +22,8 @@ data class ChatMessage(
     /** Something the coach offered to remember; saved only if she taps Save. */
     val memory: MemoryProposal? = null,
     val memoryState: MemoryState = MemoryState.NONE,
+    /** The saved note, once the coach's offer to remember it has been kept; Undo deletes it. */
+    val memoryNoteId: String? = null,
     /** On a failure notice: the question was web research, so Send again searches again. */
     val failedResearch: Boolean = false,
 ) {
@@ -92,7 +94,7 @@ data class ResearchReply(
 /** The wire format shared with scripts/cloud/coach_chat_worker.js. */
 object ChatProtocol {
 
-    const val HISTORY_TURNS = 6
+    const val HISTORY_TURNS = 12
     private const val PLAN_DAYS_BACK = 28L
     private const val PLAN_DAYS_AHEAD = 42L
     private const val PLAN_MAX_SESSIONS = 80
@@ -149,10 +151,15 @@ object ChatProtocol {
                         "status",
                         when {
                             session.isCompleted -> "done"
+                            // A change she agreed with her coach, not a miss.
+                            session.supersededByCoach -> "replaced"
                             session.isSkipped -> "skipped"
                             else -> "planned"
                         },
                     )
+                    // Why a session was changed or added ("Was: Long run. Changed to ... because:
+                    // just recovered from a virus"), so the coach reads the day as agreed.
+                    .putOpt("note", session.notes.takeIf { (session.isCustom || session.supersededByCoach) && it.isNotBlank() }?.take(240))
                     .putOpt("target_km", session.targetDistanceKm)
                     .putOpt("target_min", session.targetDurationMin)
                     // Recorded or entered figures only: possibly-planned ones would read to the coach
@@ -196,6 +203,10 @@ object ChatProtocol {
         .put("text", proposal.text)
         .putOpt("reason", proposal.reason)
         .put("expires", proposal.expires ?: JSONObject.NULL)
+
+    /** The note just saved for [proposal]: the newest with its text, since the Worker lists them all. */
+    fun savedNoteId(notes: List<MemoryNote>, proposal: MemoryProposal): String? =
+        notes.filter { it.text.trim() == proposal.text.trim() }.maxByOrNull { it.createdAt.orEmpty() }?.id
 
     fun parseNotes(json: String): List<MemoryNote> {
         val array = JSONObject(json).optJSONArray("notes") ?: return emptyList()
