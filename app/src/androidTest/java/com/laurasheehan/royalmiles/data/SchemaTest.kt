@@ -52,5 +52,35 @@ class SchemaTest {
 
     private companion object {
         const val DB = "schema-test.db"
+        const val UPGRADE_DB = "upgrade-10-11.db"
+    }
+
+    @Test
+    fun version10UpgradesTo11KeepingEverySession() {
+        helper.createDatabase(UPGRADE_DB, 10).apply {
+            execSQL(
+                "INSERT INTO events (id, name, raceDate, raceDistanceKm, peakLongRunKm, planStartDate, planVersion) " +
+                    "VALUES ('royal-parks-2026', 'Royal Parks Half', '2026-10-11', 21.1, 16.0, NULL, 0)",
+            )
+            for (day in 1..3) {
+                execSQL(
+                    "INSERT INTO sessions (eventId, date, type, title, phase, weekNumber, optional, notes, isCompleted, " +
+                        "isCustom, isSkipped, supersededByCoach, actualDistanceKm, sourceActivityId) " +
+                        "VALUES ('royal-parks-2026', '2026-09-0$day', 'EASY_RUN', 'Run $day', 'BUILD', 1, 0, '', 1, 0, 0, 0, 6.2, 'g$day')",
+                )
+            }
+            close()
+        }
+        val upgraded = helper.runMigrationsAndValidate(UPGRADE_DB, 11, true, AppDatabase.MIGRATION_10_11)
+        upgraded.query("SELECT COUNT(*), SUM(actualDistanceKm) FROM sessions").use {
+            it.moveToFirst()
+            assertEquals(3, it.getInt(0))
+            assertEquals(18.6, it.getDouble(1), 0.001)
+        }
+        upgraded.query("SELECT COUNT(*) FROM garmin_decisions").use {
+            it.moveToFirst()
+            assertEquals(0, it.getInt(0))
+        }
+        upgraded.close()
     }
 }

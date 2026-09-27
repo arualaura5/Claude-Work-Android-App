@@ -35,6 +35,7 @@ import com.laurasheehan.royalmiles.ui.coach.CoachScreen
 import com.laurasheehan.royalmiles.ui.coach.CoachViewModel
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardScreen
 import com.laurasheehan.royalmiles.ui.dashboard.DashboardViewModel
+import com.laurasheehan.royalmiles.ui.garmin.GarminInboxActions
 import com.laurasheehan.royalmiles.ui.nutrition.FlashcardScreen
 import com.laurasheehan.royalmiles.ui.nutrition.NutritionScreen
 import com.laurasheehan.royalmiles.ui.nutrition.NutritionViewModel
@@ -83,8 +84,11 @@ fun RoyalMilesNavHost(
                     }
                 },
             )
-            val updater = (context.applicationContext as RoyalMilesApp).updater
+            val app = context.applicationContext as RoyalMilesApp
+            val updater = app.updater
             val update by updater.state.collectAsStateWithLifecycle()
+            val inbox = app.garminInbox
+            val garmin by inbox.state.collectAsStateWithLifecycle()
             DashboardScreen(
                 viewModel = viewModel,
                 onOpenSession = { navController.navigate(Routes.session(it)) },
@@ -95,6 +99,15 @@ fun RoyalMilesNavHost(
                 onAllowUpdateInstalls = updater::openInstallPermission,
                 onUpdateLater = updater::later,
                 onCheckUpdates = { updater.check(manual = true) },
+                garmin = garmin,
+                garminActions = GarminInboxActions(
+                    confirm = inbox::confirm,
+                    swap = inbox::swap,
+                    extra = inbox::extra,
+                    ignore = inbox::ignore,
+                    keep = inbox::keep,
+                    notThisOne = inbox::notThisOne,
+                ),
             )
         }
         composable(Routes.ACTIVITY) {

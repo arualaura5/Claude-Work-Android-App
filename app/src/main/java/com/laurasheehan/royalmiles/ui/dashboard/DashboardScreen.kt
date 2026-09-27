@@ -1,6 +1,9 @@
 package com.laurasheehan.royalmiles.ui.dashboard
 
+import com.laurasheehan.royalmiles.data.garmin.GarminInboxState
 import com.laurasheehan.royalmiles.data.update.UpdateState
+import com.laurasheehan.royalmiles.ui.garmin.GarminInboxActions
+import com.laurasheehan.royalmiles.ui.garmin.GarminInboxCards
 import com.laurasheehan.royalmiles.ui.update.UpdateCard
 import com.laurasheehan.royalmiles.ui.update.buildLineStatus
 import com.laurasheehan.royalmiles.ui.update.showsCard
@@ -95,6 +98,8 @@ fun DashboardScreen(
     onAllowUpdateInstalls: () -> Unit = {},
     onUpdateLater: () -> Unit = {},
     onCheckUpdates: () -> Unit = {},
+    garmin: GarminInboxState = GarminInboxState(),
+    garminActions: GarminInboxActions = GarminInboxActions(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val celebration by viewModel.celebration.collectAsStateWithLifecycle()
@@ -149,6 +154,10 @@ fun DashboardScreen(
                 item(key = "update") {
                     UpdateCard(update, onInstall = onInstallUpdate, onAllowInstalls = onAllowUpdateInstalls, onLater = onUpdateLater)
                 }
+            }
+
+            if (garmin.pending.isNotEmpty() || garmin.autoLinked.isNotEmpty()) {
+                item(key = "garmin") { GarminInboxCards(garmin, garminActions) }
             }
 
             item {

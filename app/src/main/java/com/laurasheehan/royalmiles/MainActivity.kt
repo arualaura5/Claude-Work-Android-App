@@ -60,7 +60,10 @@ class MainActivity : ComponentActivity() {
     // the background for days, and an update check that only runs at launch would rarely run.
     override fun onStart() {
         super.onStart()
-        (application as RoyalMilesApp).updater.check()
+        val app = application as RoyalMilesApp
+        app.updater.check()
+        // New Garmin activities: clear fits are linked, the rest wait on the dashboard.
+        if (app.dependenciesInitialized) app.garminInbox.refresh()
     }
 
     private fun showCrashReport(app: RoyalMilesApp, crashReport: String) {
