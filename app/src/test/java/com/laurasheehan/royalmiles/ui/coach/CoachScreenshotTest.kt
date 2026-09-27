@@ -176,9 +176,11 @@ class CoachScreenshotTest {
             ChatMessage(
                 id = "c1",
                 role = ChatMessage.Role.COACH,
-                text = "Heavy legs after 16 km is normal, and your HRV is still inside its usual band, so this is " +
-                    "fatigue rather than a recovery problem. Resting HR is up 2 bpm, though. I'd make Monday a " +
-                    "genuinely easy day: a short spin keeps you moving without more impact.",
+                text = "**Tired legs after a comeback run are normal, not a red flag.** Two runs in a fortnight and 6.9 h of sleep, " +
+                    "then 9 km: your body is being honest about the gap.\n" +
+                    "Your HRV is still inside its usual band, so this is fatigue rather than a recovery problem.\n" +
+                    "- Rest properly tomorrow\n" +
+                    "- Monday: an easy spin keeps you moving without more impact",
                 createdAtMillis = 1,
                 proposal = SampleSuggestion,
                 proposalState = ChatMessage.ProposalState.PENDING,

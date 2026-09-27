@@ -239,7 +239,7 @@ class ChatRepository(context: Context) {
         /** Where builds before the secret store kept the key in plain text; read once to move it. */
         private const val KEY_TOKEN = "token"
         private const val KEY_MESSAGES = "messages"
-        private const val MAX_MESSAGES = 80
+        private const val MAX_MESSAGES = 200
 
         fun normaliseAddress(input: String): String {
             val trimmed = input.trim().trimEnd('/').removeSuffix("/chat/v1/messages").removeSuffix("/chat/v1/usage")

@@ -56,13 +56,14 @@ class ChatMarkdownTest {
             "**Yes.** Reviews find:\n\n- Twice a week [1]\n  - nested\n* Kept apart\n\n### In practice\n1. Lift heavy\n2) Rest 48 h\n\n---\nLine one\nline two",
         )
         assertEquals(
-            listOf("Paragraph", "Bullet", "Bullet", "Bullet", "Heading", "Numbered", "Numbered", "Paragraph"),
+            listOf("Paragraph", "Bullet", "Bullet", "Bullet", "Heading", "Numbered", "Numbered", "Paragraph", "Paragraph"),
             blocks.map { it::class.simpleName },
         )
         assertEquals(1, (blocks[2] as Block.Bullet).depth)
         assertEquals("2", (blocks[6] as Block.Numbered).number)
         assertEquals("In practice", text(blocks[4].runs))
-        assertEquals("Line one\nline two", text(blocks.last().runs))
+        // A line of its own is a paragraph of its own, so coach answers don't run together.
+        assertEquals(listOf("Line one", "line two"), blocks.takeLast(2).map { text(it.runs) })
     }
 
     @Test

@@ -1,8 +1,9 @@
 package com.laurasheehan.royalmiles.ui.coach
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
@@ -64,8 +65,18 @@ fun MarkdownText(
         }
     }
 
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        blocks.forEach { block ->
+    Column(modifier = modifier) {
+        blocks.forEachIndexed { index, block ->
+            // Room between paragraphs; list items stay together as one list.
+            val listItem = block is ChatMarkdown.Block.Bullet || block is ChatMarkdown.Block.Numbered
+            val previous = blocks.getOrNull(index - 1)
+            val afterListItem = previous is ChatMarkdown.Block.Bullet || previous is ChatMarkdown.Block.Numbered
+            val gap = when {
+                index == 0 -> 0.dp
+                listItem && afterListItem -> 4.dp
+                else -> 12.dp
+            }
+            if (gap > 0.dp) Spacer(Modifier.height(gap))
             when (block) {
                 is ChatMarkdown.Block.Paragraph -> Text(annotated(block.runs), style = body)
                 is ChatMarkdown.Block.Heading -> Text(
