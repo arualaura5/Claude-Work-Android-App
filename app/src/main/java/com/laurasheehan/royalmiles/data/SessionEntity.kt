@@ -64,6 +64,48 @@ data class SessionEntity(
 
     /** Neither done nor written off — the only state that still wants something from you. */
     val isOutstanding: Boolean get() = !isCompleted && !isSkipped
+
+    /**
+     * Where the distance and duration came from. Ticking a session done used to copy the planned
+     * figures into these fields, so for anything logged before that stopped, the honest answer is
+     * often "unknown". Planned figures never become actuals any more.
+     */
+    val actualsSource: ActualsSource
+        get() = when {
+            actualDistanceKm == null && actualDurationMin == null -> ActualsSource.NONE
+            sourceApp == MANUAL_SOURCE -> ActualsSource.YOU
+            !sourceActivityId.isNullOrBlank() ->
+                // A link made before the fix kept whatever the session already held, which may
+                // have been the plan. Figures identical to the plan are flagged, not trusted.
+                if (loggedBeforeTruthfulActuals && actualsMatchPlan) ActualsSource.UNCERTAIN else ActualsSource.RECORDED
+            else -> ActualsSource.UNCERTAIN
+        }
+
+    private val loggedBeforeTruthfulActuals: Boolean
+        get() = completedAt == null || completedAt.isBefore(TRUTHFUL_ACTUALS_SINCE)
+
+    private val actualsMatchPlan: Boolean
+        get() = actualDistanceKm == targetDistanceKm && actualDurationMin == targetDurationMin
+
+    /** A distance she can be credited with: recorded or entered, never the plan's. */
+    val knownDistanceKm: Double? get() = actualDistanceKm.takeIf { actualsSource != ActualsSource.UNCERTAIN }
+
+    val knownDurationMin: Int? get() = actualDurationMin.takeIf { actualsSource != ActualsSource.UNCERTAIN }
+
+    companion object {
+        /** In `sourceApp`: the figures were typed in by Laura in Royal Miles. */
+        const val MANUAL_SOURCE = "royal-miles:manual"
+
+        /** The first day a completion can no longer copy planned figures into actuals. */
+        val TRUTHFUL_ACTUALS_SINCE: LocalDate = LocalDate.of(2026, 9, 28)
+    }
+}
+
+enum class ActualsSource(val label: String?) {
+    NONE(null),
+    RECORDED("Recorded by Garmin"),
+    YOU("Entered by you"),
+    UNCERTAIN("Source uncertain: may be the planned figures"),
 }
 
 @Entity(tableName = "plan_meta")

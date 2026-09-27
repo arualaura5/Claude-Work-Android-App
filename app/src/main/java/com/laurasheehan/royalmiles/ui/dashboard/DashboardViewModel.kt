@@ -103,7 +103,7 @@ class DashboardViewModel(
             .sortedBy { it.date }
         val furthestRun = allSessions
             .filter { it.isCompleted && it.type in RUN_TYPES }
-            .mapNotNull { it.actualDistanceKm ?: it.targetDistanceKm }
+            .mapNotNull { it.knownDistanceKm }
             .maxOrNull()
             ?: 0.0
 
@@ -241,7 +241,8 @@ class DashboardViewModel(
             if (session.isCompleted) {
                 repository.markIncomplete(session.id)
             } else {
-                repository.markComplete(session.id, session.targetDistanceKm, session.targetDurationMin)
+                // Done is a fact she states; distance and time come from Garmin or from her.
+                repository.markComplete(session.id, actualDistanceKm = null, actualDurationMin = null)
                 _affirmations.tryEmit(Affirmations.random())
             }
         }

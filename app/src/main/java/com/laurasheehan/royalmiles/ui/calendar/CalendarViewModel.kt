@@ -52,7 +52,7 @@ class CalendarViewModel(private val repository: PlanRepository) : ViewModel() {
             if (session.isCompleted) {
                 repository.markIncomplete(session.id)
             } else {
-                repository.markComplete(session.id, session.targetDistanceKm, session.targetDurationMin)
+                repository.markComplete(session.id, actualDistanceKm = null, actualDurationMin = null)
                 _affirmations.tryEmit(Affirmations.random())
             }
         }

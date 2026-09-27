@@ -155,8 +155,10 @@ object ChatProtocol {
                     )
                     .putOpt("target_km", session.targetDistanceKm)
                     .putOpt("target_min", session.targetDurationMin)
-                    .putOpt("actual_km", session.actualDistanceKm)
-                    .putOpt("actual_min", session.actualDurationMin),
+                    // Recorded or entered figures only: possibly-planned ones would read to the coach
+                    // as what she ran.
+                    .putOpt("actual_km", session.knownDistanceKm)
+                    .putOpt("actual_min", session.knownDurationMin),
             )
         }
         return JSONObject().put("generated_at", generatedAt).put("sessions", array)

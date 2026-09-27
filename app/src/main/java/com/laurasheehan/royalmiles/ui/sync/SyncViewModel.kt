@@ -2,6 +2,7 @@ package com.laurasheehan.royalmiles.ui.sync
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.laurasheehan.royalmiles.data.ActualsSource
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.data.coach.CoachRepository
@@ -82,16 +83,15 @@ class SyncViewModel(
 
     fun match(workout: ExternalWorkout, session: SessionEntity) {
         viewModelScope.launch {
+            // Garmin's figures replace anything except figures she typed in herself. Uncertain
+            // ones (possibly copied from the plan) are cleared first, so a field Garmin lacks is
+            // left empty rather than keeping a planned number beside a recorded one.
+            val keepHers = session.actualsSource == ActualsSource.YOU
+            if (!keepHers) repository.clearActuals(session.id)
             repository.markComplete(
                 id = session.id,
-                // Prefer what was actually run over what was planned; fall back only if Garmin
-                // has no distance for it.
-                actualDistanceKm = if (session.isCompleted) {
-                    workout.distanceKm.takeIf { session.actualDistanceKm == null }
-                } else {
-                    workout.distanceKm ?: session.targetDistanceKm
-                },
-                actualDurationMin = workout.durationMinutes.takeIf { !session.isCompleted || session.actualDurationMin == null },
+                actualDistanceKm = if (keepHers) workout.distanceKm.takeIf { session.actualDistanceKm == null } else workout.distanceKm,
+                actualDurationMin = if (keepHers) workout.durationMinutes.takeIf { session.actualDurationMin == null } else workout.durationMinutes,
                 completedAt = if (session.isCompleted) session.completedAt ?: workout.localDate else workout.localDate,
                 avgHeartRate = workout.avgHeartRate.takeIf { session.actualAvgHeartRate == null },
                 maxHeartRate = workout.maxHeartRate.takeIf { session.actualMaxHeartRate == null },

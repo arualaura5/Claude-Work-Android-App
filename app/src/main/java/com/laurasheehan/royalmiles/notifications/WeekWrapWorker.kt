@@ -34,8 +34,8 @@ class WeekWrapWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 date = it.completedAt ?: it.date,
                 type = it.type,
                 phase = it.phase,
-                distanceKm = it.actualDistanceKm ?: it.targetDistanceKm,
-                durationMin = it.actualDurationMin ?: it.targetDurationMin,
+                distanceKm = it.knownDistanceKm,
+                durationMin = it.knownDurationMin,
             )
         }
 

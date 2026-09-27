@@ -3,6 +3,7 @@ package com.laurasheehan.royalmiles.data.coach
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.laurasheehan.royalmiles.data.SecretStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +29,11 @@ class CoachRepository(context: Context) {
     private val appContext = context.applicationContext
     private val prefs = appContext.getSharedPreferences("coach", Context.MODE_PRIVATE)
 
+    /** The feed key; an older build's plain-text copy moves in on first use. */
+    private val secrets by lazy {
+        SecretStore(appContext).also { it.adopt(prefs, KEY_REMOTE_KEY, SecretStore.COACH_FEED_KEY) }
+    }
+
     private val _state = MutableStateFlow(load())
     val state: StateFlow<CoachState> = _state.asStateFlow()
 
@@ -52,12 +58,13 @@ class CoachRepository(context: Context) {
             require(trimmedKey.isNotEmpty()) { "Enter the coach key." }
             val json = CoachRemote.fetch(normalised, trimmedKey)
             val payload = parseRemotePayload(json)
+            secrets.put(SecretStore.COACH_FEED_KEY, trimmedKey)
             store(
                 json = json,
                 payload = payload,
                 source = prefs.edit()
                     .putString(KEY_REMOTE_ADDRESS, normalised)
-                    .putString(KEY_REMOTE_KEY, trimmedKey)
+                    .remove(KEY_REMOTE_KEY)
                     .remove(KEY_URI),
                 sourceRemembered = true,
             )
@@ -81,6 +88,7 @@ class CoachRepository(context: Context) {
 
             // Picking a file is a choice of source: the cloud coach would otherwise overwrite it
             // on the next refresh.
+            secrets.remove(SecretStore.COACH_FEED_KEY)
             val edit = prefs.edit().remove(KEY_REMOTE_ADDRESS).remove(KEY_REMOTE_KEY)
             if (sourceRemembered) edit.putString(KEY_URI, uri.toString()) else edit.remove(KEY_URI)
 
@@ -90,6 +98,7 @@ class CoachRepository(context: Context) {
 
     fun clear() {
         prefs.edit().clear().apply()
+        secrets.remove(SecretStore.COACH_FEED_KEY)
         _state.value = CoachState.Empty
     }
 
@@ -125,7 +134,7 @@ class CoachRepository(context: Context) {
 
     private fun remote(): Pair<String, String>? {
         val address = prefs.getString(KEY_REMOTE_ADDRESS, null) ?: return null
-        val key = prefs.getString(KEY_REMOTE_KEY, null) ?: return null
+        val key = secrets.get(SecretStore.COACH_FEED_KEY) ?: return null
         return address to key
     }
 

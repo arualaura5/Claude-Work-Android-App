@@ -2,6 +2,7 @@ package com.laurasheehan.royalmiles.data.coach.chat
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.laurasheehan.royalmiles.data.SecretStore
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.data.coach.CoachPayload
 import java.io.IOException
@@ -28,12 +29,17 @@ class ChatRepository(context: Context) {
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences("coach_chat", Context.MODE_PRIVATE)
 
+    /** The chat key; an older build's plain-text copy moves in on first use. */
+    private val secrets by lazy {
+        SecretStore(context.applicationContext).also { it.adopt(prefs, KEY_TOKEN, SecretStore.COACH_CHAT_KEY) }
+    }
+
     private val _messages = MutableStateFlow(loadMessages())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
     fun connection(): Pair<String, String>? {
         val address = prefs.getString(KEY_ADDRESS, null) ?: return null
-        val key = prefs.getString(KEY_TOKEN, null) ?: return null
+        val key = secrets.get(SecretStore.COACH_CHAT_KEY) ?: return null
         return address to key
     }
 
@@ -46,7 +52,8 @@ class ChatRepository(context: Context) {
             val token = key.trim()
             require(token.length >= 32) { "The chat key is at least 32 characters." }
             val usage = ChatProtocol.parseUsage(JSONObject(request(base, token, "GET", "/chat/v1/usage", null)))
-            prefs.edit().putString(KEY_ADDRESS, base).putString(KEY_TOKEN, token).apply()
+            secrets.put(SecretStore.COACH_CHAT_KEY, token)
+            prefs.edit().putString(KEY_ADDRESS, base).remove(KEY_TOKEN).apply()
             usage
         }
     }
@@ -206,6 +213,7 @@ class ChatRepository(context: Context) {
 
     companion object {
         private const val KEY_ADDRESS = "address"
+        /** Where builds before the secret store kept the key in plain text; read once to move it. */
         private const val KEY_TOKEN = "token"
         private const val KEY_MESSAGES = "messages"
         private const val MAX_MESSAGES = 80

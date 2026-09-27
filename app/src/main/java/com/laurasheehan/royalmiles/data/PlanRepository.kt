@@ -200,6 +200,12 @@ class PlanRepository(
         )
     }
 
+    /** Empties distance and time before recorded figures replace possibly-planned ones. */
+    suspend fun clearActuals(id: Long) {
+        val existing = sessionDao.getById(id) ?: return
+        sessionDao.update(existing.copy(actualDistanceKm = null, actualDurationMin = null))
+    }
+
     /**
      * Acknowledges a session as not done. Deliberately carries no penalty — it exists so a missed
      * session can stop asking, not so anything can be counted against her.
@@ -511,8 +517,9 @@ private fun SessionEntity.toCompletedSession(useScheduledDate: Boolean): Complet
     date = if (useScheduledDate) date else (completedAt ?: date),
     type = type,
     phase = phase,
-    distanceKm = actualDistanceKm ?: targetDistanceKm,
-    durationMin = actualDurationMin ?: targetDurationMin,
+    // Only what was recorded or entered: a planned 16 km is not a run of 16 km.
+    distanceKm = knownDistanceKm,
+    durationMin = knownDurationMin,
 )
 
 private fun roundToHalf(value: Double): Double = kotlin.math.round(value * 2) / 2.0

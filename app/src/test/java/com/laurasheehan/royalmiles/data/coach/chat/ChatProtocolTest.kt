@@ -32,6 +32,7 @@ class ChatProtocolTest {
         isCompleted = completed,
         isSkipped = skipped,
         actualDistanceKm = if (completed) 6.3 else null,
+        sourceActivityId = if (completed) "garmin-1" else null,
     )
 
     private fun message(role: ChatMessage.Role, text: String) =
@@ -52,6 +53,14 @@ class ChatProtocolTest {
         assertEquals("planned", sessions.getJSONObject(2).getString("status"))
         assertEquals("EASY_RUN", sessions.getJSONObject(2).getString("type"))
         assertFalse(sessions.getJSONObject(2).has("actual_km"))
+    }
+
+    @Test
+    fun `figures that may be the plan's are not sent to the coach as what she ran`() {
+        val legacy = session(-2, completed = true).copy(sourceActivityId = null, completedAt = LocalDate.of(2026, 9, 20))
+        val sent = ChatProtocol.planJson(listOf(legacy), today, "2026-09-26T08:30").getJSONArray("sessions").getJSONObject(0)
+        assertEquals("done", sent.getString("status"))
+        assertFalse(sent.has("actual_km"))
     }
 
     @Test
