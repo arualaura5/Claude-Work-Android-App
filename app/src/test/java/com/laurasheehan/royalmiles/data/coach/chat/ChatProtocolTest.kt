@@ -309,4 +309,30 @@ class ChatProtocolTest {
         )
         assertEquals("n42", ChatStore.decode(ChatStore.encode(listOf(kept))).single().memoryNoteId)
     }
+
+    @Test
+    fun `older conversations go to the coach trimmed, with accepted changes flagged`() {
+        val zone = java.time.ZoneOffset.UTC
+        fun at(day: Int) = LocalDate.of(2026, 9, day).atTime(9, 0).toInstant(zone).toEpochMilli()
+        val suggestion = CoachPayload.suggestionFrom(
+            org.json.JSONObject("""{"action":"skip","date":"2026-09-27","headline":"Swap Saturday's long run for a comeback run.","reason":"Coming back from a virus."}"""),
+        )!!
+        val old = listOf(
+            ChatMessage("a", ChatMessage.Role.USER, "Too old to matter.", LocalDate.of(2026, 8, 20).atTime(9, 0).toInstant(zone).toEpochMilli()),
+            ChatMessage("b", ChatMessage.Role.USER, "I've had a virus all week. " + "x".repeat(400), at(22)),
+            ChatMessage("c", ChatMessage.Role.COACH, "Then Saturday shouldn't stand.", at(22), proposal = suggestion, proposalState = ChatMessage.ProposalState.ACCEPTED),
+            ChatMessage("d", ChatMessage.Role.NOTICE, "Limit reached.", at(23)),
+        )
+        val recent = (1..12).map { ChatMessage("r$it", ChatMessage.Role.USER, "recent $it", at(27)) }
+        val earlier = ChatProtocol.earlierJson(old + recent, LocalDate.of(2026, 9, 27), zone)
+
+        assertEquals(2, earlier.length(), "the too-old turn, the notice and the recent twelve are left out")
+        val virus = earlier.getJSONObject(0)
+        assertEquals("2026-09-22", virus.getString("date"))
+        assertTrue(virus.getString("text").length <= 280 && virus.getString("text").endsWith("…"))
+        assertEquals(
+            "Swap Saturday's long run for a comeback run. Coming back from a virus.",
+            earlier.getJSONObject(1).getString("agreed_change"),
+        )
+    }
 }

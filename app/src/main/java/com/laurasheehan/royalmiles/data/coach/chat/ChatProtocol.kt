@@ -2,7 +2,9 @@ package com.laurasheehan.royalmiles.data.coach.chat
 
 import com.laurasheehan.royalmiles.data.SessionEntity
 import com.laurasheehan.royalmiles.data.coach.CoachPayload
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -95,6 +97,11 @@ data class ResearchReply(
 object ChatProtocol {
 
     const val HISTORY_TURNS = 12
+
+    /** Older turns go too, trimmed: the coach's memory of what it and Laura talked about and agreed. */
+    private const val EARLIER_DAYS = 30L
+    private const val EARLIER_TEXT_CHARS = 280
+    private const val EARLIER_TOTAL_CHARS = 9_000
     private const val PLAN_DAYS_BACK = 28L
     private const val PLAN_DAYS_AHEAD = 42L
     private const val PLAN_MAX_SESSIONS = 80
@@ -109,9 +116,39 @@ object ChatProtocol {
         .put("message", message)
         .put("today", today.toString())
         .put("history", historyJson(history))
+        .put("earlier", earlierJson(history, today))
         .put("plan", planJson(sessions, today, planGeneratedAt))
 
     fun researchRequest(question: String): JSONObject = JSONObject().put("question", question)
+
+    /**
+     * Everything older than the recent turns, from the last 30 days, each trimmed, newest kept first
+     * if it runs long. A change she accepted travels with the message that proposed it, so the
+     * coach can't forget what they agreed.
+     */
+    fun earlierJson(history: List<ChatMessage>, today: LocalDate, zone: ZoneId = ZoneId.systemDefault()): JSONArray {
+        val turns = history.filter { it.role == ChatMessage.Role.USER || it.role == ChatMessage.Role.COACH }
+        val older = turns.dropLast(HISTORY_TURNS)
+        val since = today.minusDays(EARLIER_DAYS)
+        val kept = mutableListOf<JSONObject>()
+        var used = 0
+        for (message in older.asReversed()) {
+            val date = Instant.ofEpochMilli(message.createdAtMillis).atZone(zone).toLocalDate()
+            if (date.isBefore(since)) break
+            val text = message.text.trim().let { if (it.length > EARLIER_TEXT_CHARS) it.take(EARLIER_TEXT_CHARS - 1).trimEnd() + "…" else it }
+            val agreed = message.proposal
+                ?.takeIf { message.proposalState == ChatMessage.ProposalState.ACCEPTED }
+                ?.let { proposal -> listOfNotNull(proposal.headline, proposal.reason).joinToString(" ") }
+            used += text.length + (agreed?.length ?: 0) + 30
+            if (used > EARLIER_TOTAL_CHARS) break
+            kept += JSONObject()
+                .put("date", date.toString())
+                .put("role", if (message.role == ChatMessage.Role.USER) "user" else "coach")
+                .put("text", text)
+                .putOpt("agreed_change", agreed)
+        }
+        return JSONArray(kept.asReversed())
+    }
 
     /** The last few real turns only: notices and research cards are not part of the conversation. */
     fun historyJson(history: List<ChatMessage>): JSONArray {

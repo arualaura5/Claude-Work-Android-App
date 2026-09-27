@@ -44,8 +44,7 @@ object ChatMarkdown {
 
         fun flush() {
             if (paragraph.isNotEmpty()) {
-                // A single newline stays a line break: chat answers use it on purpose.
-                blocks += Block.Paragraph(inline(paragraph.joinToString("\n")))
+                blocks += Block.Paragraph(inline(paragraph.joinToString(" ")))
                 paragraph.clear()
             }
         }
@@ -65,7 +64,10 @@ object ChatMarkdown {
             val numbered = NUMBERED.find(line)
             val quote = QUOTE.find(line)
             if (heading == null && bullet == null && numbered == null && quote == null) {
+                // Each line is its own paragraph: coach answers put one paragraph on a line, and
+                // run together they read as one wall of text.
                 paragraph += line.trimStart()
+                flush()
                 continue
             }
             flush()
