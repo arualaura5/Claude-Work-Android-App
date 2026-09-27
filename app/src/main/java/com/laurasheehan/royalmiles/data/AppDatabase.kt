@@ -8,11 +8,14 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.laurasheehan.royalmiles.RaceConfig
+import com.laurasheehan.royalmiles.data.backup.SafetyCopies
 
 @Database(
     entities = [SessionEntity::class, PlanMetaEntity::class, AthleteProfileEntity::class, EventEntity::class],
-    version = 10,
-    exportSchema = false,
+    version = AppDatabase.VERSION,
+    // Written to app/schemas/ at build time, so every future upgrade step can be tested against
+    // the exact shape it starts from (app/src/androidTest/.../MigrationTest.kt).
+    exportSchema = true,
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -22,6 +25,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun eventDao(): EventDao
 
     companion object {
+        /** Raise with every schema change, add the matching Migration, and commit the new schema JSON. */
+        const val VERSION = 10
+        const val NAME = "royalmiles.db"
+
         @Volatile private var instance: AppDatabase? = null
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -232,24 +239,32 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
 
+        /** Every upgrade step, oldest first. Also used to bring an older backup up to date. */
+        val ALL_MIGRATIONS: Array<Migration> = arrayOf(
+            MIGRATION_1_2,
+            MIGRATION_2_3,
+            MIGRATION_3_4,
+            MIGRATION_4_5,
+            MIGRATION_5_6,
+            MIGRATION_6_7,
+            MIGRATION_7_8,
+            MIGRATION_8_9,
+            MIGRATION_9_10,
+        )
+
         fun getInstance(context: Context): AppDatabase =
             instance ?: synchronized(this) {
-                instance ?: Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "royalmiles.db",
-                ).addMigrations(
-                    MIGRATION_1_2,
-                    MIGRATION_2_3,
-                    MIGRATION_3_4,
-                    MIGRATION_4_5,
-                    MIGRATION_5_6,
-                    MIGRATION_6_7,
-                    MIGRATION_7_8,
-                    MIGRATION_8_9,
-                    MIGRATION_9_10,
-                )
-                    .build().also { instance = it }
+                instance ?: run {
+                    // Before Room runs any upgrade step on her real log, keep a copy of it as it was.
+                    SafetyCopies(context.applicationContext).beforeUpgrade(context.getDatabasePath(NAME), VERSION)
+                    open(context, NAME)
+                }.also { instance = it }
             }
+
+        /** A database file opened with every upgrade step; never falls back to wiping it. */
+        fun open(context: Context, name: String): AppDatabase =
+            Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, name)
+                .addMigrations(*ALL_MIGRATIONS)
+                .build()
     }
 }

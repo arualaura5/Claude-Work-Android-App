@@ -38,6 +38,8 @@ android {
 
         // Stamped so the running app can say which build it is. Every APK is called
         // app-debug.apk, and without this there is no way to tell one install from the next.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
         buildConfigField("String", "GIT_SHA", "\"${gitSha()}\"")
         buildConfigField("String", "BUILD_DATE", "\"${buildDate()}\"")
     }
@@ -73,6 +75,11 @@ android {
         jvmTarget = "17"
     }
 
+    // The exported Room schemas, readable by MigrationTestHelper in the instrumented tests.
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -96,6 +103,9 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.10.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
@@ -119,4 +129,9 @@ dependencies {
     // Preferred over unitTests.isReturnDefaultValues, which would silence the failure by
     // returning nulls and zeroes rather than actually parsing anything.
     testImplementation("org.json:json:20240303")
+}
+
+// Room writes each schema version here; they're committed, and read by the migration tests.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }

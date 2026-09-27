@@ -24,6 +24,8 @@ import com.laurasheehan.royalmiles.ui.diagnostics.DiagnosticsScreen
 import com.laurasheehan.royalmiles.ui.diagnostics.DiagnosticsViewModel
 import com.laurasheehan.royalmiles.ui.activity.ActivityLogScreen
 import com.laurasheehan.royalmiles.ui.activity.ActivityLogViewModel
+import com.laurasheehan.royalmiles.ui.backup.BackupScreen
+import com.laurasheehan.royalmiles.ui.backup.BackupViewModel
 import com.laurasheehan.royalmiles.ui.calendar.CalendarScreen
 import com.laurasheehan.royalmiles.ui.calendar.CalendarViewModel
 import com.laurasheehan.royalmiles.data.coach.chat.ChatRepository
@@ -52,6 +54,7 @@ object Routes {
     const val HEALTH_DIAGNOSTICS = "sync/diagnostics"
     const val SESSION = "session/{sessionId}"
     const val SYNC = "sync"
+    const val BACKUP = "activity/backup"
     const val NEW_SESSION_ID = -1L
 
     fun session(id: Long) = "session/$id"
@@ -101,7 +104,15 @@ fun RoyalMilesNavHost(
             ActivityLogScreen(
                 viewModel = viewModel,
                 onOpenSession = { navController.navigate(Routes.session(it)) },
+                onOpenBackup = { navController.navigate(Routes.BACKUP) },
             )
+        }
+        composable(Routes.BACKUP) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val viewModel: BackupViewModel = viewModel(
+                factory = viewModelFactory { initializer { BackupViewModel(context.applicationContext) } },
+            )
+            BackupScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Routes.COACH) {
             val viewModel: CoachViewModel = viewModel(

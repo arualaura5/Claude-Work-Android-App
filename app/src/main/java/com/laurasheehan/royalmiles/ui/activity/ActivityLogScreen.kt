@@ -14,11 +14,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -54,7 +57,7 @@ private val logDateFormat = DateTimeFormatter.ofPattern("EEE d MMM")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ActivityLogScreen(viewModel: ActivityLogViewModel, onOpenSession: (Long) -> Unit) {
+fun ActivityLogScreen(viewModel: ActivityLogViewModel, onOpenSession: (Long) -> Unit, onOpenBackup: () -> Unit = {}) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmScaleDown by remember { mutableStateOf(false) }
 
@@ -81,7 +84,18 @@ fun ActivityLogScreen(viewModel: ActivityLogViewModel, onOpenSession: (Long) -> 
         )
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Activity") }) }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Activity") },
+                actions = {
+                    IconButton(onClick = onOpenBackup) {
+                        Icon(Icons.Filled.Backup, contentDescription = "Back up & restore your training log")
+                    }
+                },
+            )
+        },
+    ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(16.dp),
