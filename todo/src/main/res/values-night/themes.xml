@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.RoyalTasks" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#13102B</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

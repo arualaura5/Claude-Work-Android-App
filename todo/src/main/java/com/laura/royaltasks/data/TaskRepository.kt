@@ -1,0 +1,146 @@
+package com.laura.royaltasks.data
+
+import android.content.Context
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+private val Context.dataStore by preferencesDataStore(name = "royal_tasks")
+
+/** Completed tasks older than this are dropped to keep storage small. */
+private const val KEEP_DONE_DAYS = 30
+
+data class CompletionResult(
+    val earnedCrown: Boolean,
+    val levelBefore: Int,
+    val levelAfter: Int
+)
+
+class TaskRepository(private val context: Context) {
+
+    // Never rename these keys without a migration — they hold the saved data.
+    private val tasksKey = stringPreferencesKey("tasks_json")
+    private val xpKey = intPreferencesKey("total_xp")
+    private val currentStreakKey = intPreferencesKey("current_streak")
+    private val longestStreakKey = intPreferencesKey("longest_streak")
+    private val lastDoneDayKey = longPreferencesKey("last_done_epoch_day")
+    private val crownsKey = intPreferencesKey("crowns")
+    private val lastCrownDayKey = longPreferencesKey("last_crown_epoch_day")
+    private val soundEnabledKey = booleanPreferencesKey("sound_enabled")
+
+    val tasks: Flow<List<Task>> = context.dataStore.data.map { it.readTasks() }
+    val progress: Flow<Progress> = context.dataStore.data.map { it.readProgress() }
+    val soundEnabled: Flow<Boolean> = context.dataStore.data.map { it[soundEnabledKey] ?: true }
+
+    suspend fun setSoundEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[soundEnabledKey] = enabled }
+    }
+
+    suspend fun add(title: String, priority: Priority) {
+        val clean = title.trim()
+        if (clean.isEmpty()) return
+        context.dataStore.edit { prefs ->
+            prefs[tasksKey] = (prefs.readTasks() + Task(title = clean, priority = priority)).toJsonString()
+        }
+    }
+
+    suspend fun update(id: String, title: String, priority: Priority) {
+        val clean = title.trim()
+        if (clean.isEmpty()) return
+        context.dataStore.edit { prefs ->
+            prefs[tasksKey] = prefs.readTasks()
+                .map { if (it.id == id) it.copy(title = clean, priority = priority) else it }
+                .toJsonString()
+        }
+    }
+
+    suspend fun delete(id: String) {
+        context.dataStore.edit { prefs ->
+            prefs[tasksKey] = prefs.readTasks().filterNot { it.id == id }.toJsonString()
+        }
+    }
+
+    suspend fun restore(task: Task) {
+        context.dataStore.edit { prefs ->
+            val current = prefs.readTasks()
+            if (current.none { it.id == task.id }) {
+                prefs[tasksKey] = (current + task).toJsonString()
+            }
+        }
+    }
+
+    suspend fun complete(id: String, today: Long): CompletionResult? {
+        var result: CompletionResult? = null
+        context.dataStore.edit { prefs ->
+            val tasks = prefs.readTasks()
+            val task = tasks.find { it.id == id && !it.isDone } ?: return@edit
+            val xp = task.priority.xp
+            val before = prefs.readProgress()
+            val doneToday = tasks.count { it.completedEpochDay == today } + 1
+            val after = before.afterCompleting(xp, today, doneToday)
+
+            prefs[tasksKey] = tasks
+                .map {
+                    if (it.id == id) {
+                        it.copy(
+                            completedAt = System.currentTimeMillis(),
+                            completedEpochDay = today,
+                            xpAwarded = xp
+                        )
+                    } else it
+                }
+                .filter { t -> t.completedEpochDay.let { it == null || it >= today - KEEP_DONE_DAYS } }
+                .toJsonString()
+            prefs.writeProgress(after)
+
+            result = CompletionResult(
+                earnedCrown = after.crowns > before.crowns,
+                levelBefore = before.level,
+                levelAfter = after.level
+            )
+        }
+        return result
+    }
+
+    suspend fun uncomplete(id: String) {
+        context.dataStore.edit { prefs ->
+            val tasks = prefs.readTasks()
+            val task = tasks.find { it.id == id && it.isDone } ?: return@edit
+            prefs[tasksKey] = tasks
+                .map {
+                    if (it.id == id) {
+                        it.copy(completedAt = null, completedEpochDay = null, xpAwarded = 0)
+                    } else it
+                }
+                .toJsonString()
+            prefs.writeProgress(prefs.readProgress().afterUndoing(task.xpAwarded))
+        }
+    }
+
+    private fun Preferences.readTasks(): List<Task> = this[tasksKey]?.toTasks() ?: emptyList()
+
+    private fun Preferences.readProgress() = Progress(
+        totalXp = this[xpKey] ?: 0,
+        currentStreak = this[currentStreakKey] ?: 0,
+        longestStreak = this[longestStreakKey] ?: 0,
+        lastDoneEpochDay = this[lastDoneDayKey],
+        crowns = this[crownsKey] ?: 0,
+        lastCrownEpochDay = this[lastCrownDayKey]
+    )
+
+    private fun MutablePreferences.writeProgress(p: Progress) {
+        this[xpKey] = p.totalXp
+        this[currentStreakKey] = p.currentStreak
+        this[longestStreakKey] = p.longestStreak
+        p.lastDoneEpochDay?.let { this[lastDoneDayKey] = it }
+        this[crownsKey] = p.crowns
+        p.lastCrownEpochDay?.let { this[lastCrownDayKey] = it }
+    }
+}

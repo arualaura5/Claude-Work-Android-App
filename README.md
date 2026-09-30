@@ -78,3 +78,17 @@ app/src/main/java/com/arabicflashcards/app/
   ui/theme/           Material 3 theme (colors, typography)
   MainActivity.kt     App entry point
 ```
+
+## Royal Tasks (to-do app)
+
+A second, separate app lives in `todo/` — a quick-drop to-do list in the
+Royal Miles palette with XP, royal ranks, daily crowns and streaks. It's
+its own app (`com.laura.royaltasks`), so installing it never touches the
+flashcards app or its data.
+
+**https://github.com/arualaura5/Claude-Work-Android-App/releases/download/latest-debug/todo-debug.apk**
+
+- Type a task, hit enter. Tap the dot to cycle its XP (5 / 10 / 20).
+- Tick it for XP and confetti. Three in a day earns the daily 👑 (+25 XP).
+- Swipe a task away to clear it (Undo on the snackbar). Tap it to edit.
+- Tap a ticked task under "Done today" to un-tick it (its XP comes back off).

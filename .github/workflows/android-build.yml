@@ -39,12 +39,20 @@ jobs:
           name: arabic-flashcards-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Upload Royal Tasks debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: royal-tasks-debug-apk
+          path: todo/build/outputs/apk/debug/todo-debug.apk
+
       - name: Publish APK to a stable download link
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-debug
           name: "Latest debug build"
-          body: "Automatically updated on every push. Download app-debug.apk below and install it on your phone."
+          body: "Automatically updated on every push. app-debug.apk is Egyptian Flashcards; todo-debug.apk is Royal Tasks. Install either over the existing app — never uninstall first."
           prerelease: true
-          files: app/build/outputs/apk/debug/app-debug.apk
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+            todo/build/outputs/apk/debug/todo-debug.apk

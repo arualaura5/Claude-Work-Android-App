@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- crown -->
+    <path
+        android:fillColor="#F5B700"
+        android:pathData="M34,66 L30,40 L44,51 L54,34 L64,51 L78,40 L74,66 Z" />
+    <!-- crown band -->
+    <path
+        android:fillColor="#F5B700"
+        android:pathData="M34,69 h40 a2,2 0 0 1 2,2 v3 a2,2 0 0 1 -2,2 h-40 a2,2 0 0 1 -2,-2 v-3 a2,2 0 0 1 2,-2 z" />
+    <!-- jewels on the crown tips -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,37 m-3,0 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0 M54,31 m-3,0 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0 M78,37 m-3,0 a3,3 0 1 0 6,0 a3,3 0 1 0 -6,0" />
+    <!-- tick -->
+    <path
+        android:strokeColor="#6C3CE9"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M45,56 L51,62 L63,50" />
+</vector>

@@ -120,3 +120,18 @@ name, or an unbuilt app version before it's applied notebook-wide.
 - Debug builds are auto-published on every push to a stable link:
   `https://github.com/arualaura5/Claude-Work-Android-App/releases/download/latest-debug/app-debug.apk`
   (see `.github/workflows/android-build.yml`).
+
+## Royal Tasks (`todo/` module)
+
+A separate to-do app in the same repo, built to Laura's Royal Miles design
+system (`arualaura5/ai-workspace` → `skills/design-for-laura/SKILL.md`).
+The same data-protection rules apply to it:
+
+- `applicationId` is `com.laura.royaltasks` — never change it.
+- Signed with the same committed `debug.keystore`.
+- Data lives in the `royal_tasks` DataStore: tasks as JSON under
+  `tasks_json`, XP/streak/crowns under their own keys (see
+  `TaskRepository.kt`). New task fields must be optional-with-default on
+  read (see `toTasks()` in `Task.kt`).
+- Published alongside the flashcards APK as `todo-debug.apk` on the
+  `latest-debug` release.

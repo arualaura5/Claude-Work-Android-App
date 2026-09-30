@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Egyptian Flashcards"
 include(":app")
+include(":todo")
