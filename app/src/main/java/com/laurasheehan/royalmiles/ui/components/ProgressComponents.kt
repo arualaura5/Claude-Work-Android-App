@@ -230,7 +230,7 @@ fun CelebrationDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        badges.forEach { badge -> BadgeChip(badge = badge, unlocked = true) }
+                        badges.forEach { badge -> BadgeChip(badge = badge, unlocked = true, fresh = true) }
                     }
                 }
                 TextButton(onClick = onDismiss, modifier = Modifier.padding(top = 16.dp)) {
