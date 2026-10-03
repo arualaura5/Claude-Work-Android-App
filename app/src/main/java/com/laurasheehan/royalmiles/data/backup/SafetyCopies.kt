@@ -93,6 +93,7 @@ class SafetyCopies(context: Context) {
                 "Before the app upgraded its database (version $from to $to)"
             }
             kind == BEFORE_RESTORE -> "Before a restore replaced your log"
+            kind == BEFORE_PLAN_CHANGE -> "Before your plan moved to Richmond"
             else -> return null
         }
         return SafetyCopy(file, kind, millis, label)
@@ -101,6 +102,7 @@ class SafetyCopies(context: Context) {
     companion object {
         const val BEFORE_UPGRADE = "before-upgrade"
         const val BEFORE_RESTORE = "before-restore"
+        const val BEFORE_PLAN_CHANGE = "before-plan-change"
         private const val KEEP_EACH = 3
     }
 }

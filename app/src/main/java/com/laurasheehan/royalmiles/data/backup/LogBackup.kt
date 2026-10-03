@@ -122,6 +122,11 @@ class LogBackup(
         ready.preview
     }
 
+    /** A copy of the live log kept on the phone, restorable from Back up & restore. */
+    suspend fun keepSafetyCopy(kind: String) = withContext(Dispatchers.IO) {
+        safetyCopies.keep(kind) { target -> writeSnapshot(target) }
+    }
+
     /** Throws away a checked candidate she decided not to restore. */
     fun discard(ready: Inspection.Ready) = BackupFiles.delete(ready.file)
 
