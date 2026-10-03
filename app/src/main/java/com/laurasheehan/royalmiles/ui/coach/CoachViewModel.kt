@@ -6,10 +6,16 @@ import androidx.lifecycle.viewModelScope
 import com.laurasheehan.royalmiles.data.coach.CoachPayload
 import com.laurasheehan.royalmiles.data.coach.CoachRepository
 import com.laurasheehan.royalmiles.data.coach.CoachState
+import com.laurasheehan.royalmiles.data.SessionEntity
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -23,18 +29,32 @@ data class CoachUiState(
     /** Days between the newest data in the payload and today. Null when there is no data date. */
     val dataAgeDays: Long? = null,
     val error: String? = null,
+    /** The wellbeing page, when the payload carries a month of data. Null falls back to the older layout. */
+    val wellbeing: WellbeingUi? = null,
 )
 
 class CoachViewModel(
     private val repository: CoachRepository,
+    sessions: Flow<List<SessionEntity>> = flowOf(emptyList()),
 ) : ViewModel() {
 
     private val _transient = MutableStateFlow(TransientState())
 
+    // Re-reads the clock every few minutes, so the greeting, "tomorrow" and the next session stay
+    // right when the tab is left open across midnight.
+    private val clock = flow {
+        while (true) {
+            emit(Unit)
+            delay(5 * 60 * 1000L)
+        }
+    }
+
     val uiState: StateFlow<CoachUiState> = combine(
         repository.state,
         _transient,
-    ) { state, transient ->
+        sessions,
+        clock,
+    ) { state, transient, plan, _ ->
         val payload = (state as? CoachState.Loaded)?.payload
         CoachUiState(
             loading = transient.loading,
@@ -42,6 +62,7 @@ class CoachViewModel(
             sourceRemembered = (state as? CoachState.Loaded)?.sourceRemembered ?: false,
             dataAgeDays = payload?.let { daysSince(it.freshness.dbDailyMaxDate) },
             error = transient.error,
+            wellbeing = payload?.let { WellbeingMapper.build(it, plan, LocalDate.now(), LocalTime.now()) },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CoachUiState())
 

@@ -130,7 +130,7 @@ fun RoyalMilesNavHost(
         composable(Routes.COACH) {
             val viewModel: CoachViewModel = viewModel(
                 factory = viewModelFactory {
-                    initializer { CoachViewModel(coachRepository) }
+                    initializer { CoachViewModel(coachRepository, repository.observeSessions()) }
                 },
             )
             CoachScreen(viewModel = viewModel, onOpenChat = { navController.navigate(Routes.COACH_CHAT) })
