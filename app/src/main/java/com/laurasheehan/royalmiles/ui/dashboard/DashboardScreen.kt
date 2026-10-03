@@ -173,6 +173,17 @@ fun DashboardScreen(
                 item(key = "garmin") { GarminInboxCards(garmin, garminActions) }
             }
 
+            // A change the coach suggests, for today or a day ahead, waiting for her decision.
+            state.coachSuggestion?.let { suggestion ->
+                item(key = "coach-suggestion-${suggestion.suggestion.date}") {
+                    CoachSuggestionCard(
+                        state = suggestion,
+                        onAccept = viewModel::acceptCoachSuggestion,
+                        onDismiss = viewModel::dismissCoachSuggestion,
+                    )
+                }
+            }
+
             if (state.coachMotivation != null || state.coachKeyReminder != null) {
                 item {
                     CoachTopNote(
@@ -226,15 +237,6 @@ fun DashboardScreen(
             if (state.today.isEmpty()) {
                 item { Text("Nothing scheduled today. Rest counts too.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             } else {
-                state.coachSuggestion?.let { suggestion ->
-                    item(key = "coach-suggestion-${suggestion.suggestion.date}") {
-                        CoachSuggestionCard(
-                            state = suggestion,
-                            onAccept = viewModel::acceptCoachSuggestion,
-                            onDismiss = viewModel::dismissCoachSuggestion,
-                        )
-                    }
-                }
                 items(state.today, key = { it.id }) { session ->
                     SessionCard(
                         session = session,
@@ -350,7 +352,8 @@ private fun CoachSuggestionCard(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = "YOUR COACH",
+                        // Which day it's for: only the label is the app's; the headline is the coach's.
+                        text = suggestionDayLabel(suggestion.date, java.time.LocalDate.now()),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
@@ -577,3 +580,13 @@ private fun HeroHeader(
     }
 }
 
+
+/** "YOUR COACH" for today's session; with the day when the suggestion is for a day ahead. */
+internal fun suggestionDayLabel(date: String, today: java.time.LocalDate): String {
+    val day = runCatching { java.time.LocalDate.parse(date) }.getOrNull()
+    return when (day) {
+        null, today -> "YOUR COACH"
+        today.plusDays(1) -> "YOUR COACH · FOR TOMORROW"
+        else -> "YOUR COACH · FOR " + day.format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMM", java.util.Locale.ENGLISH)).uppercase()
+    }
+}

@@ -110,6 +110,21 @@ class ChatRepository(context: Context) {
 
     fun addNotice(text: String) = append(newMessage(ChatMessage.Role.NOTICE, text))
 
+    /**
+     * Shares her plan with the cloud so the morning coach can see what's coming and suggest a
+     * change before it happens. No model is called. Quietly does nothing if not connected.
+     */
+    suspend fun sharePlan(sessions: List<SessionEntity>, today: LocalDate): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val (base, token) = connection() ?: return@runCatching
+            val body = JSONObject()
+                .put("today", today.toString())
+                .put("plan", ChatProtocol.planJson(sessions, today, LocalDateTime.now().toString()))
+            request(base, token, "POST", "/chat/v1/plan", body)
+            Unit
+        }
+    }
+
     /** Saves a note (as the coach offered it, or as she edited it). */
     suspend fun remember(proposal: MemoryProposal, messageId: String?): Result<List<MemoryNote>> = withContext(Dispatchers.IO) {
         runCatching {

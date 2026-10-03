@@ -4,7 +4,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.time.DayOfWeek
@@ -17,6 +19,8 @@ import java.util.concurrent.TimeUnit
 object ReminderScheduler {
     const val CHANNEL_ID = "training_reminders"
     const val WRAP_CHANNEL_ID = "week_wrap"
+    const val COACH_CHANNEL_ID = "coach_changes"
+    private const val COACH_WORK_NAME = "coach_change_check"
     private const val WORK_NAME = "daily_training_reminder"
     private const val WRAP_WORK_NAME = "weekly_wrap"
 
@@ -45,6 +49,11 @@ object ReminderScheduler {
                 description = "A Sunday-evening summary of the week you just trained."
             },
         )
+        manager.createNotificationChannel(
+            NotificationChannel(COACH_CHANNEL_ID, "Coach plan changes", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "When your coach suggests changing your plan from your data. Only then."
+            },
+        )
     }
 
     fun schedule(context: Context) {
@@ -66,9 +75,16 @@ object ReminderScheduler {
 
         // UPDATE, not KEEP. KEEP meant the existing 19:00 schedule survived every reinstall and
         // upgrade, so the time could never actually be changed without clearing app data.
+        // Every three hours: the morning coach runs after the midday Garmin refresh, and a change
+        // she should know about ought to reach her the same afternoon.
+        val coachCheck = PeriodicWorkRequestBuilder<CoachAlertWorker>(3, TimeUnit.HOURS)
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .build()
+
         WorkManager.getInstance(context).apply {
             enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, daily)
             enqueueUniquePeriodicWork(WRAP_WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, weekly)
+            enqueueUniquePeriodicWork(COACH_WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, coachCheck)
         }
     }
 }
