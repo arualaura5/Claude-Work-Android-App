@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -43,6 +44,8 @@ import androidx.navigation.compose.rememberNavController
 import com.laurasheehan.royalmiles.navigation.RoyalMilesNavHost
 import com.laurasheehan.royalmiles.navigation.Routes
 import com.laurasheehan.royalmiles.ui.theme.RoyalMilesTheme
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,7 +66,16 @@ class MainActivity : ComponentActivity() {
         val app = application as RoyalMilesApp
         app.updater.check()
         // New Garmin activities: clear fits are linked, the rest wait on the dashboard.
-        if (app.dependenciesInitialized) app.garminInbox.refresh()
+        if (app.dependenciesInitialized) {
+            app.garminInbox.refresh()
+            // The morning coach reads this to suggest plan changes ahead of time.
+            lifecycleScope.launch {
+                runCatching {
+                    val sessions = app.repository.observeSessions().first()
+                    com.laurasheehan.royalmiles.data.coach.chat.ChatRepository(app).sharePlan(sessions, java.time.LocalDate.now())
+                }
+            }
+        }
     }
 
     private fun showCrashReport(app: RoyalMilesApp, crashReport: String) {

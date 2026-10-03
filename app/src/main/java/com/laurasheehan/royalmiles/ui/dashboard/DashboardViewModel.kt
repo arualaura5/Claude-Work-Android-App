@@ -270,12 +270,16 @@ internal fun visibleCoachSuggestion(
 ): CoachSuggestionUiState? {
     suggestion ?: return null
     val suggestionDate = runCatching { LocalDate.parse(suggestion.date) }.getOrNull() ?: return null
-    if (suggestionDate != today) return null
+    // Today, or a planned day in the next week: the morning coach can now see her plan and
+    // suggest a change before the session, not only on the day.
+    if (suggestionDate.isBefore(today) || suggestionDate.isAfter(today.plusDays(SUGGESTION_DAYS_AHEAD))) return null
     if (suggestionDecisions?.isDismissed(suggestion.date) == true) return null
     if (suggestionDecisions?.isAccepted(suggestion.date) == true) return null
     val session = sessions.firstOrNull { it.date == suggestionDate && !it.isCompleted } ?: return null
     return CoachSuggestionUiState(suggestion = suggestion, session = session)
 }
+
+private const val SUGGESTION_DAYS_AHEAD = 7L
 
 private val RUN_TYPES = setOf(SessionType.EASY_RUN, SessionType.LONG_RUN, SessionType.RACE)
 
