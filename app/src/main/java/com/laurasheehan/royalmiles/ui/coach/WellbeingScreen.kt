@@ -1,6 +1,10 @@
 package com.laurasheehan.royalmiles.ui.coach
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.remember
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.roundToInt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -118,6 +122,7 @@ data class WellbeingUi(
         val rhrBand: ClosedFloatingPointRange<Float>?,
         val sleepHours: List<Float?>,
         val sleepUsual: Float?,
+        val sleepBand: ClosedFloatingPointRange<Float>? = null,
         val runDays: Set<LocalDate>,
     )
 
@@ -399,20 +404,27 @@ private fun RangeChips(selected: Int, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun RhythmCard(rhythm: WellbeingUi.Rhythm, days: Int) {
+internal fun RhythmCard(
+    rhythm: WellbeingUi.Rhythm,
+    days: Int,
+    initialSelection: Int? = null,
+) {
     val dates = rhythm.dates.takeLast(days)
+    // Opens on last night; a tapped day is highlighted on every chart.
+    var selected by remember(days) { mutableStateOf((initialSelection ?: dates.lastIndex).coerceIn(0, dates.lastIndex)) }
+    val select: (Int) -> Unit = { selected = it }
     SoftCard {
-        TrendChart("HRV overnight", "ms", rhythm.hrv.takeLast(days), rhythm.hrvBand, dates, rhythm.runDays, line = true)
-        TrendChart("Resting heart rate", "bpm", rhythm.rhr.takeLast(days), rhythm.rhrBand, dates, rhythm.runDays, line = true)
+        TrendChart("HRV overnight", "ms", rhythm.hrv.takeLast(days), rhythm.hrvBand, null, dates, rhythm.runDays, line = true, selected, select)
+        TrendChart("Resting heart rate", "bpm", rhythm.rhr.takeLast(days), rhythm.rhrBand, null, dates, rhythm.runDays, line = true, selected, select)
         TrendChart(
-            "Sleep", "h", rhythm.sleepHours.takeLast(days),
-            rhythm.sleepUsual?.let { it..it }, dates, rhythm.runDays, line = false,
+            "Sleep", "h", rhythm.sleepHours.takeLast(days), rhythm.sleepBand, rhythm.sleepUsual,
+            dates, rhythm.runDays, line = false, selected, select,
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(Modifier.size(8.dp).clip(CircleShape).background(BlushPink))
             Text("Run days", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(8.dp))
-            Box(Modifier.width(14.dp).height(8.dp).background(RoyalPurple.copy(alpha = 0.15f)))
+            Box(Modifier.width(14.dp).height(8.dp).background(RoyalPurple.copy(alpha = 0.3f)))
             Text("Your usual range", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -424,33 +436,68 @@ private fun TrendChart(
     unit: String,
     values: List<Float?>,
     band: ClosedFloatingPointRange<Float>?,
+    usual: Float?,
     dates: List<LocalDate>,
     runDays: Set<LocalDate>,
     line: Boolean,
+    selected: Int?,
+    onSelect: (Int) -> Unit,
 ) {
     val ink = MaterialTheme.colorScheme.onSurfaceVariant
     val present = values.filterNotNull()
+    fun number(v: Float) = "${v.roundToInt()}"
+    fun withUnit(v: Float) = if (unit == "h") formatHours(v) else "${v.roundToInt()} $unit"
+    fun rangeText(r: ClosedFloatingPointRange<Float>) =
+        if (unit == "h") "${formatHours(r.start)} to ${formatHours(r.endInclusive)}" else "${number(r.start)}–${withUnit(r.endInclusive)}"
+
+
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(title, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
             values.lastOrNull()?.let { latest ->
-                Text(
-                    if (unit == "h") formatHours(latest) else "${latest.toInt()} $unit",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Text(withUnit(latest), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             }
         }
-        Canvas(modifier = Modifier.fillMaxWidth().height(if (line) 70.dp else 60.dp)) {
+        if (band != null) {
+            Text("Usual ${rangeText(band)}", style = MaterialTheme.typography.labelMedium, color = ink)
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(if (line) 84.dp else 70.dp)
+                .pointerInput(values) {
+                    detectTapGestures { tap ->
+                        if (values.isEmpty()) return@detectTapGestures
+                        val fraction = (tap.x / size.width).coerceIn(0f, 1f)
+                        onSelect(
+                            if (line) (fraction * (values.size - 1)).roundToInt()
+                            else (fraction * values.size).toInt().coerceAtMost(values.lastIndex),
+                        )
+                    }
+                },
+        ) {
             if (present.isEmpty()) return@Canvas
-            val low = if (line) minOf(present.min(), band?.start ?: present.min()) - 2f else 0f
+            val left = 0f
+            val plotWidth = size.width
+            val top = 6.dp.toPx()
+            val plotHeight = size.height - top * 2
+            val low = if (line) minOf(present.min(), band?.start ?: present.min()) - 2f
+            else maxOf(0f, kotlin.math.floor(minOf(present.min(), band?.start ?: present.min())) - 1f)
             val high = maxOf(present.max(), band?.endInclusive ?: present.max()) + if (line) 2f else 1f
-            fun y(v: Float) = size.height - (v - low) / (high - low) * size.height
-            val step = if (values.size > 1) size.width / (values.size - 1) else size.width
+            fun y(v: Float) = top + plotHeight - (v - low) / (high - low) * plotHeight
+            val step = if (values.size > 1) plotWidth / (values.size - 1) else plotWidth
+            val barStep = plotWidth / values.size
+            fun x(i: Int) = left + if (line) i * step else (i + 0.5f) * barStep
             val accent = RoyalPurple
+
             if (band != null && band.endInclusive > band.start) {
-                drawRect(accent.copy(alpha = 0.12f), Offset(0f, y(band.endInclusive)), Size(size.width, y(band.start) - y(band.endInclusive)))
+                drawRect(accent.copy(alpha = 0.22f), Offset(left, y(band.endInclusive)), Size(plotWidth, y(band.start) - y(band.endInclusive)))
             }
+
+            selected?.let { i ->
+                drawLine(ink.copy(alpha = 0.5f), Offset(x(i), 0f), Offset(x(i), size.height), 1.dp.toPx())
+            }
+
             if (line) {
                 // A night with no reading is a gap, never a line drawn through it.
                 val path = Path()
@@ -459,33 +506,35 @@ private fun TrendChart(
                     if (v == null) {
                         drawing = false
                     } else {
-                        if (drawing) path.lineTo(i * step, y(v)) else path.moveTo(i * step, y(v))
+                        if (drawing) path.lineTo(x(i), y(v)) else path.moveTo(x(i), y(v))
                         drawing = true
                     }
                 }
                 drawPath(path, accent, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
-                values.forEachIndexed { i, v -> if (v != null) drawCircle(accent, 2.5.dp.toPx(), Offset(i * step, y(v))) }
+                values.forEachIndexed { i, v ->
+                    if (v != null) drawCircle(if (i == selected) BlushPink else accent, if (i == selected) 5.dp.toPx() else 2.5.dp.toPx(), Offset(x(i), y(v)))
+                }
             } else {
-                val barStep = size.width / values.size
                 val barWidth = barStep * 0.6f
                 values.forEachIndexed { i, v ->
                     if (v != null) {
                         drawRoundRect(
-                            accent.copy(alpha = 0.75f),
-                            Offset(i * barStep + (barStep - barWidth) / 2, y(v)),
-                            Size(barWidth, size.height - y(v)),
+                            if (i == selected) BlushPink else accent.copy(alpha = 0.75f),
+                            Offset(x(i) - barWidth / 2, y(v)),
+                            Size(barWidth, top + plotHeight - y(v)),
                             CornerRadius(3.dp.toPx()),
                         )
                     }
                 }
-                band?.let { drawLine(BlushPink.copy(alpha = 0.7f), Offset(0f, y(it.start)), Offset(size.width, y(it.start)), 1.5.dp.toPx()) }
+                usual?.let { drawLine(BlushPink.copy(alpha = 0.7f), Offset(left, y(it)), Offset(left + plotWidth, y(it)), 1.5.dp.toPx()) }
             }
         }
         Canvas(modifier = Modifier.fillMaxWidth().height(8.dp)) {
-            val step = if (dates.size > 1) size.width / (dates.size - 1) else size.width
+            val left = 0f
+            val plotWidth = size.width
             dates.forEachIndexed { i, d ->
                 if (d in runDays) {
-                    val x = if (line) i * step else (i + 0.5f) * size.width / dates.size
+                    val x = left + if (line) (if (dates.size > 1) i * plotWidth / (dates.size - 1) else 0f) else (i + 0.5f) * plotWidth / dates.size
                     drawCircle(BlushPink, 3.dp.toPx(), Offset(x, size.height / 2))
                 }
             }
@@ -494,8 +543,34 @@ private fun TrendChart(
             Text(dates.firstOrNull()?.format(shortDate).orEmpty(), style = MaterialTheme.typography.labelSmall, color = ink, modifier = Modifier.weight(1f))
             Text(dates.lastOrNull()?.format(shortDate).orEmpty(), style = MaterialTheme.typography.labelSmall, color = ink)
         }
+        run {
+            val i = selected
+            val value = i?.let { values.getOrNull(it) }
+            val text = when {
+                i == null -> "Tap a day to see it against your usual range."
+                value == null -> "${dates[i].format(dayLabel)}: no reading"
+                band == null -> "${dates[i].format(dayLabel)}: ${withUnit(value)}"
+                else -> "${dates[i].format(dayLabel)}: ${withUnit(value)}, " + when {
+                    value < band.start -> "below your usual ${rangeText(band)}"
+                    value > band.endInclusive -> "above your usual ${rangeText(band)}"
+                    else -> "inside your usual ${rangeText(band)}"
+                }
+            }
+            Text(
+                text,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (i == null) ink else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        }
     }
 }
+
+private val dayLabel = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
 
 private val shortDate = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
 
