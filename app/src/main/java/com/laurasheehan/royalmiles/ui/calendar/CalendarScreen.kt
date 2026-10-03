@@ -96,8 +96,7 @@ fun CalendarScreen(
             text = {
                 Text(
                     "Long run down a quarter, easy runs down a fifth, and the second strength " +
-                        "session written off. That's a coaching call, not a miss — it costs you " +
-                        "nothing in XP, badges or your streak.",
+                        "session written off. That's a coaching call, not a miss.",
                 )
             },
             confirmButton = {

@@ -92,7 +92,6 @@ fun RoyalMilesNavHost(
             DashboardScreen(
                 viewModel = viewModel,
                 onOpenSession = { navController.navigate(Routes.session(it)) },
-                onOpenSync = { navController.navigate(Routes.SYNC) },
                 onOpenCalendar = { navController.navigate(Routes.CALENDAR) },
                 update = update,
                 onInstallUpdate = updater::install,
@@ -118,6 +117,7 @@ fun RoyalMilesNavHost(
                 viewModel = viewModel,
                 onOpenSession = { navController.navigate(Routes.session(it)) },
                 onOpenBackup = { navController.navigate(Routes.BACKUP) },
+                onOpenSync = { navController.navigate(Routes.SYNC) },
             )
         }
         composable(Routes.BACKUP) {

@@ -186,7 +186,7 @@ class PlanRepository(
                 val weekSessions = entry.value.sortedWith(sessionOrder)
                 UiWeek(
                     weekNumber = index + 1,
-                    phase = weekSessions.first().phase,
+                    phase = weekPhase(weekSessions),
                     startDate = entry.key,
                     sessions = weekSessions,
                 )
@@ -496,6 +496,14 @@ private fun SessionEntity.toCoreSession(): Session = Session(
 )
 
 private fun SessionEntity.slotKey(): String = listOf(date.toString(), type.name, title).joinToString("|")
+
+/**
+ * A week's phase comes from the race she's training for now. In the week a new plan starts, the
+ * old plan's sessions earlier in the week must not label it (the Richmond block began on a Sunday,
+ * in what had been Royal Parks' peak week). Weeks wholly from an earlier plan keep their own phase.
+ */
+internal fun weekPhase(weekSessions: List<SessionEntity>): TrainingPhase =
+    (weekSessions.firstOrNull { it.eventId == RaceConfig.ACTIVE_EVENT_ID } ?: weekSessions.first()).phase
 
 /** A planned session the new plan takes over: untouched, or one side of a coach swap not yet done. */
 internal fun SessionEntity.isReplacedByNewPlan(): Boolean = when {

@@ -33,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FormatQuote
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -74,16 +73,13 @@ import com.laurasheehan.royalmiles.ui.components.CelebrationDialog
 import com.laurasheehan.royalmiles.ui.components.LongRunProgression
 import com.laurasheehan.royalmiles.ui.components.SessionCard
 import com.laurasheehan.royalmiles.ui.components.label
-import com.laurasheehan.royalmiles.ui.components.StreakChip
 import com.laurasheehan.royalmiles.ui.components.WeekWrapCard
-import com.laurasheehan.royalmiles.ui.components.XpBar
 import com.laurasheehan.royalmiles.ui.theme.BlushPink
 import com.laurasheehan.royalmiles.ui.theme.ComebackGold
 import com.laurasheehan.royalmiles.ui.theme.RoyalPurple
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 
-private val weekCommencingFormat = DateTimeFormatter.ofPattern("d MMM")
 
 /** Unlocked badges, then the next few still to come — never a screen that is mostly padlocks. */
 private const val LOCKED_BADGES_SHOWN = 3
@@ -92,7 +88,6 @@ private const val LOCKED_BADGES_SHOWN = 3
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     onOpenSession: (Long) -> Unit,
-    onOpenSync: () -> Unit,
     onOpenCalendar: () -> Unit,
     update: UpdateState = UpdateState.None,
     onInstallUpdate: () -> Unit = {},
@@ -157,16 +152,7 @@ fun DashboardScreen(
                 }
             }
 
-            item {
-                HeroHeader(
-                    daysToRace = state.daysToRace,
-                    phaseMessage = state.phaseMessage,
-                    weekNumber = state.weekNumber,
-                    totalWeeks = state.totalWeeks,
-                    weekCommencing = state.weekCommencing,
-                    onOpenSync = onOpenSync,
-                )
-            }
+            item { RaceBanner(daysToRace = state.daysToRace) }
 
             // Under the race banner: what Garmin recorded, matched to the plan for her to confirm.
             if (garmin.pending.isNotEmpty() || garmin.autoLinked.isNotEmpty()) {
@@ -197,21 +183,6 @@ fun DashboardScreen(
                 item { WeekWrapCard(summary = wrap, onDismiss = viewModel::dismissWeekWrap) }
             }
 
-            state.stats?.let { stats ->
-                item {
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            XpBar(totalXp = stats.totalXp, level = stats.level, xpToNextLevel = stats.xpToNextLevel)
-                            // Hidden rather than shown at zero: a "0 weeks" chip is a reprimand,
-                            // and the chip's job is to reward, not to keep score of nothing.
-                            if (stats.currentWeekStreak > 0) {
-                                StreakChip(weekStreak = stats.currentWeekStreak)
-                            }
-                        }
-                    }
-                }
-            }
-
             if (state.longRuns.size > 1) {
                 item { LongRunProgression(points = state.longRuns) }
             }
@@ -226,7 +197,11 @@ fun DashboardScreen(
                             Badge.entries.filterNot { it in stats.badges }.take(LOCKED_BADGES_SHOWN)
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(shown) { badge ->
-                                BadgeChip(badge = badge, unlocked = badge in stats.badges)
+                                BadgeChip(
+                                    badge = badge,
+                                    unlocked = badge in stats.badges,
+                                    fresh = badge.name in state.freshBadges,
+                                )
                             }
                         }
                     }
@@ -496,86 +471,37 @@ private fun androidx.compose.foundation.lazy.LazyListScope.moreCountItem(total: 
     }
 }
 
+/** One line, the size of the Nutrition tab's Learn banner: the race and how far away it is. */
 @Composable
-private fun HeroHeader(
-    daysToRace: Long,
-    phaseMessage: String,
-    weekNumber: Int,
-    totalWeeks: Int,
-    weekCommencing: java.time.LocalDate?,
-    onOpenSync: () -> Unit,
-) {
+internal fun RaceBanner(daysToRace: Long) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Brush.horizontalGradient(listOf(RoyalPurple, BlushPink)))
-                .padding(20.dp),
+                .padding(horizontal = 18.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    RaceConfig.ACTIVE_SHORT_NAME,
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = Color.White,
-                )
-                IconButton(onClick = onOpenSync) {
-                    Icon(Icons.Filled.Sync, contentDescription = "Sync workouts", tint = Color.White)
-                }
-            }
+            Text(
+                RaceConfig.ACTIVE_SHORT_NAME,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                modifier = Modifier.weight(1f),
+            )
             Text(
                 text = when {
                     daysToRace > 1 -> "$daysToRace days to go"
-                    daysToRace == 1L -> "1 day to go — you've got this"
-                    daysToRace == 0L -> "Race day. Trust the training."
+                    daysToRace == 1L -> "Tomorrow"
+                    daysToRace == 0L -> "Race day"
                     else -> "Race complete"
                 },
-                style = MaterialTheme.typography.bodyLarge,
-                fontStyle = FontStyle.Italic,
-                color = ComebackGold,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
             )
-            // A countdown only measures runway disappearing. This measures what's already banked,
-            // and it fills whether or not any given session got done.
-            if (weekNumber > 0 && totalWeeks > 0) {
-                Text(
-                    text = buildString {
-                        append("Week $weekNumber of $totalWeeks")
-                        weekCommencing?.let { append(" · w/c ${it.format(weekCommencingFormat)}") }
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color.White,
-                    modifier = Modifier.padding(top = 10.dp),
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp)
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.White.copy(alpha = 0.25f)),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(weekNumber.toFloat() / totalWeeks.toFloat())
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(ComebackGold),
-                    )
-                }
-            }
-            if (phaseMessage.isNotBlank()) {
-                Text(
-                    text = phaseMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.padding(top = 10.dp),
-                )
-            }
         }
     }
 }

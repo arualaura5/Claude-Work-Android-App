@@ -57,6 +57,8 @@ data class DashboardUiState(
     val coachSuggestion: CoachSuggestionUiState? = null,
     /** The Sunday/Monday week wrap, when there is a week worth wrapping and it hasn't been seen. */
     val weekWrap: WeekSummary? = null,
+    /** Badges earned but not yet celebrated: these glow until she's seen them, then settle. */
+    val freshBadges: Set<String> = emptySet(),
 )
 
 data class CoachSuggestionUiState(
@@ -79,17 +81,17 @@ class DashboardViewModel(
     private val _celebration = MutableStateFlow<Celebration?>(null)
     val celebration: StateFlow<Celebration?> = _celebration.asStateFlow()
 
-    private val wrapDismissals = MutableStateFlow(0)
+    private val seenChanges = MutableStateFlow(0)
     private val suggestionDecisionChanges = MutableStateFlow(0)
 
-    /** What to record as seen when the current celebration is dismissed. */
-    private var pendingSeen: Pair<Set<String>, Int>? = null
+    /** Badges to record as seen when the current celebration is dismissed. */
+    private var pendingSeen: Set<String>? = null
 
     val uiState: StateFlow<DashboardUiState> = combine(
         repository.observeStats(),
         repository.observeWeeks(),
         coachRepository.state,
-        wrapDismissals,
+        seenChanges,
         suggestionDecisionChanges,
     ) { stats, weeks, coachState, _, _ ->
         val allSessions = weeks.flatMap { it.sessions }
@@ -133,6 +135,9 @@ class DashboardViewModel(
             coachKeyReminder = coaching?.keyReminder,
             coachSuggestion = visibleCoachSuggestion(coaching?.suggestion, allSessions, today, suggestionDecisions),
             weekWrap = weekWrapFor(stats, today),
+            freshBadges = celebrations?.let { store ->
+                stats.badges.map { it.name }.filterNot { it in store.seenBadges() }.toSet()
+            }.orEmpty(),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardUiState())
 
@@ -161,7 +166,7 @@ class DashboardViewModel(
     fun dismissWeekWrap() {
         val summary = uiState.value.weekWrap ?: return
         celebrations?.dismissWeekWrap(summary.weekCommencing.toString())
-        wrapDismissals.value += 1
+        seenChanges.value += 1
     }
 
     fun acceptCoachSuggestion() {
@@ -189,8 +194,9 @@ class DashboardViewModel(
     }
 
     /**
-     * Fires a celebration the first time a badge or level is reached. Primes itself on first run so
-     * an existing history doesn't produce a pile of backdated unlocks after an update.
+     * Fires a celebration the first time a badge is earned. Primes itself on first run so an
+     * existing history doesn't produce a pile of backdated unlocks after an update. Levels and XP
+     * are no longer shown, so reaching one is not celebrated.
      */
     private fun checkForCelebrations(stats: Stats) {
         val store = celebrations ?: return
@@ -198,21 +204,11 @@ class DashboardViewModel(
         store.primeIfUnset(names, stats.level.number)
 
         val newBadges = stats.badges.filter { it.name !in store.seenBadges() }
-        val leveledUp = stats.level.number > store.seenLevel()
-        if (newBadges.isEmpty() && !leveledUp) return
+        if (newBadges.isEmpty()) return
         if (_celebration.value != null) return
-        pendingSeen = names to stats.level.number
+        pendingSeen = names
 
         _celebration.value = when {
-            leveledUp && newBadges.isNotEmpty() -> Celebration(
-                headline = "Level ${stats.level.number} — ${stats.level.title}",
-                detail = "And something new to go with it.",
-                badges = newBadges,
-            )
-            leveledUp -> Celebration(
-                headline = "Level ${stats.level.number}",
-                detail = stats.level.title,
-            )
             newBadges.size == 1 -> Celebration(
                 headline = newBadges.first().title,
                 detail = newBadges.first().description,
@@ -228,12 +224,11 @@ class DashboardViewModel(
 
     /** Marked seen on dismissal rather than on display, so a missed dialog isn't a lost moment. */
     fun dismissCelebration() {
-        pendingSeen?.let { (badges, level) ->
-            celebrations?.markBadgesSeen(badges)
-            celebrations?.markLevelSeen(level)
-        }
+        pendingSeen?.let { celebrations?.markBadgesSeen(it) }
         pendingSeen = null
         _celebration.value = null
+        // The badges just celebrated settle from glowing to the quieter theme colour.
+        seenChanges.value += 1
     }
 
     fun toggleComplete(session: SessionEntity) {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -57,7 +58,12 @@ private val logDateFormat = DateTimeFormatter.ofPattern("EEE d MMM")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ActivityLogScreen(viewModel: ActivityLogViewModel, onOpenSession: (Long) -> Unit, onOpenBackup: () -> Unit = {}) {
+fun ActivityLogScreen(
+    viewModel: ActivityLogViewModel,
+    onOpenSession: (Long) -> Unit,
+    onOpenBackup: () -> Unit = {},
+    onOpenSync: () -> Unit = {},
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmScaleDown by remember { mutableStateOf(false) }
 
@@ -68,8 +74,7 @@ fun ActivityLogScreen(viewModel: ActivityLogViewModel, onOpenSession: (Long) -> 
             text = {
                 Text(
                     "Long run down a quarter, easy runs down a fifth, and the second strength " +
-                        "session written off. That's a coaching call, not a miss — it costs you " +
-                        "nothing in XP, badges or your streak.",
+                        "session written off. That's a coaching call, not a miss.",
                 )
             },
             confirmButton = {
@@ -89,6 +94,11 @@ fun ActivityLogScreen(viewModel: ActivityLogViewModel, onOpenSession: (Long) -> 
             TopAppBar(
                 title = { Text("Activity") },
                 actions = {
+                    // Garmin runs reach the dashboard on their own now; this is for matching an
+                    // older workout by hand, and for Health Connect diagnostics.
+                    IconButton(onClick = onOpenSync) {
+                        Icon(Icons.Filled.Sync, contentDescription = "Match workouts from Health Connect by hand")
+                    }
                     IconButton(onClick = onOpenBackup) {
                         Icon(Icons.Filled.Backup, contentDescription = "Back up & restore your training log")
                     }
