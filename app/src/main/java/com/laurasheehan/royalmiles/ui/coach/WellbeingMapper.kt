@@ -76,6 +76,7 @@ internal object WellbeingMapper {
                 rhrBand = wellbeing.usualRhr?.band(),
                 sleepHours = days.map { it.second.sleepHours?.toFloat() },
                 sleepUsual = wellbeing.usualSleepHours?.mean?.toFloat(),
+                sleepBand = wellbeing.usualSleepHours?.band(),
                 runDays = wellbeing.runs.mapNotNull { parseDate(it.date) }.toSet(),
             ),
             sleep = sleep(days.map { it.second }, last),
