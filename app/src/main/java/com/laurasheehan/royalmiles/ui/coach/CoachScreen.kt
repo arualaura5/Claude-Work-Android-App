@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -201,6 +203,15 @@ internal fun CoachContent(
                 onPick = onPick,
                 onConnect = onConnect,
                 modifier = Modifier.fillMaxSize().padding(padding),
+            )
+            return@Scaffold
+        }
+
+        val wellbeing = state.wellbeing
+        if (wellbeing != null) {
+            WellbeingContent(
+                wellbeing,
+                modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
             )
             return@Scaffold
         }

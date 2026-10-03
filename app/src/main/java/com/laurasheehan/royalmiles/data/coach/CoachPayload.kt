@@ -28,7 +28,48 @@ data class CoachPayload(
     val warnings: List<String>,
     val coaching: Coaching?,
     val coachingAbsentReason: String?,
+    val wellbeing: Wellbeing? = null,
+    val weight: Weight? = null,
 ) {
+    /** A month of nights and days for the wellbeing page, and her usual range for each signal. */
+    data class Wellbeing(
+        val dataDate: String,
+        val days: List<Day>,
+        val runs: List<Run>,
+        val usualHrv: Usual?,
+        val usualRhr: Usual?,
+        val usualSleepHours: Usual?,
+        val usualStress: Usual?,
+        val usualSteps: Usual?,
+        val bedtimeSpread7dMin: Int?,
+    ) {
+        data class Day(
+            val date: String,
+            val hrvMs: Int?,
+            val rhr: Int?,
+            val minHr: Int?,
+            val sleepHours: Double?,
+            /** Wall-clock "HH:MM". */
+            val bed: String?,
+            val wake: String?,
+            val stress: Int?,
+            val steps: Int?,
+        )
+
+        data class Run(val date: String, val km: Double?)
+
+        /** Mean and a one-standard-deviation band over the 30 days before the data date. */
+        data class Usual(val mean: Double, val low: Double, val high: Double)
+    }
+
+    /** Withings weight as a trend only; a single weigh-in is never shown. */
+    data class Weight(
+        val avg7dKg: Double?,
+        val change30dKg: Double?,
+        val change90dKg: Double?,
+        val daysSinceLast: Int?,
+    )
+
     data class Freshness(
         val dbDailyMaxDate: String?,
         val dbHrvMaxDate: String?,
@@ -106,7 +147,17 @@ data class CoachPayload(
         val dataDate: String?,
         val generatedAt: String?,
         val suggestion: Suggestion?,
+        /** The wellbeing page's opening words, in the coach's voice. */
+        val brief: Brief? = null,
+        /** The coach's read of her next planned session against her body. */
+        val sessionCheck: SessionCheck? = null,
     ) {
+        data class Brief(val headline: String, val detail: String)
+
+        data class SessionCheck(val date: String, val verdict: Verdict, val reason: String)
+
+        enum class Verdict { AS_PLANNED, GO_EASY, SHORTEN, REST_OK }
+
         data class ActionPoint(
             val title: String,
             val priority: String,
@@ -236,9 +287,70 @@ data class CoachPayload(
                         dataDate = coaching.str("data_date"),
                         generatedAt = coaching.str("generated_at"),
                         suggestion = coaching.parseSuggestion(),
+                        brief = coaching.optJSONObject("brief")?.let { brief ->
+                            val headline = brief.str("headline")
+                            val detail = brief.str("detail")
+                            if (headline != null && detail != null) Coaching.Brief(headline, detail) else null
+                        },
+                        sessionCheck = coaching.optJSONObject("session_check")?.let { check ->
+                            val date = check.str("date")
+                            val reason = check.str("reason")
+                            val verdict = when (check.str("verdict")) {
+                                "as_planned" -> Coaching.Verdict.AS_PLANNED
+                                "go_easy" -> Coaching.Verdict.GO_EASY
+                                "shorten" -> Coaching.Verdict.SHORTEN
+                                "rest_ok" -> Coaching.Verdict.REST_OK
+                                else -> null
+                            }
+                            if (date != null && reason != null && verdict != null) Coaching.SessionCheck(date, verdict, reason) else null
+                        },
                     )
                 },
                 coachingAbsentReason = root.str("coaching_absent_reason"),
+                wellbeing = root.optJSONObject("wellbeing")?.parseWellbeing(),
+                weight = root.optJSONObject("weight")?.let {
+                    Weight(
+                        avg7dKg = it.dbl("avg_7d_kg"),
+                        change30dKg = it.dbl("change_30d_kg"),
+                        change90dKg = it.dbl("change_90d_kg"),
+                        daysSinceLast = it.int("days_since_last"),
+                    )
+                },
+            )
+        }
+
+        private fun JSONObject.parseWellbeing(): Wellbeing? {
+            val dataDate = str("data_date") ?: return null
+            val usual = obj("usual")
+            fun range(key: String): Wellbeing.Usual? = usual.optJSONObject(key)?.let {
+                val mean = it.dbl("mean")
+                val low = it.dbl("low")
+                val high = it.dbl("high")
+                if (mean != null && low != null && high != null) Wellbeing.Usual(mean, low, high) else null
+            }
+            return Wellbeing(
+                dataDate = dataDate,
+                days = optJSONArray("days").map { day ->
+                    Wellbeing.Day(
+                        date = day.str("date").orEmpty(),
+                        hrvMs = day.int("hrv_ms"),
+                        rhr = day.int("rhr"),
+                        minHr = day.int("min_hr"),
+                        sleepHours = day.dbl("sleep_h"),
+                        bed = day.str("bed"),
+                        wake = day.str("wake"),
+                        stress = day.int("stress"),
+                        steps = day.int("steps"),
+                    )
+                }.filter { it.date.isNotEmpty() },
+                runs = optJSONArray("runs").map { run -> Wellbeing.Run(run.str("date").orEmpty(), run.dbl("km")) }
+                    .filter { it.date.isNotEmpty() },
+                usualHrv = range("hrv_ms"),
+                usualRhr = range("rhr"),
+                usualSleepHours = range("sleep_h"),
+                usualStress = range("stress"),
+                usualSteps = range("steps"),
+                bedtimeSpread7dMin = int("bedtime_spread_7d_min"),
             )
         }
 
