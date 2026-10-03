@@ -18,7 +18,7 @@ class WellbeingScreenshotTest {
 
     @get:Rule
     val paparazzi = Paparazzi(
-        deviceConfig = DeviceConfig.PIXEL_5,
+        deviceConfig = DeviceConfig.PIXEL_5.copy(fontScale = 1.15f),
         theme = "android:Theme.Material.Light.NoActionBar",
         renderingMode = SessionParams.RenderingMode.V_SCROLL,
         maxPercentDifference = 0.1,

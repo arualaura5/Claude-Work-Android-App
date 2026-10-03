@@ -65,7 +65,13 @@ internal object WellbeingSamples {
                 "brief",
                 JSONObject()
                     .put("headline", "Well rested and steady")
-                    .put("detail", "Overnight HRV is 70 ms, right in your usual range, and resting HR is 47, a touch below your normal 49. You slept 9 h 22, well over your usual."),
+                    // As long as the coach's real brief on 3 October, to check the card still fits.
+                    .put(
+                        "detail",
+                        "HRV is 70 ms, inside your usual 60-76 ms range, and resting HR 47 bpm sits mid-range too. You slept 9 h 14, " +
+                            "well over your usual ~7 h 37, and stress was low at 16. The one flag: training load is running above " +
+                            "your normal rhythm as you build back up.",
+                    ),
             )
         }
         sessionCheck?.let { coaching.put("session_check", JSONObject(it)) }

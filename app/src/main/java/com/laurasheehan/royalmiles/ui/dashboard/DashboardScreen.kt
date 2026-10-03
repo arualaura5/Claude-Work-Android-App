@@ -51,6 +51,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,6 +65,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.laurasheehan.royalmiles.BuildConfig
@@ -84,6 +87,7 @@ import kotlinx.coroutines.launch
 /** Unlocked badges, then the next few still to come — never a screen that is mostly padlocks. */
 private const val LOCKED_BADGES_SHOWN = 3
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
@@ -128,6 +132,9 @@ fun DashboardScreen(
     }
 
     Scaffold(
+        // A title bar like every other tab, so the race banner sits beneath a header rather than
+        // pressed against the top of the screen.
+        topBar = { TopAppBar(title = { Text("Dashboard") }) },
         snackbarHost = {
             SnackbarHost(snackbarHostState) { data ->
                 Snackbar(
@@ -478,30 +485,39 @@ internal fun RaceBanner(daysToRace: Long) {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
+        // The Learn banner's anatomy: title over a quieter line on the left, one gold mark on the right.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Brush.horizontalGradient(listOf(RoyalPurple, BlushPink)))
-                .padding(horizontal = 18.dp, vertical = 18.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                RaceConfig.ACTIVE_SHORT_NAME,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = when {
-                    daysToRace > 1 -> "$daysToRace days to go"
-                    daysToRace == 1L -> "Tomorrow"
-                    daysToRace == 0L -> "Race day"
-                    else -> "Race complete"
-                },
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(RaceConfig.ACTIVE_SHORT_NAME, style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Text(
+                    RaceConfig.RACE_DATE.format(DateTimeFormatter.ofPattern("EEEE d MMMM", java.util.Locale.ENGLISH)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.85f),
+                )
+            }
+            if (daysToRace > 0) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("$daysToRace", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Text(
+                        if (daysToRace == 1L) "day to go" else "days to go",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.85f),
+                    )
+                }
+            } else {
+                Text(
+                    if (daysToRace == 0L) "Race day" else "Race complete",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ComebackGold,
+                )
+            }
         }
     }
 }

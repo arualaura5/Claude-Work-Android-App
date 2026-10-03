@@ -185,28 +185,20 @@ private fun Brief(ui: WellbeingUi) {
                         listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)),
                     ),
                 )
-                .padding(20.dp),
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(ui.greeting, style = MaterialTheme.typography.labelLarge, color = ink.copy(alpha = 0.8f))
-            ui.readinessScore?.let { score ->
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    ScoreRing(score = score, label = ui.readinessLabel)
+            // Ring beside the headline rather than above it, so the whole brief fits on one screen.
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                ui.readinessScore?.let { ScoreRing(score = it, label = ui.readinessLabel) }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+                    Text(ui.greeting, style = MaterialTheme.typography.labelMedium, color = ink.copy(alpha = 0.8f))
+                    Text(ui.headline, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = ink)
                 }
             }
-            Text(
-                ui.headline,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = ink,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ui.detail?.let {
-                Text(it, style = MaterialTheme.typography.bodyLarge, color = ink, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            }
+            ui.detail?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = ink) }
             ui.recommendation?.let { Recommendation(it) }
-            ui.basis?.let { Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Pill(it) } }
+            ui.basis?.let { Pill(it) }
         }
     }
 }
@@ -215,9 +207,9 @@ private fun Brief(ui: WellbeingUi) {
 private fun ScoreRing(score: Int, label: String?) {
     val track = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f)
     val ink = MaterialTheme.colorScheme.onPrimaryContainer
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(168.dp)) {
-        Canvas(modifier = Modifier.size(168.dp)) {
-            val stroke = 14.dp.toPx()
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(96.dp)) {
+        Canvas(modifier = Modifier.size(96.dp)) {
+            val stroke = 8.dp.toPx()
             val inset = stroke / 2
             val arcSize = Size(size.width - stroke, size.height - stroke)
             drawArc(track, 135f, 270f, false, Offset(inset, inset), arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
@@ -228,8 +220,8 @@ private fun ScoreRing(score: Int, label: String?) {
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("$score", fontSize = 52.sp, fontWeight = FontWeight.Bold, color = ink)
-            label?.let { Text(it, style = MaterialTheme.typography.titleSmall, color = ink.copy(alpha = 0.8f)) }
+            Text("$score", fontSize = 30.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold, color = ink)
+            label?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = ink.copy(alpha = 0.8f)) }
         }
     }
 }
