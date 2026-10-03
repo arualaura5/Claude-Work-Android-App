@@ -216,7 +216,7 @@ internal fun SessionEditUiState.toNewSessionEntity(
     actualDuration: Int? = actualDurationMin.toIntOrNull(),
     completedAt: LocalDate? = if (isCompleted) LocalDate.now() else null,
 ): SessionEntity = SessionEntity(
-    eventId = RaceConfig.ROYAL_PARKS_EVENT_ID,
+    eventId = RaceConfig.ACTIVE_EVENT_ID,
     date = date,
     type = type,
     title = title.ifBlank { type.name },

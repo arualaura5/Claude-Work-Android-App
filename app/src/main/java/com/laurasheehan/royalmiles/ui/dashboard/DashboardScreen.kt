@@ -1,5 +1,6 @@
 package com.laurasheehan.royalmiles.ui.dashboard
 
+import com.laurasheehan.royalmiles.RaceConfig
 import com.laurasheehan.royalmiles.data.garmin.GarminInboxState
 import com.laurasheehan.royalmiles.data.update.UpdateState
 import com.laurasheehan.royalmiles.ui.garmin.GarminInboxActions
@@ -516,7 +517,7 @@ private fun HeroHeader(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    "Royal Parks Half",
+                    RaceConfig.ACTIVE_SHORT_NAME,
                     style = MaterialTheme.typography.headlineMedium,
                     color = Color.White,
                 )

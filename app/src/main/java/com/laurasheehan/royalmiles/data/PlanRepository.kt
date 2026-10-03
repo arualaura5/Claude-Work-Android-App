@@ -89,14 +89,14 @@ class PlanRepository(
             return
         }
         val plan = TrainingPlanGenerator.generate(
-            raceName = RaceConfig.ROYAL_PARKS_EVENT_NAME,
+            raceName = RaceConfig.ACTIVE_EVENT_NAME,
             raceDate = raceDate,
             today = today,
             peakLongRunKm = peakLongRunKm,
         )
         planMetaDao.upsert(plan.toMeta())
         val entities = plan.weeks.flatMap { week ->
-            week.sessions.map { it.toEntity(week.weekNumber) }
+            week.sessions.map { it.toEntity(week.weekNumber, RaceConfig.eventIdFor(raceDate)) }
         }
         sessionDao.insertAll(entities)
     }
@@ -115,7 +115,7 @@ class PlanRepository(
 
         runInTransaction {
             val plan = TrainingPlanGenerator.generate(
-                raceName = RaceConfig.ROYAL_PARKS_EVENT_NAME,
+                raceName = RaceConfig.ACTIVE_EVENT_NAME,
                 raceDate = raceDate,
                 today = cutoverDate.minusDays(1),
                 peakLongRunKm = peakLongRunKm,
@@ -126,13 +126,46 @@ class PlanRepository(
             val survivorSlots = survivors.map { it.slotKey() }.toSet()
             val replacementEntities = plan.weeks.flatMap { week ->
                 week.sessions
-                    .map { it.toEntity(week.weekNumber) }
+                    .map { it.toEntity(week.weekNumber, RaceConfig.eventIdFor(raceDate)) }
                     .filterNot { it.slotKey() in survivorSlots }
             }
 
             planMetaDao.upsert(plan.toMeta())
             sessionDao.deleteRegeneratableSessions(cutoverDate)
             sessionDao.insertAll(replacementEntities)
+        }
+    }
+
+    /** True until the plan has been moved from Royal Parks to Richmond on this phone. */
+    suspend fun needsRichmondSwitch(): Boolean {
+        val meta = planMetaDao.get() ?: return false
+        return meta.raceDate != RaceConfig.RICHMOND_RACE_DATE
+    }
+
+    /**
+     * Moves the plan from Royal Parks to the agreed Richmond block, once, in one transaction.
+     *
+     * Kept: everything before [cutover], everything done, everything she skipped herself, and
+     * anything she added. Replaced, from [cutover] on: planned sessions still untouched, and the
+     * coach's one-day changes (the swapped-out session and its replacement), which the block
+     * now covers. The caller keeps a safety copy of the log first.
+     */
+    suspend fun switchToRichmond(today: LocalDate = LocalDate.now()) {
+        val meta = planMetaDao.get() ?: return
+        if (meta.raceDate == RaceConfig.RICHMOND_RACE_DATE) return
+        val cutover = maxOf(today, RichmondBlock.START)
+        runInTransaction {
+            sessionDao.getAll()
+                .filter { !it.date.isBefore(cutover) && it.isReplacedByNewPlan() }
+                .forEach { sessionDao.delete(it) }
+            sessionDao.insertAll(RichmondBlock.sessions().filter { !it.date.isBefore(cutover) })
+            planMetaDao.upsert(
+                meta.copy(
+                    raceDate = RaceConfig.RICHMOND_RACE_DATE,
+                    raceDistanceKm = RaceConfig.RICHMOND_RACE_DISTANCE_KM,
+                    peakLongRunKm = RaceConfig.RICHMOND_PEAK_LONG_RUN_KM,
+                ),
+            )
         }
     }
 
@@ -327,7 +360,7 @@ class PlanRepository(
 
     suspend fun addCustomSession(
         session: SessionEntity,
-        eventId: String = RaceConfig.ROYAL_PARKS_EVENT_ID,
+        eventId: String = RaceConfig.ACTIVE_EVENT_ID,
     ) = sessionDao.insert(session.copy(eventId = eventId, isCustom = true))
 
     suspend fun acceptCoachReplacement(
@@ -438,8 +471,8 @@ private fun TrainingPlan.toMeta(): PlanMetaEntity = PlanMetaEntity(
     planVersion = CURRENT_PLAN_VERSION,
 )
 
-internal fun Session.toEntity(weekNumber: Int): SessionEntity = SessionEntity(
-    eventId = RaceConfig.ROYAL_PARKS_EVENT_ID,
+internal fun Session.toEntity(weekNumber: Int, eventId: String = RaceConfig.ACTIVE_EVENT_ID): SessionEntity = SessionEntity(
+    eventId = eventId,
     date = date,
     type = type,
     title = title,
@@ -463,6 +496,14 @@ private fun SessionEntity.toCoreSession(): Session = Session(
 )
 
 private fun SessionEntity.slotKey(): String = listOf(date.toString(), type.name, title).joinToString("|")
+
+/** A planned session the new plan takes over: untouched, or one side of a coach swap not yet done. */
+internal fun SessionEntity.isReplacedByNewPlan(): Boolean = when {
+    isCompleted -> false
+    isSkipped -> supersededByCoach
+    isCustom -> notes.startsWith("Was:")
+    else -> true
+}
 
 internal fun coachReplacementNotes(
     original: SessionEntity,

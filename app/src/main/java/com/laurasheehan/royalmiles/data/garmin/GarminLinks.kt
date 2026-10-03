@@ -129,7 +129,7 @@ class GarminLinks(
     )
 
     private fun newSession(workout: ExternalWorkout, kind: ActivityKind, template: SessionEntity?) = SessionEntity(
-        eventId = template?.eventId ?: RaceConfig.ROYAL_PARKS_EVENT_ID,
+        eventId = template?.eventId ?: RaceConfig.ACTIVE_EVENT_ID,
         date = workout.localDate,
         type = GarminMatcher.sessionTypeFor(kind),
         title = workout.title?.takeIf { it.isNotBlank() } ?: "Garmin ${kind.noun}",

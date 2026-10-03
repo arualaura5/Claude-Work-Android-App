@@ -12,13 +12,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class PlanRepositoryTest {
 
     @Test
-    fun `generated plan sessions use Royal Parks event id`() {
+    fun `generated plan sessions belong to the race the plan is built toward`() {
         val entity = Session(
             date = LocalDate.of(2026, 9, 1),
             type = SessionType.EASY_RUN,
@@ -27,11 +28,11 @@ class PlanRepositoryTest {
             targetDistanceKm = 5.0,
         ).toEntity(weekNumber = 2)
 
-        assertEquals(RaceConfig.ROYAL_PARKS_EVENT_ID, entity.eventId)
+        assertEquals(RaceConfig.ACTIVE_EVENT_ID, entity.eventId)
     }
 
     @Test
-    fun `addCustomSession forces Royal Parks event id`() = runBlocking {
+    fun `addCustomSession files sessions under the active race`() = runBlocking {
         val sessionDao = FakeSessionDao()
         val repository = PlanRepository(sessionDao, FakePlanMetaDao(null), runInTransaction = { block -> block() })
 
@@ -47,7 +48,7 @@ class PlanRepositoryTest {
         )
 
         val inserted = sessionDao.getById(id)
-        assertEquals(RaceConfig.ROYAL_PARKS_EVENT_ID, inserted?.eventId)
+        assertEquals(RaceConfig.ACTIVE_EVENT_ID, inserted?.eventId)
         assertEquals(true, inserted?.isCustom)
     }
 
@@ -172,7 +173,7 @@ class PlanRepositoryTest {
     }
 
     @Test
-    fun `new session edit state builds Royal Parks session`() {
+    fun `new session edit state builds a session for the active race`() {
         val entity = SessionEditUiState(
             loading = false,
             isNew = true,
@@ -183,7 +184,7 @@ class PlanRepositoryTest {
             phase = TrainingPhase.BASE,
         ).toNewSessionEntity()
 
-        assertEquals(RaceConfig.ROYAL_PARKS_EVENT_ID, entity.eventId)
+        assertEquals(RaceConfig.ACTIVE_EVENT_ID, entity.eventId)
     }
 
     @Test
@@ -407,6 +408,75 @@ class PlanRepositoryTest {
             targetDistanceKm = distanceKm,
         )
     }
+
+    private fun planned(day: Int, type: SessionType = SessionType.EASY_RUN, month: Int = 10) = SessionEntity(
+        eventId = RaceConfig.ROYAL_PARKS_EVENT_ID,
+        date = LocalDate.of(2026, month, day),
+        type = type,
+        title = "Planned $month-$day",
+        phase = TrainingPhase.PEAK,
+        weekNumber = 9,
+        targetDistanceKm = 6.0,
+    )
+
+    @Test
+    fun `moving to Richmond keeps history and her own sessions, and replaces the untouched plan`() = runBlocking {
+        val dao = FakeSessionDao()
+        val meta = FakePlanMetaDao(
+            PlanMetaEntity(raceDate = RaceConfig.ROYAL_PARKS_RACE_DATE, startDate = LocalDate.of(2026, 8, 17), raceDistanceKm = 21.1, peakLongRunKm = 15.0, planVersion = 4),
+        )
+        val repository = PlanRepository(dao, meta, runInTransaction = { block -> block() })
+        val done = dao.insertAndGet(planned(27, month = 9).copy(isCompleted = true, completedAt = LocalDate.of(2026, 9, 27)))
+        val pastPlanned = dao.insertAndGet(planned(2))
+        val herOwn = dao.insertAndGet(planned(7).copy(isCustom = true, title = "Parkrun with friends"))
+        val herSkip = dao.insertAndGet(planned(9).copy(isSkipped = true))
+        val untouched = dao.insertAndGet(planned(6))
+        val race = dao.insertAndGet(planned(11, SessionType.RACE).copy(isSkipped = true, supersededByCoach = true))
+        val coachSwapIn = dao.insertAndGet(planned(11).copy(isCustom = true, notes = "Was: Race, 21.1 km.\nChanged to Long run because: not ready."))
+
+        assertTrue(repository.needsRichmondSwitch())
+        repository.switchToRichmond(today = LocalDate.of(2026, 10, 3))
+
+        val ids = dao.getAll().map { it.id }.toSet()
+        assertTrue(listOf(done, pastPlanned, herOwn, herSkip).all { it.id in ids }, "history, her own and her skips stay")
+        assertTrue(listOf(untouched, race, coachSwapIn).none { it.id in ids }, "the untouched plan and the 11 Oct coach swap go")
+        val richmond = dao.getAll().filter { it.eventId == RaceConfig.RICHMOND_EVENT_ID }
+        assertEquals(RichmondBlock.sessions().size, richmond.size)
+        assertEquals(LocalDate.of(2026, 11, 1), richmond.single { it.type == SessionType.RACE }.date)
+        assertEquals(RaceConfig.RICHMOND_RACE_DATE, meta.get()?.raceDate)
+        assertFalse(repository.needsRichmondSwitch())
+
+        // Running it again changes nothing.
+        val before = dao.getAll()
+        repository.switchToRichmond(today = LocalDate.of(2026, 10, 3))
+        assertEquals(before, dao.getAll())
+    }
+
+    @Test
+    fun `installed after the block has started, nothing is put in the past`() = runBlocking {
+        val dao = FakeSessionDao()
+        val meta = FakePlanMetaDao(
+            PlanMetaEntity(raceDate = RaceConfig.ROYAL_PARKS_RACE_DATE, startDate = LocalDate.of(2026, 8, 17), raceDistanceKm = 21.1, peakLongRunKm = 15.0, planVersion = 4),
+        )
+        val repository = PlanRepository(dao, meta, runInTransaction = { block -> block() })
+        repository.switchToRichmond(today = LocalDate.of(2026, 10, 6))
+        assertTrue(dao.getAll().all { !it.date.isBefore(LocalDate.of(2026, 10, 6)) })
+        assertEquals(LocalDate.of(2026, 10, 6), dao.getAll().minOf { it.date })
+    }
+
+    @Test
+    fun `the Richmond block is three runs a week, peaks at 15 km two weeks out, and ends with the race`() {
+        val block = RichmondBlock.sessions()
+        val runs = block.filter { it.type in setOf(SessionType.EASY_RUN, SessionType.LONG_RUN, SessionType.RACE) && !it.optional }
+        runs.groupBy { it.date.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)) }
+            .forEach { (week, inWeek) -> assertTrue(inWeek.size <= 3, "week of $week has ${inWeek.size} runs") }
+        val longRuns = block.filter { it.type == SessionType.LONG_RUN }.map { it.date.dayOfMonth to it.targetDistanceKm }
+        assertEquals(listOf(4 to 10.0, 11 to 12.0, 18 to 15.0, 25 to 9.0), longRuns)
+        assertTrue(block.filter { it.type == SessionType.LONG_RUN }.all { it.date.dayOfWeek == java.time.DayOfWeek.SUNDAY })
+        assertEquals(LocalDate.of(2026, 11, 1), block.last().date)
+        assertTrue(block.none { it.type == SessionType.STRENGTH && it.date.isAfter(LocalDate.of(2026, 10, 26)) }, "no strength after race-week Monday")
+    }
+
 }
 
 private class FakeSessionDao : SessionDao {
@@ -461,4 +531,5 @@ private class FakePlanMetaDao(initial: PlanMetaEntity?) : PlanMetaDao {
     override suspend fun upsert(meta: PlanMetaEntity) {
         state.value = meta
     }
+
 }

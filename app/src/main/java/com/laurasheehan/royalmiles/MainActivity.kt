@@ -104,6 +104,15 @@ class MainActivity : ComponentActivity() {
             RoyalMilesTheme {
                 LaunchedEffect(Unit) {
                     repository.ensureSeeded(raceDate = RaceConfig.RACE_DATE, peakLongRunKm = RaceConfig.PEAK_LONG_RUN_KM)
+                    // Royal Parks to Richmond, once. A copy of the log is kept first; if that
+                    // can't be made, the plan isn't touched.
+                    if (repository.needsRichmondSwitch()) {
+                        val kept = runCatching {
+                            com.laurasheehan.royalmiles.data.backup.LogBackup(app)
+                                .keepSafetyCopy(com.laurasheehan.royalmiles.data.backup.SafetyCopies.BEFORE_PLAN_CHANGE)
+                        }.isSuccess
+                        if (kept) repository.switchToRichmond()
+                    }
                 }
                 RoyalMilesRoot(repository, athleteProfileRepository, coachRepository)
             }
