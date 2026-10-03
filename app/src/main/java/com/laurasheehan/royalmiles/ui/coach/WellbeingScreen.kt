@@ -1,6 +1,10 @@
 package com.laurasheehan.royalmiles.ui.coach
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import com.laurasheehan.royalmiles.ui.theme.RoyalPurpleLight
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.remember
 import androidx.compose.ui.input.pointer.pointerInput
@@ -444,8 +448,13 @@ private fun TrendChart(
     onSelect: (Int) -> Unit,
 ) {
     val ink = MaterialTheme.colorScheme.onSurfaceVariant
+    val grid = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+    val measurer = rememberTextMeasurer()
+    val scaleStyle = MaterialTheme.typography.labelSmall.copy(color = ink)
     val present = values.filterNotNull()
     fun number(v: Float) = "${v.roundToInt()}"
+    // Room on the left for the value scale.
+    val gutter = if (unit == "h") 30.dp else 28.dp
     fun withUnit(v: Float) = if (unit == "h") formatHours(v) else "${v.roundToInt()} $unit"
     fun rangeText(r: ClosedFloatingPointRange<Float>) =
         if (unit == "h") "${formatHours(r.start)} to ${formatHours(r.endInclusive)}" else "${number(r.start)}–${withUnit(r.endInclusive)}"
@@ -468,7 +477,8 @@ private fun TrendChart(
                 .pointerInput(values) {
                     detectTapGestures { tap ->
                         if (values.isEmpty()) return@detectTapGestures
-                        val fraction = (tap.x / size.width).coerceIn(0f, 1f)
+                        val left = gutter.toPx()
+                        val fraction = ((tap.x - left) / (size.width - left)).coerceIn(0f, 1f)
                         onSelect(
                             if (line) (fraction * (values.size - 1)).roundToInt()
                             else (fraction * values.size).toInt().coerceAtMost(values.lastIndex),
@@ -477,8 +487,8 @@ private fun TrendChart(
                 },
         ) {
             if (present.isEmpty()) return@Canvas
-            val left = 0f
-            val plotWidth = size.width
+            val left = gutter.toPx()
+            val plotWidth = size.width - left
             val top = 6.dp.toPx()
             val plotHeight = size.height - top * 2
             val low = if (line) minOf(present.min(), band?.start ?: present.min()) - 2f
@@ -490,8 +500,18 @@ private fun TrendChart(
             fun x(i: Int) = left + if (line) i * step else (i + 0.5f) * barStep
             val accent = RoyalPurple
 
+            // The value scale: a few round values with faint gridlines.
+            niceTicks(low, high).forEach { tick ->
+                drawLine(grid, Offset(left, y(tick)), Offset(size.width, y(tick)), 1.dp.toPx())
+                val label = measurer.measure(if (unit == "h") shortHours(tick) else number(tick), scaleStyle)
+                drawText(label, topLeft = Offset(left - label.size.width - 6.dp.toPx(), y(tick) - label.size.height / 2f))
+            }
             if (band != null && band.endInclusive > band.start) {
                 drawRect(accent.copy(alpha = 0.22f), Offset(left, y(band.endInclusive)), Size(plotWidth, y(band.start) - y(band.endInclusive)))
+                val dash = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
+                listOf(band.start, band.endInclusive).forEach {
+                    drawLine(RoyalPurpleLight, Offset(left, y(it)), Offset(size.width, y(it)), 1.dp.toPx(), pathEffect = dash)
+                }
             }
 
             selected?.let { i ->
@@ -530,8 +550,8 @@ private fun TrendChart(
             }
         }
         Canvas(modifier = Modifier.fillMaxWidth().height(8.dp)) {
-            val left = 0f
-            val plotWidth = size.width
+            val left = gutter.toPx()
+            val plotWidth = size.width - left
             dates.forEachIndexed { i, d ->
                 if (d in runDays) {
                     val x = left + if (line) (if (dates.size > 1) i * plotWidth / (dates.size - 1) else 0f) else (i + 0.5f) * plotWidth / dates.size
@@ -539,7 +559,7 @@ private fun TrendChart(
                 }
             }
         }
-        Row {
+        Row(modifier = Modifier.padding(start = gutter)) {
             Text(dates.firstOrNull()?.format(shortDate).orEmpty(), style = MaterialTheme.typography.labelSmall, color = ink, modifier = Modifier.weight(1f))
             Text(dates.lastOrNull()?.format(shortDate).orEmpty(), style = MaterialTheme.typography.labelSmall, color = ink)
         }
@@ -573,6 +593,21 @@ private fun TrendChart(
 private val dayLabel = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
 
 private val shortDate = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
+
+/** Three round values spanning the chart, for its scale. */
+internal fun niceTicks(low: Float, high: Float): List<Float> {
+    val span = high - low
+    if (span <= 0f) return listOf(low)
+    val step = listOf(0.5f, 1f, 2f, 5f, 10f, 20f).firstOrNull { it >= span / 3f } ?: 50f
+    val first = kotlin.math.ceil(low / step) * step
+    return generateSequence(first) { it + step }.takeWhile { it <= high }.toList()
+}
+
+/** "10h", "7h30": hours short enough for the scale. */
+private fun shortHours(hours: Float): String {
+    val total = Math.round(hours * 60)
+    return if (total % 60 == 0) "${total / 60}h" else "${total / 60}h${"%02d".format(total % 60)}"
+}
 
 internal fun formatHours(hours: Float): String {
     val total = Math.round(hours * 60)
