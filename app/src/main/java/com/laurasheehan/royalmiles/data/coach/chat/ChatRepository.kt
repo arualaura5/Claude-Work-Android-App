@@ -82,9 +82,7 @@ class ChatRepository(context: Context) {
                     memoryState = if (reply.memory != null) ChatMessage.MemoryState.PENDING else ChatMessage.MemoryState.NONE,
                 )
                 append(coachMessage)
-                // Kept straight away, with Undo on the card. If it can't be saved now, the card
-                // falls back to asking.
-                reply.memory?.let { memory -> runCatching { remember(base, token, memory, coachMessage.id) } }
+                // An entry for her athlete file waits on its card until she taps Save.
                 reply
             }.onFailure { append(newMessage(ChatMessage.Role.NOTICE, it.message ?: "The coach couldn't answer.")) }
         }
@@ -125,7 +123,7 @@ class ChatRepository(context: Context) {
         }
     }
 
-    /** Saves a note (as the coach offered it, or as she edited it). */
+    /** Saves an entry to her athlete file (as the coach offered it, or as she edited it). */
     suspend fun remember(proposal: MemoryProposal, messageId: String?): Result<List<MemoryNote>> = withContext(Dispatchers.IO) {
         runCatching {
             val (base, token) = connection() ?: error("Connect the coach chat first.")
@@ -134,24 +132,23 @@ class ChatRepository(context: Context) {
     }
 
     private fun remember(base: String, token: String, proposal: MemoryProposal, messageId: String?): List<MemoryNote> {
-        val notes = ChatProtocol.parseNotes(
+        val file = ChatProtocol.parseAthleteFile(
             request(base, token, "POST", "/chat/v1/memory", ChatProtocol.memoryJson(proposal).put("source", "chat")),
         )
-        if (messageId != null) {
-            val saved = ChatProtocol.savedNoteId(notes, proposal)
-            setMemoryState(messageId, ChatMessage.MemoryState.SAVED, proposal, saved)
-        }
-        return notes
+        if (messageId != null) setMemoryState(messageId, ChatMessage.MemoryState.SAVED, proposal, file.savedId)
+        return file.notes
     }
 
-    /** Undo on a remembered note: deleted from what the coach knows. */
+    /**
+     * Undo on a saved entry: a new entry is removed; an update puts back the entry it replaced.
+     */
     suspend fun unremember(messageId: String): Result<List<MemoryNote>> = withContext(Dispatchers.IO) {
         runCatching {
             val message = _messages.value.firstOrNull { it.id == messageId } ?: error("That message is gone.")
-            val noteId = message.memoryNoteId ?: error("That note isn't saved.")
+            val noteId = message.memoryNoteId ?: error("That entry isn't saved.")
             val (base, token) = connection() ?: error("Connect the coach chat first.")
             val notes = ChatProtocol.parseNotes(
-                request(base, token, "POST", "/chat/v1/memory/delete", JSONObject().put("id", noteId)),
+                request(base, token, "POST", "/chat/v1/memory/undo", JSONObject().put("id", noteId)),
             )
             setMemoryState(messageId, ChatMessage.MemoryState.DISMISSED, noteId = null)
             notes

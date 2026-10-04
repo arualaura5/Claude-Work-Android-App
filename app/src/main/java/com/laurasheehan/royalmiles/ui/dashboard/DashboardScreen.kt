@@ -225,6 +225,7 @@ fun DashboardScreen(
                         onToggleComplete = { viewModel.toggleComplete(session) },
                         onSkip = { skipWithUndo(session) },
                         onRate = { viewModel.rate(session, it) },
+                        onBodyNote = { viewModel.noteBody(session, it) },
                         onClick = { onOpenSession(session.id) },
                     )
                 }
@@ -247,6 +248,7 @@ fun DashboardScreen(
                         onToggleComplete = { viewModel.toggleComplete(session) },
                         onSkip = { skipWithUndo(session) },
                         onRate = { viewModel.rate(session, it) },
+                        onBodyNote = { viewModel.noteBody(session, it) },
                         onClick = { onOpenSession(session.id) },
                     )
                 }
@@ -278,6 +280,7 @@ fun DashboardScreen(
                     onToggleComplete = { viewModel.toggleComplete(session) },
                     onSkip = { skipWithUndo(session) },
                     onRate = { viewModel.rate(session, it) },
+                        onBodyNote = { viewModel.noteBody(session, it) },
                     onClick = { onOpenSession(session.id) },
                 )
             }

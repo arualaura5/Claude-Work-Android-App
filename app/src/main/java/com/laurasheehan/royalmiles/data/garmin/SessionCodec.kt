@@ -38,6 +38,7 @@ object SessionCodec {
         .put("actualElevationGainM", s.actualElevationGainM ?: JSONObject.NULL)
         .put("sourceApp", s.sourceApp ?: JSONObject.NULL)
         .put("sourceActivityId", s.sourceActivityId ?: JSONObject.NULL)
+        .put("bodyNote", s.bodyNote ?: JSONObject.NULL)
         .toString()
 
     fun decode(json: String): SessionEntity {
@@ -71,6 +72,7 @@ object SessionCodec {
             actualElevationGainM = int("actualElevationGainM"),
             sourceApp = str("sourceApp"),
             sourceActivityId = str("sourceActivityId"),
+            bodyNote = str("bodyNote"),
         )
     }
 }

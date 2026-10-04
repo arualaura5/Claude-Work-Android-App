@@ -152,6 +152,7 @@ fun CalendarScreen(
                             onClick = { onOpenSession(session.id) },
                             onSkip = { skipWithUndo(session) },
                             onRate = { viewModel.rate(session, it) },
+                        onBodyNote = { viewModel.noteBody(session, it) },
                         )
                     }
                 }

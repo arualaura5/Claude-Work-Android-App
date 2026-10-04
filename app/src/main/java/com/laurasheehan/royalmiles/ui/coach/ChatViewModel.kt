@@ -148,33 +148,33 @@ class ChatViewModel(
 
     fun clearConversation() = chat.clearConversation()
 
-    /** Saves what the coach offered to remember, as she edited it. Only called from her tap. */
+    /** Saves the coach's entry for her athlete file, as she edited it. Only called from her tap. */
     fun remember(message: ChatMessage, proposal: MemoryProposal) {
         viewModelScope.launch {
             chat.remember(proposal, message.id)
                 .onSuccess { notes -> transient.value = transient.value.copy(memoryNotes = notes, memoryError = null) }
-                .onFailure { error -> chat.addNotice(error.message ?: "That note wasn't saved.") }
+                .onFailure { error -> chat.addNotice(error.message ?: "That entry wasn't saved.") }
         }
     }
 
     fun notNow(message: ChatMessage) = chat.setMemoryState(message.id, ChatMessage.MemoryState.DISMISSED)
 
-    /** Undo on a note the coach kept: it's deleted from what the coach knows. */
+    /** Undo on a saved entry: removed, or the entry it updated is put back. */
     fun unremember(message: ChatMessage) {
         viewModelScope.launch {
             chat.unremember(message.id)
                 .onSuccess { notes -> transient.value = transient.value.copy(memoryNotes = notes, memoryError = null) }
-                .onFailure { error -> chat.addNotice(error.message ?: "That note wasn't removed.") }
+                .onFailure { error -> chat.addNotice(error.message ?: "That entry wasn't undone.") }
         }
     }
 
-    /** Edit on a note the coach kept: the old wording is replaced by hers. */
+    /** Edit on a saved entry: the old wording is replaced by hers. */
     fun rewrite(message: ChatMessage, proposal: MemoryProposal) {
         viewModelScope.launch {
             chat.unremember(message.id)
             chat.remember(proposal, message.id)
                 .onSuccess { notes -> transient.value = transient.value.copy(memoryNotes = notes, memoryError = null) }
-                .onFailure { error -> chat.addNotice(error.message ?: "That note wasn't saved.") }
+                .onFailure { error -> chat.addNotice(error.message ?: "That entry wasn't saved.") }
         }
     }
 
@@ -182,7 +182,7 @@ class ChatViewModel(
         viewModelScope.launch {
             chat.memoryNotes()
                 .onSuccess { notes -> transient.value = transient.value.copy(memoryNotes = notes, memoryError = null) }
-                .onFailure { error -> transient.value = transient.value.copy(memoryError = error.message ?: "Couldn't load the notes.") }
+                .onFailure { error -> transient.value = transient.value.copy(memoryError = error.message ?: "Couldn't load your athlete file.") }
         }
     }
 
@@ -190,7 +190,7 @@ class ChatViewModel(
         viewModelScope.launch {
             chat.forget(note.id)
                 .onSuccess { notes -> transient.value = transient.value.copy(memoryNotes = notes, memoryError = null) }
-                .onFailure { error -> transient.value = transient.value.copy(memoryError = error.message ?: "Couldn't delete that note.") }
+                .onFailure { error -> transient.value = transient.value.copy(memoryError = error.message ?: "Couldn't remove that entry.") }
         }
     }
 }

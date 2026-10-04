@@ -198,19 +198,23 @@ class CoachScreenshotTest {
                 createdAtMillis = 1,
                 basis = "Claude on your laptop · Garmin data to 2026-09-26",
                 memory = com.laurasheehan.royalmiles.data.coach.chat.MemoryProposal(
-                    kind = com.laurasheehan.royalmiles.data.coach.chat.MemoryKind.ABOUT_ME,
+                    section = com.laurasheehan.royalmiles.data.coach.chat.AthleteSection.HEALTH,
                     text = "My left calf tightens on hilly routes, so I avoid hills for now.",
                     reason = "She said so, and it affects route and strength choices.",
                     expires = null,
+                    replaces = "seed-health-foot",
+                    replacesText = "Foot a little twingey after runs, fine the next day.",
                 ),
                 memoryState = ChatMessage.MemoryState.PENDING,
             ),
         )
 
         val SampleNotes = listOf(
-            com.laurasheehan.royalmiles.data.coach.chat.MemoryNote("n1", com.laurasheehan.royalmiles.data.coach.chat.MemoryKind.ABOUT_ME, "My left calf tightens on hilly routes, so I avoid hills for now.", null, "2026-09-26T16:40:00Z", false),
-            com.laurasheehan.royalmiles.data.coach.chat.MemoryNote("n2", com.laurasheehan.royalmiles.data.coach.chat.MemoryKind.ABOUT_ME, "Busy stretch at work, so my evening runs are short.", "2026-10-15", "2026-09-26T16:42:00Z", false),
-            com.laurasheehan.royalmiles.data.coach.chat.MemoryNote("n3", com.laurasheehan.royalmiles.data.coach.chat.MemoryKind.PHILOSOPHY, "Strength works better for me on Tuesdays than Thursdays.", null, "2026-09-26T16:45:00Z", false),
+            com.laurasheehan.royalmiles.data.coach.chat.MemoryNote("seed-block-race", com.laurasheehan.royalmiles.data.coach.chat.AthleteSection.BLOCK, "Racing the Richmond Half on Sunday 1 November 2026.", null, null, false, source = "seed"),
+            com.laurasheehan.royalmiles.data.coach.chat.MemoryNote("n1", com.laurasheehan.royalmiles.data.coach.chat.AthleteSection.HEALTH, "My left calf tightens on hilly routes, so I avoid hills for now.", null, "2026-09-26T16:40:00Z", false, source = "chat"),
+            com.laurasheehan.royalmiles.data.coach.chat.MemoryNote("n2", com.laurasheehan.royalmiles.data.coach.chat.AthleteSection.THREADS, "Busy stretch at work, so my evening runs are short.", "2026-10-15", "2026-09-26T16:42:00Z", false, source = "chat"),
+            com.laurasheehan.royalmiles.data.coach.chat.MemoryNote("n3", com.laurasheehan.royalmiles.data.coach.chat.AthleteSection.WORKS, "Strength works better for me on Tuesdays than Thursdays.", null, "2026-09-26T16:45:00Z", false, source = "chat"),
+            com.laurasheehan.royalmiles.data.coach.chat.MemoryNote("n4", com.laurasheehan.royalmiles.data.coach.chat.AthleteSection.EXPECTATIONS, "HRV of about 70 to 74 ms is realistic after two to three months of three runs a week.", null, "2026-10-04T06:00:00Z", false, source = "morning"),
         )
 
         val SampleResearch = listOf(

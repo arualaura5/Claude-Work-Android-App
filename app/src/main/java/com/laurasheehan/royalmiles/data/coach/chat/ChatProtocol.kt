@@ -21,10 +21,10 @@ data class ChatMessage(
     val citations: List<String> = emptyList(),
     /** Which data an answer was based on, so an old answer can be judged by its date. */
     val basis: String? = null,
-    /** Something the coach offered to remember; saved only if she taps Save. */
+    /** An entry the coach offered for her athlete file; kept only if she taps Save. */
     val memory: MemoryProposal? = null,
     val memoryState: MemoryState = MemoryState.NONE,
-    /** The saved note, once the coach's offer to remember it has been kept; Undo deletes it. */
+    /** The saved entry, once she kept it; Undo removes it, or puts back the one it updated. */
     val memoryNoteId: String? = null,
     /** On a failure notice: the question was web research, so Send again searches again. */
     val failedResearch: Boolean = false,
@@ -34,32 +34,54 @@ data class ChatMessage(
     enum class MemoryState { NONE, PENDING, SAVED, DISMISSED }
 }
 
+/** An entry the coach offers for her athlete file, or one it updates ([replaces]). */
 data class MemoryProposal(
-    val kind: MemoryKind,
+    val section: AthleteSection,
     val text: String,
     val reason: String?,
     /** For temporary things, like a busy month. */
     val expires: String?,
+    /** The entry this updates, so the file stays current instead of collecting near-duplicates. */
+    val replaces: String? = null,
+    /** That entry's words, shown on the card so she can see what changes. */
+    val replacesText: String? = null,
 )
 
-enum class MemoryKind(val wire: String, val label: String) {
-    ABOUT_ME("about_me", "About you"),
-    PHILOSOPHY("philosophy", "Your philosophy");
+/** The sections of her athlete file, as the chat Worker names them. */
+enum class AthleteSection(val wire: String, val label: String) {
+    ABOUT("about", "Who you are"),
+    BLOCK("block", "This block and your goals"),
+    WORKS("works", "What works for you"),
+    HEALTH("health", "Health and body"),
+    EXPECTATIONS("expectations", "What you agreed"),
+    THREADS("threads", "Open threads");
 
     companion object {
-        fun from(wire: String?): MemoryKind? = entries.firstOrNull { it.wire == wire }
+        /** Entries saved before sections existed carry `about_me` or `philosophy`. */
+        fun from(wire: String?, legacyKind: String? = null): AthleteSection? =
+            entries.firstOrNull { it.wire == wire }
+                ?: when (legacyKind) {
+                    "about_me" -> ABOUT
+                    "philosophy" -> WORKS
+                    else -> null
+                }
     }
 }
 
-/** A note she approved, as stored by the chat Worker. */
+/** An entry in her athlete file, as stored by the chat Worker. */
 data class MemoryNote(
     val id: String,
-    val kind: MemoryKind,
+    val section: AthleteSection,
     val text: String,
     val expires: String?,
     val createdAt: String?,
     val expired: Boolean,
+    /** Where it came from: "seed" (her starting file), "chat", or "morning" (the morning coach). */
+    val source: String? = null,
 )
+
+/** Her athlete file as the Worker returns it, and the id of an entry just saved. */
+data class AthleteFile(val notes: List<MemoryNote>, val savedId: String?)
 
 data class ChatUsage(
     val chatEnabled: Boolean,
@@ -202,7 +224,10 @@ object ChatProtocol {
                     // Recorded or entered figures only: possibly-planned ones would read to the coach
                     // as what she ran.
                     .putOpt("actual_km", session.knownDistanceKm)
-                    .putOpt("actual_min", session.knownDurationMin),
+                    .putOpt("actual_min", session.knownDurationMin)
+                    // Her own report after the session: effort out of 5, and any niggle.
+                    .putOpt("effort", session.effortRating?.takeIf { session.isCompleted })
+                    .putOpt("body", session.bodyNote?.takeIf { session.isCompleted && it.isNotBlank() }),
             )
         }
         return JSONObject().put("generated_at", generatedAt).put("sessions", array)
@@ -225,25 +250,33 @@ object ChatProtocol {
     }
 
     fun parseMemoryProposal(json: JSONObject): MemoryProposal? {
-        val kind = MemoryKind.from(json.optString("kind")) ?: return null
+        val section = AthleteSection.from(json.optString("section"), json.optString("kind")) ?: return null
         val text = json.optString("text", "").trim().takeIf { it.isNotEmpty() } ?: return null
         return MemoryProposal(
-            kind = kind,
+            section = section,
             text = text,
             reason = json.optString("reason", "").trim().takeIf { it.isNotEmpty() && it != "null" },
             expires = json.optString("expires", "").takeIf { !json.isNull("expires") && it.isNotBlank() },
+            replaces = json.optString("replaces", "").takeIf { !json.isNull("replaces") && it.isNotBlank() },
+            replacesText = json.optString("replaces_text", "").takeIf { !json.isNull("replaces_text") && it.isNotBlank() },
         )
     }
 
     fun memoryJson(proposal: MemoryProposal): JSONObject = JSONObject()
-        .put("kind", proposal.kind.wire)
+        .put("section", proposal.section.wire)
         .put("text", proposal.text)
         .putOpt("reason", proposal.reason)
         .put("expires", proposal.expires ?: JSONObject.NULL)
+        .put("replaces", proposal.replaces ?: JSONObject.NULL)
+        .putOpt("replaces_text", proposal.replacesText)
 
-    /** The note just saved for [proposal]: the newest with its text, since the Worker lists them all. */
-    fun savedNoteId(notes: List<MemoryNote>, proposal: MemoryProposal): String? =
-        notes.filter { it.text.trim() == proposal.text.trim() }.maxByOrNull { it.createdAt.orEmpty() }?.id
+    fun parseAthleteFile(json: String): AthleteFile {
+        val root = JSONObject(json)
+        return AthleteFile(
+            notes = parseNotes(json),
+            savedId = root.optString("saved_id", "").takeIf { it.isNotBlank() && !root.isNull("saved_id") },
+        )
+    }
 
     fun parseNotes(json: String): List<MemoryNote> {
         val array = JSONObject(json).optJSONArray("notes") ?: return emptyList()
@@ -251,11 +284,12 @@ object ChatProtocol {
             val note = array.optJSONObject(index) ?: return@mapNotNull null
             MemoryNote(
                 id = note.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null,
-                kind = MemoryKind.from(note.optString("kind")) ?: return@mapNotNull null,
+                section = AthleteSection.from(note.optString("section"), note.optString("kind")) ?: return@mapNotNull null,
                 text = note.optString("text"),
                 expires = note.optString("expires", "").takeIf { !note.isNull("expires") && it.isNotBlank() },
-                createdAt = note.optString("created_at", "").takeIf { it.isNotBlank() },
+                createdAt = note.optString("created_at", "").takeIf { it.isNotBlank() && !note.isNull("created_at") },
                 expired = note.optBoolean("expired", false),
+                source = note.optString("source", "").takeIf { it.isNotBlank() && !note.isNull("source") },
             )
         }
     }

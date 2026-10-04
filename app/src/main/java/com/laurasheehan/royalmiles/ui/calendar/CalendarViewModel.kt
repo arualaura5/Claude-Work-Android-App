@@ -34,6 +34,10 @@ class CalendarViewModel(private val repository: PlanRepository) : ViewModel() {
         viewModelScope.launch { repository.setEffortRating(session.id, rating) }
     }
 
+    fun noteBody(session: SessionEntity, note: String) {
+        viewModelScope.launch { repository.setBodyNote(session.id, note) }
+    }
+
     fun skip(session: SessionEntity) {
         viewModelScope.launch { repository.markSkipped(session.id) }
     }
