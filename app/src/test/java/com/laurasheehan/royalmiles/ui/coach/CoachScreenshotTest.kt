@@ -118,6 +118,26 @@ class CoachScreenshotTest {
         }
     }
 
+    @Test
+    fun yourJournal() {
+        val entries = listOf(
+            com.laurasheehan.royalmiles.data.coach.chat.JournalEntry("j3", "2026-10-04T18:20:00Z", "2026-10-04", "chat", listOf("foot", "long-run"), "Foot twingey the day after the 11 km; fine by evening."),
+            com.laurasheehan.royalmiles.data.coach.chat.JournalEntry("j2", "2026-10-04T15:00:00Z", "2026-10-04", "check-in", listOf("long-run"), "Did Long run · 11.2 km · 73 min · felt 3/5 · body: A twinge."),
+            com.laurasheehan.royalmiles.data.coach.chat.JournalEntry("j1", "2026-10-04T10:34:00Z", "2026-10-04", "morning", listOf("hrv", "long-run"), "HRV back in range after two short nights; 10 km long run looks fine."),
+            com.laurasheehan.royalmiles.data.coach.chat.JournalEntry("j0", "2026-10-03T19:40:00Z", "2026-10-03", "plan change", listOf("plan", "race"), "Agreed to change Royal Parks Half: switched to the Richmond Half on 1 November."),
+        )
+        paparazzi.snapshot {
+            RoyalMilesTheme(darkTheme = true) {
+                ChatContent(
+                    state = ChatUiState(connected = true, usage = SampleUsage, memoryNotes = SampleNotes, journal = entries),
+                    onBack = {}, onSend = {}, onToggleResearch = {}, onAccept = {}, onDismiss = {}, onConnect = { _, _ -> },
+                    onClear = {}, onOpenLink = {}, onRemember = { _, _ -> }, onNotNow = {}, onLoadMemory = {}, onForget = {},
+                    initialShowMemory = true, initialJournalTab = true,
+                )
+            }
+        }
+    }
+
     @androidx.compose.runtime.Composable
     private fun chat(state: ChatUiState, showMemory: Boolean = false) = ChatContent(
         state = state,

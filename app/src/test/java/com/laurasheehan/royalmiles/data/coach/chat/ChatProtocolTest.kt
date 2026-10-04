@@ -224,6 +224,18 @@ class ChatProtocolTest {
     }
 
     @Test
+    fun `her journal parses newest first with tags, skipping broken lines`() {
+        val entries = ChatProtocol.parseJournal(
+            """{"entries":[{"id":"j2","at":"2026-10-04T15:00:00Z","date":"2026-10-04","kind":"check-in","tags":["long-run"],"text":"Did 11.2 km."},
+               {"id":"j1","at":"2026-10-04T10:34:00Z","date":"2026-10-04","kind":"morning","tags":[],"text":"HRV back in range."},
+               {"id":"","date":"2026-10-04","text":"no id"},{"id":"j0","date":"bad","text":"bad date"}],"tags":["foot"]}""",
+        )
+        assertEquals(listOf("j2", "j1"), entries.map { it.id })
+        assertEquals(listOf("long-run"), entries[0].tags)
+        assertEquals("morning", entries[1].kind)
+    }
+
+    @Test
     fun `what is sent when she saves an entry`() {
         val json = ChatProtocol.memoryJson(MemoryProposal(AthleteSection.THREADS, "Busy month.", null, "2026-10-31", replaces = "n9"))
         assertEquals("threads", json.getString("section"))

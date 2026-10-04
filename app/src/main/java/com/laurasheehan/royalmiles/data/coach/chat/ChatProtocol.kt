@@ -80,6 +80,18 @@ data class MemoryNote(
     val source: String? = null,
 )
 
+/** One line of her journal: something that happened, dated, timestamped and tagged. */
+data class JournalEntry(
+    val id: String,
+    /** ISO instant it was written. */
+    val at: String,
+    val date: String,
+    /** chat, session, check-in, plan change or morning. */
+    val kind: String,
+    val tags: List<String>,
+    val text: String,
+)
+
 /** Her athlete file as the Worker returns it, and the id of an entry just saved. */
 data class AthleteFile(val notes: List<MemoryNote>, val savedId: String?)
 
@@ -276,6 +288,22 @@ object ChatProtocol {
             notes = parseNotes(json),
             savedId = root.optString("saved_id", "").takeIf { it.isNotBlank() && !root.isNull("saved_id") },
         )
+    }
+
+    fun parseJournal(json: String): List<JournalEntry> {
+        val array = JSONObject(json).optJSONArray("entries") ?: return emptyList()
+        return (0 until array.length()).mapNotNull { index ->
+            val entry = array.optJSONObject(index) ?: return@mapNotNull null
+            val tags = entry.optJSONArray("tags")
+            JournalEntry(
+                id = entry.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null,
+                at = entry.optString("at"),
+                date = entry.optString("date").takeIf { it.length == 10 } ?: return@mapNotNull null,
+                kind = entry.optString("kind", "note"),
+                tags = tags?.let { list -> (0 until list.length()).mapNotNull { list.optString(it).takeIf(String::isNotBlank) } }.orEmpty(),
+                text = entry.optString("text").takeIf { it.isNotBlank() } ?: return@mapNotNull null,
+            )
+        }
     }
 
     fun parseNotes(json: String): List<MemoryNote> {

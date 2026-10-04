@@ -91,6 +91,7 @@ fun ChatScreen(viewModel: ChatViewModel, onBack: () -> Unit) {
         onRemember = viewModel::remember,
         onNotNow = viewModel::notNow,
         onLoadMemory = viewModel::loadMemory,
+        onLoadJournal = viewModel::loadJournal,
         onForget = viewModel::forget,
         onRetry = viewModel::retry,
         onUnremember = viewModel::unremember,
@@ -124,15 +125,21 @@ internal fun ChatContent(
     onUnremember: (ChatMessage) -> Unit = {},
     onRewrite: (ChatMessage, MemoryProposal) -> Unit = { _, _ -> },
     initialShowMemory: Boolean = false,
+    onLoadJournal: () -> Unit = {},
+    initialJournalTab: Boolean = false,
 ) {
     var showMemory by remember { mutableStateOf(initialShowMemory) }
     if (showMemory) {
         MemoryPanel(
             notes = state.memoryNotes,
             error = state.memoryError,
+            journal = state.journal,
+            journalError = state.journalError,
             onLoad = onLoadMemory,
+            onLoadJournal = onLoadJournal,
             onForget = onForget,
             onBack = { showMemory = false },
+            initialJournalTab = initialJournalTab,
         )
         return
     }
@@ -433,11 +440,16 @@ private fun EditMemoryDialog(memory: MemoryProposal, onDismiss: () -> Unit, onSa
 private fun MemoryPanel(
     notes: List<MemoryNote>?,
     error: String?,
+    journal: List<com.laurasheehan.royalmiles.data.coach.chat.JournalEntry>?,
+    journalError: String?,
     onLoad: () -> Unit,
+    onLoadJournal: () -> Unit,
     onForget: (MemoryNote) -> Unit,
     onBack: () -> Unit,
+    initialJournalTab: Boolean = false,
 ) {
-    LaunchedEffect(Unit) { onLoad() }
+    LaunchedEffect(Unit) { onLoad(); onLoadJournal() }
+    var journalTab by remember { mutableStateOf(initialJournalTab) }
     var confirm by remember { mutableStateOf<MemoryNote?>(null) }
     confirm?.let { note ->
         AlertDialog(
@@ -452,12 +464,21 @@ private fun MemoryPanel(
         topBar = {
             TopAppBar(
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-                title = { Text("Your athlete file") },
+                title = { Text(if (journalTab) "Your journal" else "Your athlete file") },
             )
         },
     ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        androidx.compose.material3.TabRow(selectedTabIndex = if (journalTab) 1 else 0) {
+            androidx.compose.material3.Tab(selected = !journalTab, onClick = { journalTab = false }, text = { Text("Athlete file") })
+            androidx.compose.material3.Tab(selected = journalTab, onClick = { journalTab = true }, text = { Text("Journal") })
+        }
+        if (journalTab) {
+            JournalList(journal, journalError)
+            return@Column
+        }
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -485,8 +506,81 @@ private fun MemoryPanel(
                 }
             }
         }
+        }
     }
 }
+
+/** Her journal, newest first, by day: the timeline her coaches remember her by. */
+@Composable
+private fun JournalList(entries: List<com.laurasheehan.royalmiles.data.coach.chat.JournalEntry>?, error: String?) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            Text(
+                "Everything that happens in your running life, in order: chats with your coach, every run and how it felt, " +
+                    "niggles, changes you agreed and the morning read. Kept for good, and copied to OneDrive each night.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        error?.let { item { Text(it, color = BlushPink, style = MaterialTheme.typography.bodySmall) } }
+        when {
+            entries == null -> item { CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp) }
+            entries.isEmpty() -> item { Text("Nothing yet. Your first chat or run will start it.") }
+            else -> entries.groupBy { it.date }.forEach { (day, onDay) ->
+                item(key = "day-$day") {
+                    Text(
+                        runCatching { java.time.LocalDate.parse(day).format(JournalDay) }.getOrDefault(day),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                items(onDay, key = { it.id }) { entry -> JournalRow(entry) }
+            }
+        }
+    }
+}
+
+private val JournalDay = java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", java.util.Locale.ENGLISH)
+
+@Composable
+private fun JournalRow(entry: com.laurasheehan.royalmiles.data.coach.chat.JournalEntry) {
+    Card(shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                listOfNotNull(entry.at.takeIf { it.length >= 16 }?.let { localTime(it) }, entry.kind.replaceFirstChar { it.uppercase() })
+                    .joinToString(" · "),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(entry.text, style = MaterialTheme.typography.bodyMedium)
+            if (entry.tags.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    entry.tags.take(4).forEach { tag ->
+                        Text(
+                            tag,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** "13:14", in her time zone, from the entry's instant. */
+private fun localTime(at: String): String? = runCatching {
+    java.time.Instant.parse(at).atZone(java.time.ZoneId.systemDefault()).toLocalTime().toString().take(5)
+}.getOrNull()
 
 @Composable
 private fun MemoryRow(note: MemoryNote, onForget: () -> Unit) {

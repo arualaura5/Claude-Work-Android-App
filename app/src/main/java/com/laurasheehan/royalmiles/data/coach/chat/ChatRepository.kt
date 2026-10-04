@@ -162,6 +162,14 @@ class ChatRepository(context: Context) {
         }
     }
 
+    /** Her journal, newest first: the timeline both coaches remember her by. */
+    suspend fun journal(days: Int = 365): Result<List<JournalEntry>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val (base, token) = connection() ?: error("Connect the coach chat first.")
+            ChatProtocol.parseJournal(request(base, token, "GET", "/chat/v1/journal?days=$days", null))
+        }
+    }
+
     suspend fun forget(id: String): Result<List<MemoryNote>> = withContext(Dispatchers.IO) {
         runCatching {
             val (base, token) = connection() ?: error("Connect the coach chat first.")
