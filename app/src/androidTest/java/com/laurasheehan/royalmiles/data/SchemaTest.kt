@@ -53,6 +53,33 @@ class SchemaTest {
     private companion object {
         const val DB = "schema-test.db"
         const val UPGRADE_DB = "upgrade-10-11.db"
+        const val UPGRADE_12_DB = "upgrade-11-12.db"
+    }
+
+    @Test
+    fun version11UpgradesTo12KeepingEverySessionAndItsEffort() {
+        helper.createDatabase(UPGRADE_12_DB, 11).apply {
+            execSQL(
+                "INSERT INTO events (id, name, raceDate, raceDistanceKm, peakLongRunKm, planStartDate, planVersion) " +
+                    "VALUES ('richmond-2026', 'Richmond Half', '2026-11-01', 21.1, 15.0, NULL, 0)",
+            )
+            for (day in 1..3) {
+                execSQL(
+                    "INSERT INTO sessions (eventId, date, type, title, phase, weekNumber, optional, notes, isCompleted, " +
+                        "isCustom, isSkipped, supersededByCoach, actualDistanceKm, effortRating) " +
+                        "VALUES ('richmond-2026', '2026-10-0$day', 'EASY_RUN', 'Run $day', 'BUILD', 1, 0, '', 1, 0, 0, 0, 5.0, $day)",
+                )
+            }
+            close()
+        }
+        val upgraded = helper.runMigrationsAndValidate(UPGRADE_12_DB, 12, true, AppDatabase.MIGRATION_11_12)
+        upgraded.query("SELECT COUNT(*), SUM(effortRating), COUNT(bodyNote) FROM sessions").use {
+            it.moveToFirst()
+            assertEquals(3, it.getInt(0))
+            assertEquals(6, it.getInt(1))
+            assertEquals(0, it.getInt(2))
+        }
+        upgraded.close()
     }
 
     @Test

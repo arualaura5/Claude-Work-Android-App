@@ -29,7 +29,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         /** Raise with every schema change, add the matching Migration, and commit the new schema JSON. */
-        const val VERSION = 11
+        const val VERSION = 12
         const val NAME = "royalmiles.db"
 
         @Volatile private var instance: AppDatabase? = null
@@ -261,6 +261,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** How a session left her body, for both coaches. One nullable column; no row's data changes. */
+        internal val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `sessions` ADD COLUMN `bodyNote` TEXT")
+            }
+        }
+
         /** Every upgrade step, oldest first. Also used to bring an older backup up to date. */
         val ALL_MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2,
@@ -273,6 +280,7 @@ abstract class AppDatabase : RoomDatabase() {
             MIGRATION_8_9,
             MIGRATION_9_10,
             MIGRATION_10_11,
+            MIGRATION_11_12,
         )
 
         fun getInstance(context: Context): AppDatabase =

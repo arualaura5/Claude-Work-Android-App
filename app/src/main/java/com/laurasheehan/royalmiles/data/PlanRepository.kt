@@ -252,6 +252,7 @@ class PlanRepository(
                 actualDistanceKm = null,
                 actualDurationMin = null,
                 effortRating = null,
+                bodyNote = null,
                 completedAt = null,
             ),
         )
@@ -267,6 +268,7 @@ class PlanRepository(
                 actualDistanceKm = null,
                 actualDurationMin = null,
                 effortRating = null,
+                bodyNote = null,
                 completedAt = null,
                 actualAvgHeartRate = null,
                 actualMaxHeartRate = null,
@@ -281,6 +283,13 @@ class PlanRepository(
         val existing = sessionDao.getById(id) ?: return
         if (!existing.isCompleted) return
         sessionDao.update(existing.copy(effortRating = rating.coerceIn(1, 5)))
+    }
+
+    /** Anything niggling after a completed session, in her words; both coaches read it. */
+    suspend fun setBodyNote(id: Long, note: String) {
+        val existing = sessionDao.getById(id) ?: return
+        if (!existing.isCompleted) return
+        sessionDao.update(existing.copy(bodyNote = note.trim().take(160).ifBlank { null }))
     }
 
     suspend fun updateSession(session: SessionEntity) = sessionDao.update(session)
@@ -380,6 +389,7 @@ class PlanRepository(
                     actualDistanceKm = null,
                     actualDurationMin = null,
                     effortRating = null,
+                    bodyNote = null,
                     completedAt = null,
                 ),
             )

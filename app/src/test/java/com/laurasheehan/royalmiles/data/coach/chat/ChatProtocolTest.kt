@@ -175,12 +175,14 @@ class ChatProtocolTest {
     }
 
     @Test
-    fun `a memory proposal is parsed, stored with the message and re-read`() {
+    fun `an athlete-file entry is parsed, stored with the message and re-read`() {
         val reply = ChatProtocol.parseCoachReply(
-            """{"reply":{"text":"Noted.","proposal":null,"memory":{"kind":"about_me","text":"Prefers morning runs.","reason":"She said so.","expires":null}}}""",
+            """{"reply":{"text":"Noted.","proposal":null,"memory":{"section":"health","text":"Foot fine after the 11 km.","reason":"She said so.","expires":null,"replaces":"seed-health-foot","replaces_text":"Foot twingey after runs."}}}""",
         )
         val memory = reply.memory!!
-        assertEquals(MemoryKind.ABOUT_ME, memory.kind)
+        assertEquals(AthleteSection.HEALTH, memory.section)
+        assertEquals("seed-health-foot", memory.replaces)
+        assertEquals("Foot twingey after runs.", memory.replacesText)
         assertNull(memory.expires)
         val message = ChatMessage(
             id = "m", role = ChatMessage.Role.COACH, text = "Noted.", createdAtMillis = 0,
@@ -192,29 +194,41 @@ class ChatProtocolTest {
     }
 
     @Test
-    fun `an unknown memory kind is ignored`() {
-        val reply = ChatProtocol.parseCoachReply("""{"reply":{"text":"ok","memory":{"kind":"diagnosis","text":"x"}}}""")
+    fun `an unknown section is ignored, and an older reply's kind still maps to a section`() {
+        val reply = ChatProtocol.parseCoachReply("""{"reply":{"text":"ok","memory":{"section":"diagnosis","text":"x"}}}""")
         assertNull(reply.memory)
+        val older = ChatProtocol.parseCoachReply("""{"reply":{"text":"ok","memory":{"kind":"philosophy","text":"Strength on Tuesdays."}}}""")
+        assertEquals(AthleteSection.WORKS, older.memory!!.section)
+        // A conversation stored by an older build reads back with its entry in the right section.
+        val stored = """[{"id":"m","role":"COACH","text":"ok","created_at":0,"proposal_state":"NONE","citations":[],
+            "memory":{"kind":"about_me","text":"Busy month.","expires":null},"memory_state":"SAVED","memory_note_id":"n1"}]"""
+        assertEquals(AthleteSection.ABOUT, ChatStore.decode(stored).single().memory!!.section)
     }
 
     @Test
-    fun `saved notes parse with their kind and expiry`() {
-        val notes = ChatProtocol.parseNotes(
-            """{"notes":[{"id":"n1","kind":"philosophy","text":"Strength on Tuesdays.","expires":null,"created_at":"2026-09-26T10:00:00Z","expired":false},
-               {"id":"n2","kind":"about_me","text":"Busy month.","expires":"2026-09-20","expired":true},
-               {"id":"","kind":"about_me","text":"no id"}]}""",
+    fun `her athlete file parses with sections, sources and the id just saved`() {
+        val file = ChatProtocol.parseAthleteFile(
+            """{"notes":[{"id":"seed-block-race","section":"block","text":"Racing Richmond.","expires":null,"source":"seed","created_at":null,"expired":false},
+               {"id":"n1","kind":"philosophy","text":"Strength on Tuesdays.","expires":null,"created_at":"2026-09-26T10:00:00Z","expired":false},
+               {"id":"n2","section":"threads","text":"Busy month.","expires":"2026-09-20","source":"morning","expired":true},
+               {"id":"","section":"about","text":"no id"}],"saved_id":"n2"}""",
         )
-        assertEquals(listOf("n1", "n2"), notes.map { it.id })
-        assertEquals(MemoryKind.PHILOSOPHY, notes[0].kind)
-        assertTrue(notes[1].expired)
-        assertEquals("2026-09-20", notes[1].expires)
+        assertEquals(listOf("seed-block-race", "n1", "n2"), file.notes.map { it.id })
+        assertEquals(AthleteSection.BLOCK, file.notes[0].section)
+        assertEquals("seed", file.notes[0].source)
+        assertNull(file.notes[0].createdAt)
+        assertEquals(AthleteSection.WORKS, file.notes[1].section)
+        assertTrue(file.notes[2].expired)
+        assertEquals("morning", file.notes[2].source)
+        assertEquals("n2", file.savedId)
     }
 
     @Test
-    fun `what is sent when she saves a note`() {
-        val json = ChatProtocol.memoryJson(MemoryProposal(MemoryKind.ABOUT_ME, "Busy month.", null, "2026-10-31"))
-        assertEquals("about_me", json.getString("kind"))
+    fun `what is sent when she saves an entry`() {
+        val json = ChatProtocol.memoryJson(MemoryProposal(AthleteSection.THREADS, "Busy month.", null, "2026-10-31", replaces = "n9"))
+        assertEquals("threads", json.getString("section"))
         assertEquals("2026-10-31", json.getString("expires"))
+        assertEquals("n9", json.getString("replaces"))
     }
 
     private fun msg(id: String, role: ChatMessage.Role, text: String, failedResearch: Boolean = false) =
@@ -274,6 +288,17 @@ class ChatProtocolTest {
     }
 
     @Test
+    fun `how a run felt and any niggle go to the coach with the plan, only once it's done`() {
+        val done = session(-1, type = SessionType.LONG_RUN, completed = true).copy(effortRating = 4, bodyNote = "A twinge")
+        val planned = session(2).copy(effortRating = 3, bodyNote = "stale")
+        val sent = ChatProtocol.planJson(listOf(done, planned), today, "2026-10-04T18:00").getJSONArray("sessions")
+        assertEquals(4, sent.getJSONObject(0).getInt("effort"))
+        assertEquals("A twinge", sent.getJSONObject(0).getString("body"))
+        assertFalse(sent.getJSONObject(1).has("effort"))
+        assertFalse(sent.getJSONObject(1).has("body"))
+    }
+
+    @Test
     fun `an agreed replacement is sent as replaced, and the reason travels with it`() {
         val longRun = session(0, type = SessionType.LONG_RUN).copy(isSkipped = true, supersededByCoach = true)
         val comeback = session(0).copy(
@@ -290,20 +315,9 @@ class ChatProtocolTest {
     }
 
     @Test
-    fun `the note just kept is found among all her notes`() {
-        val proposal = MemoryProposal(MemoryKind.ABOUT_ME, "I've just recovered from a virus.", null, "2026-10-17")
-        val notes = listOf(
-            MemoryNote("old", MemoryKind.ABOUT_ME, "I've just recovered from a virus.", null, "2026-09-01T10:00:00Z", false),
-            MemoryNote("new", MemoryKind.ABOUT_ME, "I've just recovered from a virus.", "2026-10-17", "2026-09-27T15:30:00Z", false),
-            MemoryNote("other", MemoryKind.PHILOSOPHY, "Strength on Tuesdays.", null, "2026-09-27T15:31:00Z", false),
-        )
-        assertEquals("new", ChatProtocol.savedNoteId(notes, proposal))
-    }
-
-    @Test
     fun `a kept note's id survives being stored on the phone`() {
         val kept = message(ChatMessage.Role.COACH, "ok").copy(
-            memory = MemoryProposal(MemoryKind.ABOUT_ME, "Busy month.", null, null),
+            memory = MemoryProposal(AthleteSection.THREADS, "Busy month.", null, null),
             memoryState = ChatMessage.MemoryState.SAVED,
             memoryNoteId = "n42",
         )

@@ -53,6 +53,8 @@ data class SessionEntity(
     /** Source app package and its own activity id, kept so the original activity stays reachable. */
     val sourceApp: String? = null,
     val sourceActivityId: String? = null,
+    /** Anything niggling after it ("All good", "A twinge", "Sore"), in her words; both coaches read it. */
+    val bodyNote: String? = null,
 ) {
     /** Garmin puts its activity id in Health Connect's clientRecordId, so this link is buildable. */
     val garminUrl: String?

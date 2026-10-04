@@ -67,7 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.laurasheehan.royalmiles.data.coach.CoachPayload
 import com.laurasheehan.royalmiles.data.coach.chat.ChatMessage
 import com.laurasheehan.royalmiles.data.coach.chat.ChatUsage
-import com.laurasheehan.royalmiles.data.coach.chat.MemoryKind
+import com.laurasheehan.royalmiles.data.coach.chat.AthleteSection
 import com.laurasheehan.royalmiles.data.coach.chat.MemoryNote
 import com.laurasheehan.royalmiles.data.coach.chat.MemoryProposal
 import com.laurasheehan.royalmiles.ui.sync.openUrl
@@ -183,7 +183,7 @@ internal fun ChatContent(
                 actions = {
                     if (state.connected) {
                         IconButton(onClick = { showMemory = true }) {
-                            Icon(Icons.Filled.Psychology, contentDescription = "What your coach knows")
+                            Icon(Icons.Filled.Psychology, contentDescription = "Your athlete file")
                         }
                     }
                     if (state.messages.isNotEmpty()) {
@@ -261,7 +261,8 @@ private fun UsageLine(usage: ChatUsage) {
         "Switched off · no model calls"
     } else {
         listOfNotNull(
-            "Laptop on".takeIf { usage.laptopConnected },
+            // Off means her paid backup model answers instead of Claude on her laptop.
+            if (usage.laptopConnected) "Laptop on" else "Laptop off · Gemini answers",
             "Today ${usage.callsToday} of ${usage.dailyCap}",
             "$${"%.2f".format(usage.costMonthUsd)} of $${"%.2f".format(usage.monthlyBudgetUsd)}",
         ).joinToString(" · ")
@@ -327,7 +328,7 @@ private fun CoachBubble(
     }
 }
 
-/** The coach offering to remember something. Nothing is kept unless she taps Save. */
+/** The coach offering an entry for her athlete file. Nothing is kept unless she taps Save. */
 @Composable
 private fun RememberCard(
     memory: MemoryProposal,
@@ -356,9 +357,21 @@ private fun RememberCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(Icons.Filled.Psychology, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(
-                    if (kept) "Remembered · ${memory.kind.label}" else "Remember this? · ${memory.kind.label}",
+                    when {
+                        kept -> "In your athlete file · ${memory.section.label}"
+                        memory.replaces != null -> "Update your athlete file? · ${memory.section.label}"
+                        else -> "Add to your athlete file? · ${memory.section.label}"
+                    },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            memory.replacesText?.let {
+                Text(
+                    "Replaces: $it",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough,
                 )
             }
             Text(memory.text, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -374,7 +387,7 @@ private fun RememberCard(
                 ChatMessage.MemoryState.SAVED -> if (kept) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "Your coach will keep this in mind.",
+                            "Both coaches will work with this.",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
@@ -383,7 +396,7 @@ private fun RememberCard(
                         TextButton(onClick = onUndo) { Text("Undo") }
                     }
                 } else {
-                    StateLine("Saved to what your coach knows", MaterialTheme.colorScheme.primary)
+                    StateLine("Saved to your athlete file", MaterialTheme.colorScheme.primary)
                 }
                 ChatMessage.MemoryState.DISMISSED -> StateLine("Not saved", MaterialTheme.colorScheme.onSurfaceVariant)
                 ChatMessage.MemoryState.NONE -> Unit
@@ -401,8 +414,8 @@ private fun EditMemoryDialog(memory: MemoryProposal, onDismiss: () -> Unit, onSa
         text = {
             OutlinedTextField(
                 value = text,
-                onValueChange = { if (it.length <= 280) text = it },
-                label = { Text(memory.kind.label) },
+                onValueChange = { if (it.length <= 400) text = it },
+                label = { Text(memory.section.label) },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -414,7 +427,7 @@ private fun EditMemoryDialog(memory: MemoryProposal, onDismiss: () -> Unit, onSa
     )
 }
 
-/** Everything the coach has been allowed to remember, with a way to take any of it back. */
+/** Her athlete file: everything both coaches work from, by section, with a way to take any of it back. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MemoryPanel(
@@ -429,9 +442,9 @@ private fun MemoryPanel(
     confirm?.let { note ->
         AlertDialog(
             onDismissRequest = { confirm = null },
-            title = { Text("Forget this?") },
+            title = { Text("Remove this from your athlete file?") },
             text = { Text(note.text) },
-            confirmButton = { TextButton(onClick = { confirm = null; onForget(note) }) { Text("Forget") } },
+            confirmButton = { TextButton(onClick = { confirm = null; onForget(note) }) { Text("Remove") } },
             dismissButton = { TextButton(onClick = { confirm = null }) { Text("Keep it") } },
         )
     }
@@ -439,7 +452,7 @@ private fun MemoryPanel(
         topBar = {
             TopAppBar(
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-                title = { Text("What your coach knows") },
+                title = { Text("Your athlete file") },
             )
         },
     ) { padding ->
@@ -450,7 +463,9 @@ private fun MemoryPanel(
         ) {
             item {
                 Text(
-                    "Only notes you saved from chat. Your coach and the morning coaching both read them. Tap the bin to take one back.",
+                    "What you and your coach have established. Both the chat coach and the morning coach work from it. " +
+                        "Entries come from your starting file, from chats when you tap Save, and from the morning coach. " +
+                        "Tap the bin to take one out.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -458,12 +473,12 @@ private fun MemoryPanel(
             error?.let { item { Text(it, color = BlushPink, style = MaterialTheme.typography.bodySmall) } }
             when {
                 notes == null -> item { CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp) }
-                notes.isEmpty() -> item { Text("Nothing yet. When your coach offers to remember something in chat, tap Save.") }
-                else -> MemoryKind.entries.forEach { kind ->
-                    val group = notes.filter { it.kind == kind }
+                notes.isEmpty() -> item { Text("Nothing yet. When your coach offers something for your file in chat, tap Save.") }
+                else -> AthleteSection.entries.forEach { section ->
+                    val group = notes.filter { it.section == section }
                     if (group.isNotEmpty()) {
-                        item(key = kind.name) {
-                            Text(kind.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        item(key = section.name) {
+                            Text(section.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         items(group, key = { it.id }) { note -> MemoryRow(note, onForget = { confirm = note }) }
                     }
@@ -481,13 +496,17 @@ private fun MemoryRow(note: MemoryNote, onForget: () -> Unit) {
                 Text(note.text, style = MaterialTheme.typography.bodyMedium)
                 val detail = listOfNotNull(
                     note.expires?.let { if (note.expired) "Expired $it" else "Until $it" },
-                    note.createdAt?.take(10)?.let { "saved $it" },
+                    when (note.source) {
+                        "seed" -> "from your starting file"
+                        "morning" -> note.createdAt?.take(10)?.let { "added by your morning coach $it" } ?: "added by your morning coach"
+                        else -> note.createdAt?.take(10)?.let { "saved $it" }
+                    },
                 ).joinToString(" · ")
                 if (detail.isNotEmpty()) {
                     Text(detail, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            IconButton(onClick = onForget) { Icon(Icons.Filled.DeleteOutline, contentDescription = "Forget this") }
+            IconButton(onClick = onForget) { Icon(Icons.Filled.DeleteOutline, contentDescription = "Remove from your athlete file") }
         }
     }
 }

@@ -49,6 +49,7 @@ class GarminLinks(
                 actualDistanceKm = null,
                 actualDurationMin = null,
                 effortRating = null,
+                bodyNote = null,
                 completedAt = null,
             ),
         )

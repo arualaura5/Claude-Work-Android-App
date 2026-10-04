@@ -57,6 +57,7 @@ fun SessionCard(
     modifier: Modifier = Modifier,
     onSkip: (() -> Unit)? = null,
     onRate: ((Int) -> Unit)? = null,
+    onBodyNote: ((String) -> Unit)? = null,
 ) {
     val accent = session.type.accentColor()
     val haptics = LocalHapticFeedback.current
@@ -176,7 +177,50 @@ fun SessionCard(
         }
         if (onRate != null && session.isCompleted && session.effortRating == null) {
             EffortPrompt(onRate = onRate, modifier = Modifier.padding(top = 10.dp))
+        } else if (onBodyNote != null && session.isCompleted && session.effortRating != null && session.bodyNote == null &&
+            session.type in BODY_CHECK_TYPES
+        ) {
+            BodyPrompt(onBodyNote = onBodyNote, modifier = Modifier.padding(top = 10.dp))
         }
+        }
+    }
+}
+
+private val BODY_CHECK_TYPES = setOf(
+    com.laurasheehan.royalmiles.core.model.SessionType.EASY_RUN,
+    com.laurasheehan.royalmiles.core.model.SessionType.LONG_RUN,
+    com.laurasheehan.royalmiles.core.model.SessionType.RACE,
+)
+
+/**
+ * After a run is rated: "Anything niggling?" One tap, so her coaches hear how her body took the
+ * load, not just how hard it felt. Disappears once answered.
+ */
+@Composable
+private fun BodyPrompt(onBodyNote: (String) -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            "Anything niggling?",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("All good", "A twinge", "Sore").forEach { answer ->
+                Text(
+                    answer,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { onBodyNote(answer) }
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                )
+            }
         }
     }
 }
