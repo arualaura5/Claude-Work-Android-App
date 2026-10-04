@@ -33,6 +33,9 @@ data class ChatUiState(
     /** What the coach knows about her; null until the list has been loaded. */
     val memoryNotes: List<MemoryNote>? = null,
     val memoryError: String? = null,
+    /** Her journal, newest first; null until loaded. */
+    val journal: List<com.laurasheehan.royalmiles.data.coach.chat.JournalEntry>? = null,
+    val journalError: String? = null,
 )
 
 class ChatViewModel(
@@ -51,6 +54,8 @@ class ChatViewModel(
         val connectionVersion: Int = 0,
         val memoryNotes: List<MemoryNote>? = null,
         val memoryError: String? = null,
+        val journal: List<com.laurasheehan.royalmiles.data.coach.chat.JournalEntry>? = null,
+        val journalError: String? = null,
     )
 
     private val coachConnection = coach.cloudCredentials()
@@ -69,6 +74,8 @@ class ChatViewModel(
             connectionVersion = t.connectionVersion,
             memoryNotes = t.memoryNotes,
             memoryError = t.memoryError,
+            journal = t.journal,
+            journalError = t.journalError,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ChatUiState(connected = chat.isConnected()))
 
@@ -183,6 +190,14 @@ class ChatViewModel(
             chat.memoryNotes()
                 .onSuccess { notes -> transient.value = transient.value.copy(memoryNotes = notes, memoryError = null) }
                 .onFailure { error -> transient.value = transient.value.copy(memoryError = error.message ?: "Couldn't load your athlete file.") }
+        }
+    }
+
+    fun loadJournal() {
+        viewModelScope.launch {
+            chat.journal()
+                .onSuccess { entries -> transient.value = transient.value.copy(journal = entries, journalError = null) }
+                .onFailure { error -> transient.value = transient.value.copy(journalError = error.message ?: "Couldn't load your journal.") }
         }
     }
 
