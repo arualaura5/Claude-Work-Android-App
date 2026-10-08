@@ -63,6 +63,17 @@ class GarminActivityFeedTest {
     }
 
     @Test
+    fun `her watch answer comes through as feel 1 to 5 and anything else is ignored`() {
+        val json = """{"schema_version":1,"activities":[
+            {"activity_id":"1","date":"2026-10-08","start_time_local":"2026-10-08 18:00:00","type":"running","distance_km":5.37,"duration_minutes":35,"feel":4},
+            {"activity_id":"2","date":"2026-10-07","start_time_local":"2026-10-07 18:00:00","type":"running","distance_km":5.0,"duration_minutes":32,"feel":null},
+            {"activity_id":"3","date":"2026-10-06","start_time_local":"2026-10-06 18:00:00","type":"running","distance_km":5.0,"duration_minutes":32,"feel":9}
+        ]}"""
+        val feel = GarminActivityFeed.parse(json, london).associate { it.sourceActivityId to it.watchFeel }
+        assertEquals(mapOf("1" to 4, "2" to null, "3" to null), feel)
+    }
+
+    @Test
     fun `missing numbers stay missing rather than becoming zero`() {
         val swim = GarminActivityFeed.parse(feed, london)[1]
         assertEquals(LocalDate.of(2026, 9, 10), swim.localDate)
