@@ -37,9 +37,11 @@ class TaskRepository(private val context: Context) {
     private val soundEnabledKey = booleanPreferencesKey("sound_enabled")
     private val learnedWordsKey = stringPreferencesKey("learned_words_json")
     private val titlesTidiedKey = booleanPreferencesKey("titles_tidied_v1")
+    private val ideasKey = stringPreferencesKey("ideas_json")
 
     val tasks: Flow<List<Task>> = context.dataStore.data.map { it.readTasks() }
     val progress: Flow<Progress> = context.dataStore.data.map { it.readProgress() }
+    val ideas: Flow<List<Idea>> = context.dataStore.data.map { it.readIdeas() }
     val soundEnabled: Flow<Boolean> = context.dataStore.data.map { it[soundEnabledKey] ?: true }
 
     suspend fun setSoundEnabled(enabled: Boolean) {
@@ -67,6 +69,55 @@ class TaskRepository(private val context: Context) {
                 .map { if (it.id == id) it.copy(title = clean, priority = priority) else it }
                 .toJsonString()
         }
+    }
+
+    suspend fun addIdea(text: String) {
+        val clean = tidyIdea(text)
+        if (clean.isEmpty()) return
+        context.dataStore.edit { prefs ->
+            prefs[ideasKey] = (prefs.readIdeas() + Idea(text = clean)).ideasToJson()
+        }
+    }
+
+    suspend fun updateIdea(id: String, text: String) {
+        val clean = tidyIdea(text)
+        if (clean.isEmpty()) return
+        context.dataStore.edit { prefs ->
+            prefs[ideasKey] = prefs.readIdeas()
+                .map { if (it.id == id) it.copy(text = clean) else it }
+                .ideasToJson()
+        }
+    }
+
+    suspend fun deleteIdea(id: String) {
+        context.dataStore.edit { prefs ->
+            prefs[ideasKey] = prefs.readIdeas().filterNot { it.id == id }.ideasToJson()
+        }
+    }
+
+    suspend fun restoreIdea(idea: Idea) {
+        context.dataStore.edit { prefs ->
+            val current = prefs.readIdeas()
+            if (current.none { it.id == idea.id }) prefs[ideasKey] = (current + idea).ideasToJson()
+        }
+    }
+
+    /**
+     * Moves an idea onto the task list in one write, so it can never end up in
+     * both or neither. Returns the new task's id for undo.
+     */
+    suspend fun ideaToTask(id: String): String? {
+        var taskId: String? = null
+        context.dataStore.edit { prefs ->
+            val ideas = prefs.readIdeas()
+            val idea = ideas.find { it.id == id } ?: return@edit
+            val title = TaskFormatter.format(idea.text.replace('\n', ' '), prefs.readLearned())
+            val task = Task(title = title)
+            prefs[tasksKey] = (prefs.readTasks() + task).toJsonString()
+            prefs[ideasKey] = ideas.filterNot { it.id == id }.ideasToJson()
+            taskId = task.id
+        }
+        return taskId
     }
 
     /** One-off tidy of tasks typed before the formatter existed. */
@@ -145,6 +196,8 @@ class TaskRepository(private val context: Context) {
     }
 
     private fun Preferences.readTasks(): List<Task> = this[tasksKey]?.toTasks() ?: emptyList()
+
+    private fun Preferences.readIdeas(): List<Idea> = this[ideasKey]?.toIdeas() ?: emptyList()
 
     private fun Preferences.readLearned(): Map<String, String> {
         val json = this[learnedWordsKey] ?: return emptyMap()

@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.laura.royaltasks.audio.SoundPlayer
+import com.laura.royaltasks.data.Idea
 import com.laura.royaltasks.data.Priority
 import com.laura.royaltasks.data.Progress
 import com.laura.royaltasks.data.Task
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -26,6 +28,11 @@ data class UiState(
     val progress: Progress = Progress(),
     val today: Long = LocalDate.now().toEpochDay(),
     val soundEnabled: Boolean = true,
+    val loaded: Boolean = false
+)
+
+data class IdeasState(
+    val ideas: List<Idea> = emptyList(),
     val loaded: Boolean = false
 )
 
@@ -56,6 +63,10 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
                 loaded = true
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState())
+
+    val ideasState: StateFlow<IdeasState> =
+        repo.ideas.map { ideas -> IdeasState(ideas.sortedByDescending { it.createdAt }, loaded = true) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), IdeasState())
 
     init {
         viewModelScope.launch { repo.soundEnabled.collect { sounds.enabled = it } }
@@ -101,6 +112,35 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
 
     fun uncomplete(id: String) {
         viewModelScope.launch { repo.uncomplete(id) }
+    }
+
+    fun addIdea(text: String) {
+        viewModelScope.launch { repo.addIdea(text) }
+    }
+
+    fun updateIdea(id: String, text: String) {
+        viewModelScope.launch { repo.updateIdea(id, text) }
+    }
+
+    fun deleteIdea(id: String) {
+        viewModelScope.launch { repo.deleteIdea(id) }
+    }
+
+    fun restoreIdea(idea: Idea) {
+        viewModelScope.launch { repo.restoreIdea(idea.copy(id = UUID.randomUUID().toString())) }
+    }
+
+    /** [onMoved] gets the new task's id so the move can be undone. */
+    fun ideaToTask(idea: Idea, onMoved: (String) -> Unit) {
+        viewModelScope.launch { repo.ideaToTask(idea.id)?.let(onMoved) }
+    }
+
+    /** Undo for [ideaToTask]: take the task back off and return the idea. */
+    fun undoIdeaToTask(idea: Idea, taskId: String) {
+        viewModelScope.launch {
+            repo.delete(taskId)
+            repo.restoreIdea(idea)
+        }
     }
 
     fun toggleSound() {

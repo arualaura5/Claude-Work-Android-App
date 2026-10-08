@@ -124,6 +124,8 @@ fun TodoScreen(vm: TaskViewModel) {
     var nextFxId by remember { mutableLongStateOf(0L) }
     var levelUp by remember { mutableStateOf<Int?>(null) }
     var editing by remember { mutableStateOf<Task?>(null) }
+    var tab by rememberSaveable { mutableStateOf(AppTab.TASKS) }
+    val ideasState by vm.ideasState.collectAsState()
 
     fun showMessage(message: String, actionLabel: String? = null, onAction: () -> Unit = {}) {
         snackbar.currentSnackbarData?.dismiss()
@@ -168,9 +170,35 @@ fun TodoScreen(vm: TaskViewModel) {
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
-            snackbarHost = { SnackbarHost(snackbar) }
+            snackbarHost = { SnackbarHost(snackbar) },
+            bottomBar = {
+                AppTabBar(
+                    selected = tab,
+                    openTasks = state.open.size,
+                    ideas = ideasState.ideas.size,
+                    onSelect = { tab = it }
+                )
+            }
         ) { padding ->
-            LazyColumn(
+            if (tab == AppTab.IDEAS) {
+                IdeasTab(
+                    state = ideasState,
+                    padding = padding,
+                    onAdd = vm::addIdea,
+                    onUpdate = vm::updateIdea,
+                    onDelete = { idea ->
+                        vm.deleteIdea(idea.id)
+                        showMessage("Cleared.", actionLabel = "Undo") { vm.restoreIdea(idea) }
+                    },
+                    onMakeTask = { idea ->
+                        vm.ideaToTask(idea) { taskId ->
+                            showMessage("Added to tasks.", actionLabel = "Undo") {
+                                vm.undoIdeaToTask(idea, taskId)
+                            }
+                        }
+                    }
+                )
+            } else LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = 16.dp,
