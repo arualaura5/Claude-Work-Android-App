@@ -126,6 +126,7 @@ fun TodoScreen(vm: TaskViewModel) {
     var editing by remember { mutableStateOf<Task?>(null) }
     var tab by rememberSaveable { mutableStateOf(AppTab.TASKS) }
     val ideasState by vm.ideasState.collectAsState()
+    val updateState by vm.updateState.collectAsState()
 
     fun showMessage(message: String, actionLabel: String? = null, onAction: () -> Unit = {}) {
         snackbar.currentSnackbarData?.dismiss()
@@ -217,6 +218,16 @@ fun TodoScreen(vm: TaskViewModel) {
                         onToggleSound = vm::toggleSound
                     )
                 }
+                if (updateState.showsCard) {
+                    item(key = "update") {
+                        UpdateCard(
+                            state = updateState,
+                            onInstall = vm::installUpdate,
+                            onAllowInstalls = vm::allowUpdateInstalls,
+                            onLater = vm::updateLater
+                        )
+                    }
+                }
                 item(key = "add") {
                     QuickAdd(
                         onAdd = vm::add,
@@ -266,14 +277,18 @@ fun TodoScreen(vm: TaskViewModel) {
                     }
                 }
                 item(key = "build") {
+                    // Tapping the build line checks GitHub for a newer build there and then.
                     Text(
-                        text = "Build ${BuildConfig.GIT_SHA}",
+                        text = "Build ${BuildConfig.GIT_SHA} · ${BuildConfig.BUILD_DATE} · ${buildLineStatus(updateState)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 24.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClickLabel = "Check for updates", onClick = vm::checkForUpdates)
+                            .padding(vertical = 10.dp)
                     )
                 }
             }

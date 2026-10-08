@@ -55,3 +55,40 @@ jobs:
           files: |
             app/build/outputs/apk/debug/app-debug.apk
             todo/build/outputs/apk/debug/todo-debug.apk
+
+      # Royal Tasks' in-app updater reads update.json from its own release. The APK
+      # is named by commit so a half-finished publish can never pair an old
+      # manifest with a new file; the app also checks the SHA-256 before installing.
+      - name: Name the Royal Tasks APK by commit
+        if: github.event_name == 'push'
+        run: cp todo/build/outputs/apk/debug/todo-debug.apk "todo/build/outputs/apk/debug/royal-tasks-${GITHUB_SHA::7}.apk"
+
+      - name: Publish Royal Tasks for the in-app updater
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: royal-tasks-latest
+          name: "Royal Tasks — latest build"
+          body: "Automatically rebuilt on every push. Royal Tasks checks this release for updates. Install over the existing app — never uninstall first."
+          prerelease: true
+          make_latest: false
+          files: todo/build/outputs/apk/debug/royal-tasks-*.apk
+
+      - name: Publish update.json for Royal Tasks (and prune older APKs)
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          APK="royal-tasks-${GITHUB_SHA::7}.apk"
+          SUM="$(sha256sum "todo/build/outputs/apk/debug/$APK" | cut -d' ' -f1)"
+          BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          jq -n --argjson version_code "$GITHUB_RUN_NUMBER" --arg sha "${GITHUB_SHA::7}" \
+            --arg apk "$APK" --arg sha256 "$SUM" --arg built_at "$BUILT_AT" \
+            '{version_code: $version_code, sha: $sha, apk: $apk, sha256: $sha256, built_at: $built_at}' > update.json
+          cat update.json
+          gh release upload royal-tasks-latest update.json --clobber
+          # Old APKs go only now the new manifest is up, so nothing points at a deleted file.
+          gh release view royal-tasks-latest --json assets --jq '.assets[].name' \
+            | grep -E '^royal-tasks-[0-9a-f]+\.apk$' | grep -vx "$APK" \
+            | xargs -r -n1 gh release delete-asset royal-tasks-latest -y

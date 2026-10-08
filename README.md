@@ -95,3 +95,6 @@ flashcards app or its data.
 - Tick it for XP and confetti. Three in a day earns the daily 👑 (+25 XP).
 - Swipe a task away to clear it (Undo on the snackbar). Tap it to edit.
 - Tap a ticked task under "Done today" to un-tick it (its XP comes back off).
+- **Updates itself.** On launch it checks the `royal-tasks-latest` release and
+  shows an "Update available" card; tap the build line at the bottom of the
+  Tasks tab to check by hand. Android shows its own install screen each time.

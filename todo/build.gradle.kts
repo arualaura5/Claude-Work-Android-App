@@ -13,13 +13,17 @@ android {
         applicationId = "com.laura.royaltasks"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
+        // CI's run number, so every published build is newer than the last and
+        // the in-app updater can tell (it compares against update.json's version_code).
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "1.0"
 
-        // Short commit shown at the bottom of the screen, so it's easy to
-        // confirm which build is actually installed.
+        // Short commit and date shown at the bottom of the screen, so it's easy
+        // to confirm which build is actually installed.
         val gitSha = System.getenv("GITHUB_SHA")?.take(7) ?: "local"
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
+        val buildDate = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString()
+        buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
 
         vectorDrawables {
             useSupportLibrary = true

@@ -9,6 +9,8 @@ import com.laura.royaltasks.data.Priority
 import com.laura.royaltasks.data.Progress
 import com.laura.royaltasks.data.Task
 import com.laura.royaltasks.data.TaskRepository
+import com.laura.royaltasks.update.AppUpdater
+import com.laura.royaltasks.update.UpdateState
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -45,6 +47,8 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = TaskRepository(app)
     private val sounds = SoundPlayer(app)
+    private val updater = AppUpdater(app)
+    val updateState: StateFlow<UpdateState> = updater.state
     private val today = MutableStateFlow(LocalDate.now().toEpochDay())
 
     private val _events = MutableSharedFlow<Celebration>(extraBufferCapacity = 8)
@@ -71,6 +75,8 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
     init {
         viewModelScope.launch { repo.soundEnabled.collect { sounds.enabled = it } }
         viewModelScope.launch { repo.tidyExistingOnce() }
+        // Quiet on launch: shows a card only if there's a newer build.
+        updater.check()
     }
 
     /** Called on resume, so "today" rolls over if the app sat open past midnight. */
@@ -142,6 +148,11 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
             repo.restoreIdea(idea)
         }
     }
+
+    fun checkForUpdates() = updater.check(manual = true)
+    fun installUpdate() = updater.install()
+    fun allowUpdateInstalls() = updater.openInstallPermission()
+    fun updateLater() = updater.later()
 
     fun toggleSound() {
         viewModelScope.launch { repo.setSoundEnabled(!state.value.soundEnabled) }
