@@ -1,3 +1,6 @@
+import java.time.LocalDate
+import java.time.ZoneOffset
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -22,7 +25,7 @@ android {
         // to confirm which build is actually installed.
         val gitSha = System.getenv("GITHUB_SHA")?.take(7) ?: "local"
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
-        val buildDate = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString()
+        val buildDate = LocalDate.now(ZoneOffset.UTC).toString()
         buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
 
         vectorDrawables {
