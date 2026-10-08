@@ -41,8 +41,20 @@ class TaskFormatterTest {
     }
 
     @Test
-    fun `new sentence after a full stop gets a capital`() {
-        assertEquals("Pack bag. Charge watch", f("pack bag. charge watch."))
+    fun `keyboard double-space full stops mid-line are dropped`() {
+        assertEquals("Does this change work?", f("Does this. Change work"))
+        assertEquals("Pack bag charge watch", f("pack bag. Charge watch."))
+        assertEquals("Call Dr. Patel about results", f("call dr. Patel about results"))
+        assertEquals("Book flights to Dublin", f("book flights. To Dublin"))
+    }
+
+    @Test
+    fun `questions get a question mark`() {
+        assertEquals("Is the gym open Sunday?", f("is the gym open sunday"))
+        assertEquals("Should I renew the passport?", f("should i renew the passport."))
+        assertEquals("Do taxes", f("do taxes"))
+        assertEquals("Have lunch with mum", f("have lunch with mum"))
+        assertEquals("What?!", f("what?!"))
     }
 
     @Test

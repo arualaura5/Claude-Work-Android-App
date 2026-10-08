@@ -36,7 +36,7 @@ class TaskRepository(private val context: Context) {
     private val lastCrownDayKey = longPreferencesKey("last_crown_epoch_day")
     private val soundEnabledKey = booleanPreferencesKey("sound_enabled")
     private val learnedWordsKey = stringPreferencesKey("learned_words_json")
-    private val titlesTidiedKey = booleanPreferencesKey("titles_tidied_v1")
+    private val titlesTidiedKey = booleanPreferencesKey("titles_tidied_v2")
     private val ideasKey = stringPreferencesKey("ideas_json")
 
     val tasks: Flow<List<Task>> = context.dataStore.data.map { it.readTasks() }
@@ -120,7 +120,7 @@ class TaskRepository(private val context: Context) {
         return taskId
     }
 
-    /** One-off tidy of tasks typed before the formatter existed. */
+    /** One-off tidy of open tasks typed before the current formatter rules (v2: stray full stops, questions). */
     suspend fun tidyExistingOnce() {
         context.dataStore.edit { prefs ->
             if (prefs[titlesTidiedKey] == true) return@edit

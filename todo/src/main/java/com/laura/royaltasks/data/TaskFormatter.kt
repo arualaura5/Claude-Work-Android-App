@@ -22,19 +22,50 @@ object TaskFormatter {
 
         val tokens = text.split(" ")
         var sentenceStart = true
-        val out = tokens.map { token ->
-            val formatted = formatToken(token, sentenceStart, learned)
+        var afterStrayStop = false
+        val out = tokens.mapIndexed { i, token ->
+            // A to-do is one line, so a full stop mid-line is almost always the
+            // keyboard's double-space shortcut: drop it, and the capital the
+            // keyboard added after it.
+            val stray = i < tokens.lastIndex && token.endsWith(".") && !isAbbreviation(token)
+            val formatted = formatToken(
+                if (stray) token.dropLast(1) else token,
+                sentenceStart,
+                learned,
+                lowerCapital = afterStrayStop
+            )
+            afterStrayStop = stray
             if (formatted.any { it.isLetterOrDigit() }) {
-                sentenceStart = formatted.last() in ".!?"
+                sentenceStart = formatted.last() in "!?"
             }
             formatted
         }
 
         // A to-do isn't a sentence: drop trailing full stops, keep ? and !.
-        return out.joinToString(" ").trimEnd('.', ' ', ',', ';', ':').ifEmpty { text }
+        val tidied = out.joinToString(" ").trimEnd('.', ' ', ',', ';', ':')
+        if (tidied.isEmpty()) return text
+        return if (isQuestion(tidied)) "$tidied?" else tidied
     }
 
-    private fun formatToken(token: String, sentenceStart: Boolean, learned: Map<String, String>): String {
+    private fun isAbbreviation(token: String): Boolean {
+        val bare = token.dropLast(1)
+        val core = WORD.find(bare)?.value?.lowercase() ?: return true
+        return core.length == 1 || bare.contains('.') || core in ABBREVIATIONS || core.all { it.isDigit() }
+    }
+
+    /** "Does this work" → needs a "?". Only when it opens with a question word. */
+    private fun isQuestion(text: String): Boolean {
+        if (text.last() in "?!") return false
+        val words = words(text)
+        return words.size >= 2 && words.first().lowercase() in QUESTION_STARTS
+    }
+
+    private fun formatToken(
+        token: String,
+        sentenceStart: Boolean,
+        learned: Map<String, String>,
+        lowerCapital: Boolean = false
+    ): String {
         val match = WORD.find(token) ?: return token
         val core = match.value
         val lower = core.lowercase()
@@ -42,6 +73,8 @@ object TaskFormatter {
             lower in PROPER -> PROPER.getValue(lower)
             // Mid-sentence capitals on everyday words come from Title Case typing.
             isCapitalised(core) && lower in COMMON && !sentenceStart -> lower
+            // The keyboard's capital after a dropped stray full stop.
+            isCapitalised(core) && lowerCapital -> lower
             else -> core
         }
         val cased = if (sentenceStart && fixed.first().isLowerCase() && !hasInnerCapital(fixed)) {
@@ -103,6 +136,14 @@ object TaskFormatter {
         return prev[b.length]
     }
 
+    private val ABBREVIATIONS = setOf("dr", "mr", "mrs", "ms", "st", "vs", "etc", "approx", "no", "jr", "sr")
+
+    // "do", "have" and "will" are left out: "Do taxes", "Have lunch", "Will to sign".
+    private val QUESTION_STARTS = setOf(
+        "does", "did", "is", "are", "was", "were", "am", "can", "could", "should",
+        "would", "shall", "has", "what", "when", "where", "why", "how", "who", "which", "whose"
+    )
+
     private val PRONOUN_I = mapOf(
         "i" to "I", "i'm" to "I'm", "i'll" to "I'll", "i've" to "I've", "i'd" to "I'd",
         "im" to "I'm", "ive" to "I've"
@@ -120,7 +161,8 @@ object TaskFormatter {
         "Asda", "Aldi", "Lidl", "Boots", "Ikea", "Zara", "Garmin", "Strava", "Huel",
         "Twinings", "WhatsApp", "iPhone", "Instagram", "Facebook", "YouTube", "Google",
         "Gmail", "Netflix", "Spotify", "Uber", "Airbnb", "Ryanair", "Aer", "Lingus",
-        "Easyjet", "HMRC", "NHS", "GP", "MOT", "TV", "PT", "PB", "PR", "VAT", "ID"
+        "Easyjet", "HMRC", "NHS", "GP", "MOT", "TV", "PT", "PB", "PR", "VAT", "ID",
+        "Dr", "Mr", "Mrs", "Ms"
     ).associateBy { it.lowercase() } + ("twinnings" to "Twinings")
 
     // Everyday to-do words that only get a capital from Title Case typing.
