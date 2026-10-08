@@ -212,6 +212,9 @@ internal fun CoachContent(
             WellbeingContent(
                 wellbeing,
                 modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
+                watch = state.watch,
+                onSendToWatch = viewModel::sendToWatch,
+                onTakeOffWatch = viewModel::takeOffWatch,
             )
             return@Scaffold
         }

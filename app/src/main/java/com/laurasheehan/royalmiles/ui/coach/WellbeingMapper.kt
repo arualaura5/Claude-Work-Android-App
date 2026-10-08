@@ -32,6 +32,7 @@ internal object WellbeingMapper {
         5 to "178–187 bpm · hard",
     )
     private val RUNS = setOf(SessionType.EASY_RUN, SessionType.LONG_RUN, SessionType.RACE)
+    private val WATCH_RUNS = setOf(SessionType.EASY_RUN, SessionType.LONG_RUN)
     private val ZONE_IN_NOTES = Regex("""Zone (\d)""")
     // The plan's own "Easy, Zone 2 (122-157 bpm)." opener repeats the zone label, so it is left off the note.
     private val ZONE_SENTENCE = Regex("""^[^.]*Zone \d \(\d+-\d+ bpm\)\.\s*""")
@@ -169,6 +170,9 @@ internal object WellbeingMapper {
             zone = zone?.let { "Zone $it" },
             zoneDetail = zone?.let { ZONES[it] },
             note = note?.let { "From your plan: $it" },
+            sessionId = session.id,
+            canSendToWatch = session.type in WATCH_RUNS &&
+                (session.targetDistanceKm ?: 0.0) + (session.targetDurationMin ?: 0) > 0,
         )
     }
 

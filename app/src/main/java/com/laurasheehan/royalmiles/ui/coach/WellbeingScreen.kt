@@ -28,6 +28,8 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Watch
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -102,6 +104,10 @@ data class WellbeingUi(
         val zone: String? = null,
         val zoneDetail: String? = null,
         val note: String? = null,
+        /** The plan row shown, so "Send to watch" confirms exactly this session. */
+        val sessionId: Long? = null,
+        /** A run with a distance or time: something a watch workout can be built from. */
+        val canSendToWatch: Boolean = false,
     )
 
     /** One metric that matters today, against her usual. */
@@ -149,14 +155,20 @@ private fun toneColor(tone: WellbeingUi.Tone): Color = when (tone) {
 }
 
 @Composable
-fun WellbeingContent(ui: WellbeingUi, modifier: Modifier = Modifier) {
+fun WellbeingContent(
+    ui: WellbeingUi,
+    modifier: Modifier = Modifier,
+    watch: WatchUi? = null,
+    onSendToWatch: (Long) -> Unit = {},
+    onTakeOffWatch: (Long) -> Unit = {},
+) {
     var range by rememberSaveable { mutableStateOf(14) }
     Column(modifier = modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(ui.dateLine, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Brief(ui)
         // Flags are never folded away: a shorter page must not make a warning easier to miss.
         if (ui.warnings.isNotEmpty()) WarningsBox(ui.warnings)
-        ui.training?.let { TrainingCard(it) }
+        ui.training?.let { TrainingCard(it, watch, onSendToWatch, onTakeOffWatch) }
         if (ui.signals.isNotEmpty()) {
             SectionTitle("What changed")
             ui.signals.forEach { SignalRow(it) }
@@ -286,7 +298,12 @@ private fun WarningsBox(warnings: List<String>) {
 // ── her next session ─────────────────────────────────────────────────────────
 
 @Composable
-internal fun TrainingCard(training: WellbeingUi.TrainingContext) {
+internal fun TrainingCard(
+    training: WellbeingUi.TrainingContext,
+    watch: WatchUi? = null,
+    onSendToWatch: (Long) -> Unit = {},
+    onTakeOffWatch: (Long) -> Unit = {},
+) {
     SoftCard {
         Text(training.whenLabel.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -332,6 +349,46 @@ internal fun TrainingCard(training: WellbeingUi.TrainingContext) {
                     .padding(10.dp),
             )
         }
+        val sessionId = training.sessionId
+        if (watch != null && sessionId != null) WatchRow(watch, { onSendToWatch(sessionId) }, { onTakeOffWatch(sessionId) })
+    }
+}
+
+/** Nothing goes to her watch without this tap; once sent, it says so and can be taken back off. */
+@Composable
+private fun WatchRow(watch: WatchUi, onSend: () -> Unit, onTakeOff: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        when (watch.status) {
+            WatchUi.Status.SENT -> {
+                Icon(Icons.Filled.Watch, contentDescription = null, tint = RoyalPurple, modifier = Modifier.size(18.dp))
+                Text("On your watch", style = MaterialTheme.typography.labelLarge, color = RoyalPurple, modifier = Modifier.weight(1f))
+                TextButton(onClick = onTakeOff, enabled = !watch.busy) { Text("Take off") }
+            }
+            WatchUi.Status.NOT_SENT, WatchUi.Status.CHANGED_SINCE_SENT -> {
+                if (watch.status == WatchUi.Status.CHANGED_SINCE_SENT) {
+                    Text(
+                        "Changed since you sent it",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                OutlinedButton(onClick = onSend, enabled = !watch.busy) {
+                    Icon(Icons.Filled.Watch, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        when {
+                            watch.busy -> "Sending…"
+                            watch.status == WatchUi.Status.CHANGED_SINCE_SENT -> "Send this version"
+                            else -> "Send to watch"
+                        },
+                    )
+                }
+            }
+        }
+    }
+    watch.message?.let {
+        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

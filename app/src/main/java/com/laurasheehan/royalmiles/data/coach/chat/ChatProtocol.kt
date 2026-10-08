@@ -230,7 +230,7 @@ object ChatProtocol {
                     )
                     // Why a session was changed or added ("Was: Long run. Changed to ... because:
                     // just recovered from a virus"), so the coach reads the day as agreed.
-                    .putOpt("note", session.notes.takeIf { (session.isCustom || session.supersededByCoach) && it.isNotBlank() }?.take(240))
+                    .putOpt("note", planNote(session))
                     .putOpt("target_km", session.targetDistanceKm)
                     .putOpt("target_min", session.targetDurationMin)
                     // Recorded or entered figures only: possibly-planned ones would read to the coach
@@ -243,6 +243,38 @@ object ChatProtocol {
             )
         }
         return JSONObject().put("generated_at", generatedAt).put("sessions", array)
+    }
+
+    private fun planNote(session: SessionEntity): String? =
+        session.notes.takeIf { (session.isCustom || session.supersededByCoach) && it.isNotBlank() }?.take(240)
+
+    /**
+     * A run as "Send to watch" confirms it: the same fields, written the same way, as the plan
+     * shares, because the refresh only sends it while the shared plan still matches.
+     */
+    fun watchSessionJson(session: SessionEntity): JSONObject = JSONObject()
+        .put("date", session.date.toString())
+        .put("type", session.type.name)
+        .put("title", session.title)
+        .putOpt("target_km", session.targetDistanceKm)
+        .putOpt("target_min", session.targetDurationMin)
+        .putOpt("note", planNote(session))
+
+    /** The runs she has sent to her watch, by date, from GET /chat/v1/garmin. */
+    fun parseWatchSessions(json: String): Map<String, JSONObject> {
+        val list = JSONObject(json).optJSONArray("confirmed") ?: return emptyMap()
+        return (0 until list.length()).mapNotNull { list.optJSONObject(it) }
+            .filter { it.optString("date").isNotBlank() }
+            .associateBy { it.getString("date") }
+    }
+
+    /** Whether what she sent is still this session: if it changed since, it waits for her yes again. */
+    fun sameAsSent(session: SessionEntity, sent: JSONObject): Boolean {
+        fun number(key: String): Double? = if (sent.isNull(key)) null else sent.optDouble(key).takeIf { !it.isNaN() }
+        return sent.optString("type") == session.type.name &&
+            sent.optString("title") == session.title.trim().take(80) &&
+            number("target_km") == session.targetDistanceKm &&
+            number("target_min") == session.targetDurationMin?.toDouble()
     }
 
     fun parseCoachReply(json: String): CoachReply {

@@ -361,4 +361,34 @@ class ChatProtocolTest {
             earlier.getJSONObject(1).getString("agreed_change"),
         )
     }
+
+    @Test
+    fun `a run sent to the watch carries the same fields the plan shares`() {
+        val run = session(2)
+        val sent = ChatProtocol.watchSessionJson(run)
+        val shared = ChatProtocol.planJson(listOf(run), today, "t").getJSONArray("sessions").getJSONObject(0)
+        for (key in listOf("date", "type", "title", "target_km")) {
+            assertEquals(shared.get(key).toString(), sent.get(key).toString(), key)
+        }
+        assertFalse(sent.has("status"))
+    }
+
+    @Test
+    fun `what was sent matches the session until it changes`() {
+        val run = session(2)
+        val sent = org.json.JSONObject(ChatProtocol.watchSessionJson(run).toString()).put("target_min", org.json.JSONObject.NULL)
+        assertTrue(ChatProtocol.sameAsSent(run, sent))
+        assertFalse(ChatProtocol.sameAsSent(run.copy(targetDistanceKm = 8.0), sent))
+        assertFalse(ChatProtocol.sameAsSent(run.copy(title = "Long run"), sent))
+        assertFalse(ChatProtocol.sameAsSent(run.copy(type = SessionType.LONG_RUN), sent))
+    }
+
+    @Test
+    fun `the runs on her watch are read by date`() {
+        val sent = ChatProtocol.parseWatchSessions(
+            """{"confirmed":[{"date":"2026-09-28","type":"EASY_RUN","title":"Easy run","target_km":6,"target_min":null}]}""",
+        )
+        assertEquals(setOf("2026-09-28"), sent.keys)
+        assertTrue(ChatProtocol.parseWatchSessions("""{"confirmed":[]}""").isEmpty())
+    }
 }
