@@ -123,6 +123,35 @@ class ChatRepository(context: Context) {
         }
     }
 
+    /** The runs she has sent to her watch, by date. */
+    suspend fun watchSessions(): Result<Map<String, JSONObject>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val (base, token) = connection() ?: error("Connect the coach chat first.")
+            ChatProtocol.parseWatchSessions(request(base, token, "GET", "/chat/v1/garmin", null))
+        }
+    }
+
+    /**
+     * Her yes to sending this run to her watch. True when the refresh started at once; false when
+     * it waits for the next scheduled one.
+     */
+    suspend fun sendToWatch(session: SessionEntity, today: LocalDate): Result<Boolean> = withContext(Dispatchers.IO) {
+        runCatching {
+            val (base, token) = connection() ?: error("Connect the coach chat first.")
+            val body = JSONObject().put("today", today.toString()).put("session", ChatProtocol.watchSessionJson(session))
+            JSONObject(request(base, token, "POST", "/chat/v1/garmin/confirm", body)).optBoolean("dispatched")
+        }
+    }
+
+    /** Takes a run she sent back off her watch. */
+    suspend fun takeOffWatch(date: LocalDate): Result<Boolean> = withContext(Dispatchers.IO) {
+        runCatching {
+            val (base, token) = connection() ?: error("Connect the coach chat first.")
+            val body = JSONObject().put("date", date.toString())
+            JSONObject(request(base, token, "POST", "/chat/v1/garmin/cancel", body)).optBoolean("dispatched")
+        }
+    }
+
     /** Saves an entry to her athlete file (as the coach offered it, or as she edited it). */
     suspend fun remember(proposal: MemoryProposal, messageId: String?): Result<List<MemoryNote>> = withContext(Dispatchers.IO) {
         runCatching {

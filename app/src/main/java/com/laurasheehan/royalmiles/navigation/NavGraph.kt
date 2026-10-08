@@ -128,9 +128,16 @@ fun RoyalMilesNavHost(
             BackupScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Routes.COACH) {
+            val context = androidx.compose.ui.platform.LocalContext.current
             val viewModel: CoachViewModel = viewModel(
                 factory = viewModelFactory {
-                    initializer { CoachViewModel(coachRepository, repository.observeSessions()) }
+                    initializer {
+                        CoachViewModel(
+                            coachRepository,
+                            repository.observeSessions(),
+                            com.laurasheehan.royalmiles.data.coach.chat.ChatRepository(context.applicationContext),
+                        )
+                    }
                 },
             )
             CoachScreen(viewModel = viewModel, onOpenChat = { navController.navigate(Routes.COACH_CHAT) })
