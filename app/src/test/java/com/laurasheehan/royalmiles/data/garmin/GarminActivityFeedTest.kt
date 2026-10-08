@@ -70,7 +70,7 @@ class GarminActivityFeedTest {
             {"activity_id":"3","date":"2026-10-06","start_time_local":"2026-10-06 18:00:00","type":"running","distance_km":5.0,"duration_minutes":32,"feel":9}
         ]}"""
         val feel = GarminActivityFeed.parse(json, london).associate { it.sourceActivityId to it.watchFeel }
-        assertEquals(mapOf("1" to 4, "2" to null, "3" to null), feel)
+        assertEquals(mapOf<String?, Int?>("1" to 4, "2" to null, "3" to null), feel)
     }
 
     @Test
