@@ -31,7 +31,24 @@ jobs:
       # now none of its tests ran anywhere. Room migrations still aren't covered — that needs
       # schema export and an instrumented test — but everything else here is.
       - name: Run app module unit tests
-        run: ./gradlew :app:testDebugUnitTest --console=plain
+        run: |
+          set -o pipefail
+          ./gradlew :app:testDebugUnitTest --console=plain 2>&1 | tee unit-tests.log
+
+      # The raw log isn't readable from every place this build is checked from; annotations are.
+      # Compile errors and failing tests become one-line annotations on the run.
+      - name: Report what failed
+        if: failure()
+        run: |
+          grep -E '^e: ' unit-tests.log | head -20 | sed 's/^e: /::error title=Compile error::/' || true
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          for path in glob.glob("app/build/test-results/testDebugUnitTest/*.xml"):
+              for case in ET.parse(path).getroot().iter("testcase"):
+                  for failure in list(case.iter("failure"))[:1]:
+                      message = (failure.get("message") or failure.text or "").strip().splitlines()[0][:300]
+                      print(f"::error title=Failing test::{case.get('classname')}.{case.get('name')}: {message}")
+          PY
 
       # Upgrade steps and backup/restore run against a real Android SQLite on an emulator, since
       # the JVM can't reproduce the device. Before any APK is published, so a failure here means
