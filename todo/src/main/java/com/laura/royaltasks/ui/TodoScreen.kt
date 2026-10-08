@@ -7,6 +7,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,7 +73,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontStyle
@@ -124,6 +129,7 @@ fun TodoScreen(vm: TaskViewModel) {
     var nextFxId by remember { mutableLongStateOf(0L) }
     var levelUp by remember { mutableStateOf<Int?>(null) }
     var editing by remember { mutableStateOf<Task?>(null) }
+    var deleting by remember { mutableStateOf<Task?>(null) }
     var tab by rememberSaveable { mutableStateOf(AppTab.TASKS) }
     val ideasState by vm.ideasState.collectAsState()
     val updateState by vm.updateState.collectAsState()
@@ -254,6 +260,7 @@ fun TodoScreen(vm: TaskViewModel) {
                         onComplete = onComplete,
                         onDelete = onDelete,
                         onEdit = { editing = it },
+                        onLongPress = { deleting = it },
                         modifier = Modifier.animateItemPlacement()
                     )
                 }
@@ -272,6 +279,7 @@ fun TodoScreen(vm: TaskViewModel) {
                         DoneRow(
                             task = task,
                             onUndo = { vm.uncomplete(task.id) },
+                            onLongPress = { deleting = task },
                             modifier = Modifier.animateItemPlacement()
                         )
                     }
@@ -299,6 +307,18 @@ fun TodoScreen(vm: TaskViewModel) {
         }
         ConfettiLayer(bursts) { id -> bursts = bursts.filterNot { it.id == id } }
         XpPopLayer(pops) { id -> pops = pops.filterNot { it.id == id } }
+    }
+
+    deleting?.let { task ->
+        ConfirmDeleteDialog(
+            kind = "task",
+            text = task.title,
+            onDelete = {
+                onDelete(task)
+                deleting = null
+            },
+            onDismiss = { deleting = null }
+        )
     }
 
     editing?.let { task ->
@@ -405,6 +425,7 @@ private fun SwipeableTaskRow(
     onComplete: (Task, Offset) -> Unit,
     onDelete: (Task) -> Unit,
     onEdit: (Task) -> Unit,
+    onLongPress: (Task) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val dismissState = rememberSwipeToDismissBoxState()
@@ -416,7 +437,7 @@ private fun SwipeableTaskRow(
         modifier = modifier,
         backgroundContent = { ClearBackground(dismissState) }
     ) {
-        TaskCard(task = task, onComplete = onComplete, onEdit = onEdit)
+        TaskCard(task = task, onComplete = onComplete, onEdit = onEdit, onLongPress = onLongPress)
     }
 }
 
@@ -452,12 +473,15 @@ private fun ClearBackground(state: SwipeToDismissBoxState) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TaskCard(
     task: Task,
     onComplete: (Task, Offset) -> Unit,
-    onEdit: (Task) -> Unit
+    onEdit: (Task) -> Unit,
+    onLongPress: (Task) -> Unit
 ) {
+    val haptics = LocalHapticFeedback.current
     var checkCenter by remember { mutableStateOf(Offset.Zero) }
     var ticked by remember { mutableStateOf(false) }
     val accent = task.priority.accent()
@@ -480,7 +504,15 @@ private fun TaskCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .weight(1f)
-                    .clickable(onClickLabel = "Edit task") { onEdit(task) }
+                    .combinedClickable(
+                        onClickLabel = "Edit task",
+                        onLongClickLabel = "Delete task",
+                        onLongClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongPress(task)
+                        },
+                        onClick = { onEdit(task) }
+                    )
                     .padding(start = 6.dp, end = 14.dp, top = 6.dp, bottom = 6.dp)
             ) {
                 Box(
@@ -540,7 +572,8 @@ private fun CheckCircle(checked: Boolean, color: Color) {
 }
 
 @Composable
-private fun DoneRow(task: Task, onUndo: () -> Unit, modifier: Modifier = Modifier) {
+private fun DoneRow(task: Task, onUndo: () -> Unit, onLongPress: () -> Unit, modifier: Modifier = Modifier) {
+    val haptics = LocalHapticFeedback.current
     Surface(
         shape = CardShape,
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
@@ -548,7 +581,15 @@ private fun DoneRow(task: Task, onUndo: () -> Unit, modifier: Modifier = Modifie
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 11.dp, end = 14.dp, top = 6.dp, bottom = 6.dp)
+            modifier = Modifier
+                // Long-press only: a plain tap on a finished task does nothing.
+                .pointerInput(task.id) {
+                    detectTapGestures(onLongPress = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongPress()
+                    })
+                }
+                .padding(start = 11.dp, end = 14.dp, top = 6.dp, bottom = 6.dp)
         ) {
             Box(
                 contentAlignment = Alignment.Center,

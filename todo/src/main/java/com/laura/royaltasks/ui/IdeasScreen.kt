@@ -3,6 +3,7 @@ package com.laura.royaltasks.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
@@ -122,6 +125,7 @@ fun IdeasTab(
     onMakeTask: (Idea) -> Unit
 ) {
     var editing by remember { mutableStateOf<Idea?>(null) }
+    var deleting by remember { mutableStateOf<Idea?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -155,10 +159,23 @@ fun IdeasTab(
             SwipeableIdeaCard(
                 idea = idea,
                 onOpen = { editing = idea },
+                onLongPress = { deleting = idea },
                 onDelete = onDelete,
                 modifier = Modifier.animateItemPlacement()
             )
         }
+    }
+
+    deleting?.let { idea ->
+        ConfirmDeleteDialog(
+            kind = "idea",
+            text = idea.text,
+            onDelete = {
+                onDelete(idea)
+                deleting = null
+            },
+            onDismiss = { deleting = null }
+        )
     }
 
     editing?.let { idea ->
@@ -257,14 +274,16 @@ private fun JotBox(onAdd: (String) -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun SwipeableIdeaCard(
     idea: Idea,
     onOpen: () -> Unit,
+    onLongPress: () -> Unit,
     onDelete: (Idea) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptics = LocalHapticFeedback.current
     val dismissState = rememberSwipeToDismissBoxState()
     LaunchedEffect(dismissState.currentValue) {
         if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) onDelete(idea)
@@ -283,7 +302,15 @@ private fun SwipeableIdeaCard(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .clickable(onClickLabel = "Open idea", onClick = onOpen)
+                    .combinedClickable(
+                        onClickLabel = "Open idea",
+                        onLongClickLabel = "Delete idea",
+                        onLongClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongPress()
+                        },
+                        onClick = onOpen
+                    )
                     .padding(horizontal = 18.dp, vertical = 14.dp)
             ) {
                 Text(
