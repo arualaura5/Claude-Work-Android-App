@@ -136,6 +136,8 @@ fun CoachScreen(viewModel: CoachViewModel, onOpenChat: () -> Unit = {}) {
         onConnect = { showConnect = true },
         onPick = { picker.launch(arrayOf("application/json", "*/*")) },
         onOpenChat = onOpenChat,
+        onSendToWatch = viewModel::sendToWatch,
+        onTakeOffWatch = viewModel::takeOffWatch,
     )
 }
 
@@ -148,6 +150,8 @@ internal fun CoachContent(
     onConnect: () -> Unit,
     onPick: () -> Unit,
     onOpenChat: () -> Unit,
+    onSendToWatch: (Long) -> Unit = {},
+    onTakeOffWatch: (Long) -> Unit = {},
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -213,8 +217,8 @@ internal fun CoachContent(
                 wellbeing,
                 modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
                 watch = state.watch,
-                onSendToWatch = viewModel::sendToWatch,
-                onTakeOffWatch = viewModel::takeOffWatch,
+                onSendToWatch = onSendToWatch,
+                onTakeOffWatch = onTakeOffWatch,
             )
             return@Scaffold
         }
