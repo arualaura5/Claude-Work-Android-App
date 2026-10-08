@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.json.JSONObject
 
 private val Context.dataStore by preferencesDataStore(name = "royal_tasks")
 
@@ -34,6 +35,8 @@ class TaskRepository(private val context: Context) {
     private val crownsKey = intPreferencesKey("crowns")
     private val lastCrownDayKey = longPreferencesKey("last_crown_epoch_day")
     private val soundEnabledKey = booleanPreferencesKey("sound_enabled")
+    private val learnedWordsKey = stringPreferencesKey("learned_words_json")
+    private val titlesTidiedKey = booleanPreferencesKey("titles_tidied_v1")
 
     val tasks: Flow<List<Task>> = context.dataStore.data.map { it.readTasks() }
     val progress: Flow<Progress> = context.dataStore.data.map { it.readProgress() }
@@ -44,20 +47,37 @@ class TaskRepository(private val context: Context) {
     }
 
     suspend fun add(title: String, priority: Priority) {
-        val clean = title.trim()
-        if (clean.isEmpty()) return
+        if (title.isBlank()) return
         context.dataStore.edit { prefs ->
+            val clean = TaskFormatter.format(title, prefs.readLearned())
             prefs[tasksKey] = (prefs.readTasks() + Task(title = clean, priority = priority)).toJsonString()
         }
     }
 
+    /** Word fixes made here are remembered and applied to future tasks. */
     suspend fun update(id: String, title: String, priority: Priority) {
-        val clean = title.trim()
-        if (clean.isEmpty()) return
+        if (title.isBlank()) return
         context.dataStore.edit { prefs ->
-            prefs[tasksKey] = prefs.readTasks()
+            val tasks = prefs.readTasks()
+            val old = tasks.find { it.id == id } ?: return@edit
+            val learned = prefs.readLearned() + TaskFormatter.learn(old.title, title)
+            prefs[learnedWordsKey] = JSONObject(learned).toString()
+            val clean = TaskFormatter.format(title, learned)
+            prefs[tasksKey] = tasks
                 .map { if (it.id == id) it.copy(title = clean, priority = priority) else it }
                 .toJsonString()
+        }
+    }
+
+    /** One-off tidy of tasks typed before the formatter existed. */
+    suspend fun tidyExistingOnce() {
+        context.dataStore.edit { prefs ->
+            if (prefs[titlesTidiedKey] == true) return@edit
+            val learned = prefs.readLearned()
+            prefs[tasksKey] = prefs.readTasks()
+                .map { if (it.isDone) it else it.copy(title = TaskFormatter.format(it.title, learned)) }
+                .toJsonString()
+            prefs[titlesTidiedKey] = true
         }
     }
 
@@ -125,6 +145,12 @@ class TaskRepository(private val context: Context) {
     }
 
     private fun Preferences.readTasks(): List<Task> = this[tasksKey]?.toTasks() ?: emptyList()
+
+    private fun Preferences.readLearned(): Map<String, String> {
+        val json = this[learnedWordsKey] ?: return emptyMap()
+        val obj = runCatching { JSONObject(json) }.getOrNull() ?: return emptyMap()
+        return obj.keys().asSequence().associateWith { obj.optString(it) }.filterValues { it.isNotBlank() }
+    }
 
     private fun Preferences.readProgress() = Progress(
         totalXp = this[xpKey] ?: 0,

@@ -89,6 +89,9 @@ flashcards app or its data.
 **https://github.com/arualaura5/Claude-Work-Android-App/releases/download/latest-debug/todo-debug.apk**
 
 - Type a task, hit enter. Tap the dot to cycle its XP (5 / 10 / 20).
+- Tasks are tidied as they go in: sentence case, clean spacing, no trailing
+  full stop, known names capitalised. Fix a word once in Edit (huel → Huel)
+  and it's remembered for every task after.
 - Tick it for XP and confetti. Three in a day earns the daily 👑 (+25 XP).
 - Swipe a task away to clear it (Undo on the snackbar). Tap it to edit.
 - Tap a ticked task under "Done today" to un-tick it (its XP comes back off).

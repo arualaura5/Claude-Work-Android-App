@@ -59,6 +59,7 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch { repo.soundEnabled.collect { sounds.enabled = it } }
+        viewModelScope.launch { repo.tidyExistingOnce() }
     }
 
     /** Called on resume, so "today" rolls over if the app sat open past midnight. */
