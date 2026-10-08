@@ -79,6 +79,24 @@ class GarminInbox(
         }
     }
 
+    /**
+     * Her answer on the watch ("How did you feel?") becomes the session's rating, so she isn't
+     * asked twice. Only where she hasn't rated it in the app: her rating here always wins. Runs on
+     * every pass, because Garmin often has the answer only after the run was already linked.
+     */
+    internal suspend fun fillFeelFromWatch(sessions: List<SessionEntity>): List<SessionEntity> {
+        val feelById = feed.mapNotNull { w -> w.sourceActivityId?.let { id -> w.watchFeel?.let { id to it } } }.toMap()
+        if (feelById.isEmpty()) return sessions
+        var changed = false
+        for (session in sessions) {
+            if (!session.isCompleted || session.effortRating != null) continue
+            val feel = session.sourceActivityId?.let(feelById::get) ?: continue
+            db.sessionDao().update(session.copy(effortRating = feel))
+            changed = true
+        }
+        return if (changed) db.sessionDao().getAll() else sessions
+    }
+
     /** Links clear fits, lists the rest. Called under [lock]. */
     internal suspend fun process() {
         val decisions = db.garminDecisionDao().getAll()
@@ -102,6 +120,8 @@ class GarminInbox(
                 is MatchResult.Ask -> pending += PendingActivity(workout, kind, result)
             }
         }
+
+        sessions = fillFeelFromWatch(sessions)
 
         val byId = sessions.associateBy { it.id }
         val autoLinked = db.garminDecisionDao().getAll()

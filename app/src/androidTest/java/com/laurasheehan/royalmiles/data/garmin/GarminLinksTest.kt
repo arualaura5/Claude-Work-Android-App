@@ -159,4 +159,25 @@ class GarminLinksTest {
         val asked = inbox.state.value.pending.first { it.workout.sourceActivityId == "clear" }
         assertEquals(AskReason.SHE_SAID_NOT_THIS, asked.ask.reason)
     }
+
+    @Test
+    fun her_watch_answer_fills_the_rating_once_linked_but_never_overrides_hers() = runBlocking {
+        val easy = db.sessionDao().insert(planned())
+        val rated = db.sessionDao().insert(planned(date = today.minusDays(2)))
+        val inbox = GarminInbox(db, CoachRepository(context), links, today = { today })
+        // Linked before Garmin had her answer.
+        inbox.feed = listOf(run("today"))
+        inbox.process()
+        assertTrue(session(easy).isCompleted)
+        assertNull(session(easy).effortRating)
+        // Her answer arrives on a later refresh: it becomes the rating.
+        inbox.feed = listOf(run("today").copy(watchFeel = 4))
+        inbox.process()
+        assertEquals(4, session(easy).effortRating)
+        // A session she rated in the app keeps her rating.
+        db.sessionDao().update(session(rated).copy(isCompleted = true, effortRating = 2, sourceActivityId = "earlier"))
+        inbox.feed = listOf(run("earlier").copy(watchFeel = 5))
+        inbox.fillFeelFromWatch(db.sessionDao().getAll())
+        assertEquals(2, session(rated).effortRating)
+    }
 }

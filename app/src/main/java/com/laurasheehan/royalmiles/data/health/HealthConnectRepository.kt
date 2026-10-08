@@ -73,6 +73,11 @@ data class ExternalWorkout(
     val sourceApp: String? = null,
     /** The source app's own id for this activity, when it sets one. */
     val sourceActivityId: String? = null,
+    /**
+     * Her answer to the watch's "How did you feel?" after the run, 1 (very weak) to 5 (very
+     * strong), from the Garmin feed. Null from Health Connect, or when she gave none.
+     */
+    val watchFeel: Int? = null,
 ) {
     /**
      * Garmin stores its activity id in Health Connect's clientRecordId, so a link back to the

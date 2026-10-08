@@ -54,6 +54,7 @@ object GarminActivityFeed {
             calories = activity.optIntOrNull("calories"),
             sourceApp = GARMIN_PACKAGE,
             sourceActivityId = id,
+            watchFeel = activity.optIntOrNull("feel")?.takeIf { it in 1..5 },
         )
     }
 
