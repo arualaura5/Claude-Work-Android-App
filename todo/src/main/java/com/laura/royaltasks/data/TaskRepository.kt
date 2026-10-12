@@ -48,16 +48,16 @@ class TaskRepository(private val context: Context) {
         context.dataStore.edit { it[soundEnabledKey] = enabled }
     }
 
-    suspend fun add(title: String, priority: Priority) {
+    suspend fun add(title: String, priority: Priority, reminder: Reminder? = null) {
         if (title.isBlank()) return
         context.dataStore.edit { prefs ->
             val clean = TaskFormatter.format(title, prefs.readLearned())
-            prefs[tasksKey] = (prefs.readTasks() + Task(title = clean, priority = priority)).toJsonString()
+            prefs[tasksKey] = (prefs.readTasks() + Task(title = clean, priority = priority, reminder = reminder)).toJsonString()
         }
     }
 
     /** Word fixes made here are remembered and applied to future tasks. */
-    suspend fun update(id: String, title: String, priority: Priority) {
+    suspend fun update(id: String, title: String, priority: Priority, reminder: Reminder?) {
         if (title.isBlank()) return
         context.dataStore.edit { prefs ->
             val tasks = prefs.readTasks()
@@ -66,7 +66,7 @@ class TaskRepository(private val context: Context) {
             prefs[learnedWordsKey] = JSONObject(learned).toString()
             val clean = TaskFormatter.format(title, learned)
             prefs[tasksKey] = tasks
-                .map { if (it.id == id) it.copy(title = clean, priority = priority) else it }
+                .map { if (it.id == id) it.copy(title = clean, priority = priority, reminder = reminder) else it }
                 .toJsonString()
         }
     }

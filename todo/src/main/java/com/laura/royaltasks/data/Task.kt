@@ -12,7 +12,8 @@ data class Task(
     val completedAt: Long? = null,
     val completedEpochDay: Long? = null,
     /** XP granted when it was ticked, so un-ticking takes back exactly that. */
-    val xpAwarded: Int = 0
+    val xpAwarded: Int = 0,
+    val reminder: Reminder? = null
 ) {
     val isDone: Boolean get() = completedAt != null
 }
@@ -29,6 +30,10 @@ fun List<Task>.toJsonString(): String {
                 task.completedAt?.let { put("completedAt", it) }
                 task.completedEpochDay?.let { put("completedEpochDay", it) }
                 put("xpAwarded", task.xpAwarded)
+                task.reminder?.let {
+                    put("remindAt", it.atMillis)
+                    put("remindRepeat", it.repeat.name)
+                }
             }
         )
     }
@@ -52,7 +57,13 @@ fun String.toTasks(): List<Task> {
             createdAt = obj.optLong("createdAt", 0L),
             completedAt = if (obj.has("completedAt")) obj.optLong("completedAt") else null,
             completedEpochDay = if (obj.has("completedEpochDay")) obj.optLong("completedEpochDay") else null,
-            xpAwarded = obj.optInt("xpAwarded", 0)
+            xpAwarded = obj.optInt("xpAwarded", 0),
+            reminder = if (obj.has("remindAt")) {
+                Reminder(
+                    atMillis = obj.optLong("remindAt"),
+                    repeat = runCatching { Repeat.valueOf(obj.optString("remindRepeat")) }.getOrDefault(Repeat.ONCE)
+                )
+            } else null
         )
     }
 }

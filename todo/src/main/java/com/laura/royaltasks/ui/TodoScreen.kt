@@ -1,6 +1,13 @@
 package com.laura.royaltasks.ui
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import android.view.HapticFeedbackConstants
 import android.view.View
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -76,6 +83,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -88,6 +96,8 @@ import androidx.compose.ui.unit.dp
 import com.laura.royaltasks.BuildConfig
 import com.laura.royaltasks.data.CROWN_BONUS_XP
 import com.laura.royaltasks.data.Priority
+import com.laura.royaltasks.data.Reminder
+import com.laura.royaltasks.reminders.ReminderNotifications
 import com.laura.royaltasks.data.Task
 import com.laura.royaltasks.ui.theme.BlushPink
 import com.laura.royaltasks.ui.theme.ShimmerSilverDim
@@ -130,15 +140,47 @@ fun TodoScreen(vm: TaskViewModel) {
     var levelUp by remember { mutableStateOf<Int?>(null) }
     var editing by remember { mutableStateOf<Task?>(null) }
     var deleting by remember { mutableStateOf<Task?>(null) }
+    var showMessageLater by remember { mutableStateOf<String?>(null) }
     var tab by rememberSaveable { mutableStateOf(AppTab.TASKS) }
     val ideasState by vm.ideasState.collectAsState()
     val updateState by vm.updateState.collectAsState()
+    val context = LocalContext.current
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) {
+            showMessageLater = "Notifications are off for Royal Tasks, so reminders can't show."
+        }
+    }
+    /** Called whenever a reminder is set: asks once, or says plainly if they're switched off. */
+    val ensureNotifications: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else if (!ReminderNotifications.canPost(context)) {
+            showMessageLater = "Notifications are off for Royal Tasks, so reminders can't show."
+        }
+    }
 
     fun showMessage(message: String, actionLabel: String? = null, onAction: () -> Unit = {}) {
         snackbar.currentSnackbarData?.dismiss()
         scope.launch {
             val result = snackbar.showSnackbar(message, actionLabel, duration = SnackbarDuration.Short)
             if (result == SnackbarResult.ActionPerformed) onAction()
+        }
+    }
+
+    LaunchedEffect(showMessageLater) {
+        showMessageLater?.let { message ->
+            showMessage(message, actionLabel = "Settings") {
+                context.startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                )
+            }
+            showMessageLater = null
         }
     }
 
@@ -236,7 +278,10 @@ fun TodoScreen(vm: TaskViewModel) {
                 }
                 item(key = "add") {
                     QuickAdd(
-                        onAdd = vm::add,
+                        onAdd = { title, priority, reminder ->
+                            vm.add(title, priority, reminder)
+                            if (reminder != null) ensureNotifications()
+                        },
                         modifier = Modifier.padding(top = 6.dp, bottom = 4.dp)
                     )
                 }
@@ -324,8 +369,9 @@ fun TodoScreen(vm: TaskViewModel) {
     editing?.let { task ->
         EditTaskDialog(
             task = task,
-            onSave = { title, priority ->
-                vm.update(task.id, title, priority)
+            onSave = { title, priority, reminder ->
+                vm.update(task.id, title, priority, reminder)
+                if (reminder != null) ensureNotifications()
                 editing = null
             },
             onDismiss = { editing = null }
@@ -334,16 +380,36 @@ fun TodoScreen(vm: TaskViewModel) {
 }
 
 @Composable
-private fun QuickAdd(onAdd: (String, Priority) -> Unit, modifier: Modifier = Modifier) {
+private fun QuickAdd(onAdd: (String, Priority, Reminder?) -> Unit, modifier: Modifier = Modifier) {
     var text by rememberSaveable { mutableStateOf("") }
     var priority by rememberSaveable { mutableStateOf(Priority.NORMAL) }
+    var reminder by remember { mutableStateOf<Reminder?>(null) }
+    var pickingReminder by remember { mutableStateOf(false) }
 
     val submit = {
         if (text.isNotBlank()) {
-            onAdd(text.trim(), priority)
+            onAdd(text.trim(), priority, reminder)
             text = ""
             priority = Priority.NORMAL
+            reminder = null
         }
+    }
+
+    if (pickingReminder) {
+        ReminderDialog(
+            initial = reminder,
+            onSave = {
+                reminder = it
+                pickingReminder = false
+            },
+            onRemove = if (reminder != null) {
+                {
+                    reminder = null
+                    pickingReminder = false
+                }
+            } else null,
+            onDismiss = { pickingReminder = false }
+        )
     }
 
     Surface(
@@ -352,6 +418,7 @@ private fun QuickAdd(onAdd: (String, Priority) -> Unit, modifier: Modifier = Mod
         shadowElevation = 1.dp,
         modifier = modifier.fillMaxWidth()
     ) {
+        Column {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(end = 8.dp)
@@ -379,7 +446,7 @@ private fun QuickAdd(onAdd: (String, Priority) -> Unit, modifier: Modifier = Mod
                 modifier = Modifier.weight(1f)
             )
             PriorityToggle(priority = priority, onClick = { priority = priority.next() })
-            Spacer(Modifier.width(4.dp))
+            ReminderBell(set = reminder != null, onClick = { pickingReminder = true })
             FilledIconButton(
                 onClick = submit,
                 enabled = text.isNotBlank(),
@@ -390,6 +457,12 @@ private fun QuickAdd(onAdd: (String, Priority) -> Unit, modifier: Modifier = Mod
             ) {
                 Icon(Icons.Filled.Add, contentDescription = "Add task")
             }
+        }
+        reminder?.let { r ->
+            reminderLabel(r)?.let { label ->
+                ReminderLine(label, Modifier.padding(start = 16.dp, bottom = 12.dp))
+            }
+        }
         }
     }
 }
@@ -529,14 +602,20 @@ private fun TaskCard(
                     CheckCircle(checked = ticked, color = accent)
                 }
                 Spacer(Modifier.width(6.dp))
-                Text(
-                    text = task.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier
+                Column(
+                    Modifier
                         .weight(1f)
                         .padding(vertical = 8.dp)
-                )
+                ) {
+                    Text(
+                        text = task.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    task.reminder?.let(::reminderLabel)?.let { label ->
+                        ReminderLine(label, Modifier.padding(top = 2.dp))
+                    }
+                }
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = "${task.priority.xp} XP",
@@ -620,11 +699,30 @@ private fun DoneRow(task: Task, onUndo: () -> Unit, onLongPress: () -> Unit, mod
 @Composable
 private fun EditTaskDialog(
     task: Task,
-    onSave: (String, Priority) -> Unit,
+    onSave: (String, Priority, Reminder?) -> Unit,
     onDismiss: () -> Unit
 ) {
     var title by rememberSaveable { mutableStateOf(task.title) }
     var priority by rememberSaveable { mutableStateOf(task.priority) }
+    var reminder by remember { mutableStateOf(task.reminder) }
+    var pickingReminder by remember { mutableStateOf(false) }
+
+    if (pickingReminder) {
+        ReminderDialog(
+            initial = reminder,
+            onSave = {
+                reminder = it
+                pickingReminder = false
+            },
+            onRemove = if (reminder != null) {
+                {
+                    reminder = null
+                    pickingReminder = false
+                }
+            } else null,
+            onDismiss = { pickingReminder = false }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -661,10 +759,29 @@ private fun EditTaskDialog(
                         )
                     }
                 }
+                // Reminder: tap to add, change or remove.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { pickingReminder = true }
+                ) {
+                    ReminderBell(set = reminder != null, onClick = { pickingReminder = true })
+                    Text(
+                        text = reminder?.let(::reminderLabel) ?: "Add reminder",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (reminder != null) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(title, priority) }, enabled = title.isNotBlank()) {
+            TextButton(onClick = { onSave(title, priority, reminder) }, enabled = title.isNotBlank()) {
                 Text("Save")
             }
         },

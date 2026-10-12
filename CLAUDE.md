@@ -138,3 +138,6 @@ The same data-protection rules apply to it:
   the `royal-tasks-latest` release, which the in-app updater reads
   (`update/AppUpdater.kt`, ported from Royal Miles). `versionCode` is CI's
   run number so each build is newer than the last — don't hardcode it.
+- Reminders are stored on the task (`remindAt`, `remindRepeat`, both
+  optional) and scheduled by `reminders/ReminderScheduler.sync()`, which runs
+  on every task-list change, app start, reboot, update and after each fire.

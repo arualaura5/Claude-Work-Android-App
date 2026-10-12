@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.laura.royaltasks.audio.SoundPlayer
 import com.laura.royaltasks.data.Idea
 import com.laura.royaltasks.data.Priority
+import com.laura.royaltasks.data.Reminder
+import com.laura.royaltasks.reminders.ReminderNotifications
+import com.laura.royaltasks.reminders.ReminderScheduler
 import com.laura.royaltasks.data.Progress
 import com.laura.royaltasks.data.Task
 import com.laura.royaltasks.data.TaskRepository
@@ -47,6 +50,7 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = TaskRepository(app)
     private val sounds = SoundPlayer(app)
+    private val reminders = ReminderScheduler(app)
     private val updater = AppUpdater(app)
     val updateState: StateFlow<UpdateState> = updater.state
     private val today = MutableStateFlow(LocalDate.now().toEpochDay())
@@ -73,6 +77,8 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), IdeasState())
 
     init {
+        // Every change to the list (add, edit, tick, delete, undo) re-lines-up the alarms.
+        viewModelScope.launch { repo.tasks.collect { reminders.sync(it) } }
         viewModelScope.launch { repo.soundEnabled.collect { sounds.enabled = it } }
         viewModelScope.launch { repo.tidyExistingOnce() }
         // Quiet on launch: shows a card only if there's a newer build.
@@ -84,15 +90,16 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
         today.value = LocalDate.now().toEpochDay()
     }
 
-    fun add(title: String, priority: Priority) {
-        viewModelScope.launch { repo.add(title, priority) }
+    fun add(title: String, priority: Priority, reminder: Reminder?) {
+        viewModelScope.launch { repo.add(title, priority, reminder) }
     }
 
-    fun update(id: String, title: String, priority: Priority) {
-        viewModelScope.launch { repo.update(id, title, priority) }
+    fun update(id: String, title: String, priority: Priority, reminder: Reminder?) {
+        viewModelScope.launch { repo.update(id, title, priority, reminder) }
     }
 
     fun delete(id: String) {
+        ReminderNotifications.cancel(getApplication<Application>(), id)
         viewModelScope.launch { repo.delete(id) }
     }
 
@@ -102,6 +109,7 @@ class TaskViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun complete(id: String) {
+        ReminderNotifications.cancel(getApplication<Application>(), id)
         viewModelScope.launch {
             refreshDay()
             val result = repo.complete(id, today.value) ?: return@launch
