@@ -654,7 +654,9 @@ private fun HrvCard(hrv: CoachPayload.HrvMetrics, milestone: CoachPayload.PlanSt
                     )
                     Text(
                         listOfNotNull(
-                            hrv.hrv7d?.let { "HRV 7-day ${formatMetric(it)} ms" },
+                            // Last night's own value leads; the 7-day figure is an average.
+                            hrv.lastNightMs?.let { "HRV last night ${formatMetric(it)} ms" },
+                            hrv.hrv7d?.let { "7-day avg ${formatMetric(it)} ms" },
                             hrv.rhr?.let { "RHR ${formatMetric(it)} bpm" },
                             hrv.trend14d?.takeIf { it != "unknown" }?.let { "14d $it" },
                         ).joinToString(" · "),
@@ -674,8 +676,9 @@ private fun HrvCard(hrv: CoachPayload.HrvMetrics, milestone: CoachPayload.PlanSt
             )
 
             Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricRow("HRV 7-day", hrv.hrv7d, "ms", milestone?.hrv7d)
-                MetricRow("HRV 30-day", hrv.hrv30d, "ms", null)
+                MetricRow("HRV last night", hrv.lastNightMs, "ms", null)
+                MetricRow("HRV 7-day avg", hrv.hrv7d, "ms", milestone?.hrv7d)
+                MetricRow("HRV 30-day avg", hrv.hrv30d, "ms", null)
                 MetricRow("H0 (first hour)", hrv.h0, "ms", milestone?.h0)
                 MetricRow("Nightly peak", hrv.nightlyPeak, "ms", null)
                 MetricRow("Resting HR", hrv.rhr, "bpm", milestone?.rhr)
