@@ -120,6 +120,9 @@ data class CoachPayload(
         val trend30d: String?,
         val highHrvNights: Int?,
         val highHrvThresholdMs: Double?,
+        /** Last night's own HRV, what a day is judged on; [hrv7d] is Garmin's rolling average. */
+        val lastNightMs: Double? = null,
+        val lastNightDate: String? = null,
     )
 
     data class PlanStatus(
@@ -251,6 +254,8 @@ data class CoachPayload(
                         trend30d = it.str("trend_30d"),
                         highHrvNights = it.int("high_hrv_nights"),
                         highHrvThresholdMs = it.dbl("high_hrv_threshold_ms"),
+                        lastNightMs = it.dbl("last_night_ms"),
+                        lastNightDate = it.str("last_night_date"),
                     )
                 },
                 plan = root.optJSONObject("plan")?.let { plan ->
