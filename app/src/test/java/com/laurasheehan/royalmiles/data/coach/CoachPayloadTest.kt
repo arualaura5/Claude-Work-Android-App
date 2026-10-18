@@ -136,12 +136,14 @@ class CoachPayloadTest {
     fun `last night's own HRV is read apart from the 7-day average`() {
         val json = basePayload(coachingExtra = "").replace(
             "\"coaching_absent_reason\": null",
-            "\"coaching_absent_reason\": null, \"hrv\": {\"last_night_ms\": 61.0, \"last_night_date\": \"2026-09-01\", \"hrv_7d\": 69.0}",
+            "\"coaching_absent_reason\": null, \"hrv\": {\"last_night_ms\": 61.0, \"last_night_date\": \"2026-09-01\", \"hrv_7d\": 69.0, \"rhr\": 50.0, \"rhr_last_night\": 53.0}",
         )
         val hrv = CoachPayload.parse(json).hrv!!
         assertEquals(61.0, hrv.lastNightMs)
         assertEquals("2026-09-01", hrv.lastNightDate)
         assertEquals(69.0, hrv.hrv7d)
+        assertEquals(53.0, hrv.rhrLastNight)
+        assertEquals(50.0, hrv.rhr)
     }
 
     @Test
