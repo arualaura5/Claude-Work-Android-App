@@ -191,6 +191,8 @@ data class CoachPayload(
         enum class SuggestionAction {
             REPLACE,
             SKIP,
+            /** Coach chat only: a session she did that Garmin didn't record, logged as done. */
+            LOG,
         }
     }
 
@@ -376,14 +378,16 @@ data class CoachPayload(
         private fun JSONObject.int(key: String): Int? =
             if (isNull(key)) null else optDouble(key).takeIf { !it.isNaN() }?.toInt()
 
+        // The daily coach changes upcoming sessions only; logging something done is a chat card.
         private fun JSONObject.parseSuggestion(): Coaching.Suggestion? =
-            optJSONObject("suggestion")?.let(::suggestionFrom)
+            optJSONObject("suggestion")?.let(::suggestionFrom)?.takeIf { it.action != Coaching.SuggestionAction.LOG }
 
         /** Shared with coach chat, whose proposals use the same shape and the same rules. */
         fun suggestionFrom(suggestion: JSONObject): Coaching.Suggestion? {
             val action = when (suggestion.optString("action", "")) {
                 "replace" -> Coaching.SuggestionAction.REPLACE
                 "skip" -> Coaching.SuggestionAction.SKIP
+                "log" -> Coaching.SuggestionAction.LOG
                 else -> return null
             }
             val date = suggestion.str("date") ?: return null
@@ -391,7 +395,9 @@ data class CoachPayload(
             // must not write one for her. No headline, no suggestion.
             val headline = suggestion.str("headline") ?: return null
             val replacement = when (action) {
-                Coaching.SuggestionAction.REPLACE -> suggestion.optJSONObject("replace_with")?.parseReplacement() ?: return null
+                Coaching.SuggestionAction.REPLACE,
+                Coaching.SuggestionAction.LOG,
+                -> suggestion.optJSONObject("replace_with")?.parseReplacement() ?: return null
                 Coaching.SuggestionAction.SKIP -> null
             }
             return Coaching.Suggestion(

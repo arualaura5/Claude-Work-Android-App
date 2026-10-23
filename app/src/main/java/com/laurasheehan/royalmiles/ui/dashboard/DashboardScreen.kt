@@ -392,6 +392,7 @@ private fun com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.Suggest
     when (action) {
         com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.SuggestionAction.SKIP -> "Skip it"
         com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.SuggestionAction.REPLACE -> "Swap it"
+        com.laurasheehan.royalmiles.data.coach.CoachPayload.Coaching.SuggestionAction.LOG -> "Log it"
     }
 
 @Composable
