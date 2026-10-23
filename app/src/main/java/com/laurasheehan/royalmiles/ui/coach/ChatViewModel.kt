@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.laurasheehan.royalmiles.data.PlanRepository
 import com.laurasheehan.royalmiles.data.coach.CoachRepository
+import com.laurasheehan.royalmiles.data.coach.CoachPayload
 import com.laurasheehan.royalmiles.data.coach.applyCoachSuggestion
+import com.laurasheehan.royalmiles.data.coach.logFromCoach
 import com.laurasheehan.royalmiles.data.coach.chat.ChatMessage
 import com.laurasheehan.royalmiles.data.coach.chat.ChatRepository
 import com.laurasheehan.royalmiles.data.coach.chat.ChatUsage
@@ -137,6 +139,12 @@ class ChatViewModel(
     fun accept(message: ChatMessage) {
         val proposal = message.proposal ?: return
         viewModelScope.launch {
+            if (proposal.action == CoachPayload.Coaching.SuggestionAction.LOG) {
+                if (plan.logFromCoach(proposal, plan.observeSessions().first())) {
+                    chat.setProposalState(message.id, ChatMessage.ProposalState.ACCEPTED)
+                }
+                return@launch
+            }
             val session = plan.observeSessions().first()
                 .firstOrNull { it.date.toString() == proposal.date && it.isOutstanding }
             if (session == null) {

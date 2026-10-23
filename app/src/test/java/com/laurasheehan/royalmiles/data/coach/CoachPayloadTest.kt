@@ -155,6 +155,32 @@ class CoachPayloadTest {
         assertNull(CoachPayload.parse(json).hrv!!.lastNightMs)
     }
 
+    @Test
+    fun `a chat log card parses with what she did`() {
+        val log = CoachPayload.suggestionFrom(
+            org.json.JSONObject(
+                """{"action":"log","date":"2026-10-22","headline":"Log Wednesday's swim class","reason":"Garmin didn't record it.",
+                "replace_with":{"type":"SWIM","title":"Swim class","target_duration_min":60,"target_distance_km":0.7,"notes":"Drills"}}""",
+            ),
+        )!!
+        assertEquals(CoachPayload.Coaching.SuggestionAction.LOG, log.action)
+        assertEquals(SessionType.SWIM, log.replaceWith?.type)
+        assertEquals(0.7, log.replaceWith?.targetDistanceKm)
+        assertEquals(60, log.replaceWith?.targetDurationMin)
+    }
+
+    @Test
+    fun `the daily coach never offers a log card`() {
+        val payload = CoachPayload.parse(
+            basePayload(
+                coachingExtra = """,
+                "suggestion": {"action":"log","date":"2026-09-01","headline":"Log it","reason":"r",
+                  "replace_with":{"type":"SWIM","title":"Swim","target_duration_min":30}}""",
+            ),
+        )
+        assertNull(payload.coaching?.suggestion)
+    }
+
     private fun basePayload(coachingExtra: String): String =
         """
         {

@@ -612,6 +612,7 @@ private fun ProposalCard(
     onAccept: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val logging = proposal.action == CoachPayload.Coaching.SuggestionAction.LOG
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = ComebackGold.copy(alpha = 0.12f)),
@@ -619,7 +620,7 @@ private fun ProposalCard(
     ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                "Suggested change · ${proposal.date}",
+                if (logging) "Add to your log · ${proposal.date}" else "Suggested change · ${proposal.date}",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -633,19 +634,26 @@ private fun ProposalCard(
                     replacement.targetDistanceKm?.let { "${formatKm(it)} km" },
                 ).joinToString(" · ")
                 Text(
-                    "Becomes: ${replacement.title}${if (target.isNotEmpty()) " · $target" else ""}",
+                    "${if (logging) "Logs" else "Becomes"}: ${replacement.title}${if (target.isNotEmpty()) " · $target" else ""}",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
             when (state) {
                 ChatMessage.ProposalState.PENDING -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = onAccept) {
-                        Text(if (proposal.action == CoachPayload.Coaching.SuggestionAction.SKIP) "Skip it" else "Swap it")
+                        Text(
+                            when (proposal.action) {
+                                CoachPayload.Coaching.SuggestionAction.SKIP -> "Skip it"
+                                CoachPayload.Coaching.SuggestionAction.REPLACE -> "Swap it"
+                                CoachPayload.Coaching.SuggestionAction.LOG -> "Log it"
+                            },
+                        )
                     }
-                    OutlinedButton(onClick = onDismiss) { Text("Keep my plan") }
+                    OutlinedButton(onClick = onDismiss) { Text(if (logging) "Not now" else "Keep my plan") }
                 }
-                ChatMessage.ProposalState.ACCEPTED -> StateLine("Changed in your plan", ComebackGold)
-                ChatMessage.ProposalState.DISMISSED -> StateLine("Kept as planned", MaterialTheme.colorScheme.onSurfaceVariant)
+                ChatMessage.ProposalState.ACCEPTED -> StateLine(if (logging) "Logged as done" else "Changed in your plan", ComebackGold)
+                ChatMessage.ProposalState.DISMISSED ->
+                    StateLine(if (logging) "Not logged" else "Kept as planned", MaterialTheme.colorScheme.onSurfaceVariant)
                 ChatMessage.ProposalState.NONE -> Unit
             }
         }

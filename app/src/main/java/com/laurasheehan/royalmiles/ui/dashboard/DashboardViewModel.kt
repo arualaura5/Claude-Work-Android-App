@@ -181,6 +181,7 @@ class DashboardViewModel(
                 when (suggestion.action) {
                     CoachPayload.Coaching.SuggestionAction.SKIP -> "Skipped."
                     CoachPayload.Coaching.SuggestionAction.REPLACE -> "Swapped."
+                    CoachPayload.Coaching.SuggestionAction.LOG -> "Logged."
                 },
             )
         }
