@@ -477,6 +477,57 @@ class PlanRepositoryTest {
         assertTrue(block.none { it.type == SessionType.STRENGTH && it.date.isAfter(LocalDate.of(2026, 10, 26)) }, "no strength after race-week Monday")
     }
 
+    @Test
+    fun `race week as she set it, rest Monday and Saturday, runs Tuesday and Friday, swims midweek`() = runBlocking {
+        val dao = FakeSessionDao()
+        val meta = FakePlanMetaDao(
+            PlanMetaEntity(raceDate = RaceConfig.RICHMOND_RACE_DATE, startDate = LocalDate.of(2026, 8, 17), raceDistanceKm = 21.1, peakLongRunKm = 15.0, planVersion = 4),
+        )
+        val repository = PlanRepository(dao, meta, runInTransaction = { block -> block() })
+        RichmondBlock.sessions().forEach { dao.insertAndGet(it) }
+        val herOwn = dao.insertAndGet(planned(28).copy(eventId = RaceConfig.RICHMOND_EVENT_ID, isCustom = true, title = "Yoga with Sam"))
+
+        assertTrue(repository.reviseRaceWeek(today = LocalDate.of(2026, 10, 26)))
+
+        val week = dao.getAll().filter { !it.date.isBefore(LocalDate.of(2026, 10, 26)) }.sortedBy { it.date }
+        val byDay = week.groupBy { it.date.dayOfWeek }
+        assertEquals(null, byDay[java.time.DayOfWeek.MONDAY], "Monday is rest")
+        assertEquals(null, byDay[java.time.DayOfWeek.SATURDAY], "Saturday is rest")
+        assertEquals(listOf(SessionType.EASY_RUN), byDay[java.time.DayOfWeek.TUESDAY]?.map { it.type })
+        assertTrue(byDay[java.time.DayOfWeek.WEDNESDAY]!!.any { it.type == SessionType.SWIM })
+        assertTrue(byDay[java.time.DayOfWeek.WEDNESDAY]!!.any { it.id == herOwn.id }, "what she added stays")
+        assertEquals(listOf("Swim technique class"), byDay[java.time.DayOfWeek.THURSDAY]?.map { it.title })
+        assertEquals(listOf(SessionType.EASY_RUN), byDay[java.time.DayOfWeek.FRIDAY]?.map { it.type })
+        assertEquals(listOf(SessionType.RACE), byDay[java.time.DayOfWeek.SUNDAY]?.map { it.type })
+        // Earlier weeks are untouched.
+        assertEquals(
+            RichmondBlock.sessions().count { it.date.isBefore(LocalDate.of(2026, 10, 26)) },
+            dao.getAll().count { it.date.isBefore(LocalDate.of(2026, 10, 26)) },
+        )
+    }
+
+    @Test
+    fun `race week installed midweek leaves the days gone by, and a logged day gets nothing new`() = runBlocking {
+        val dao = FakeSessionDao()
+        val meta = FakePlanMetaDao(
+            PlanMetaEntity(raceDate = RaceConfig.RICHMOND_RACE_DATE, startDate = LocalDate.of(2026, 8, 17), raceDistanceKm = 21.1, peakLongRunKm = 15.0, planVersion = 4),
+        )
+        val repository = PlanRepository(dao, meta, runInTransaction = { block -> block() })
+        RichmondBlock.sessions().forEach { dao.insertAndGet(it) }
+        val tuesday = dao.getAll().single { it.date == LocalDate.of(2026, 10, 27) }
+        dao.update(tuesday.copy(isCompleted = true, completedAt = tuesday.date, actualDistanceKm = 4.6))
+        dao.insertAndGet(planned(28, SessionType.SWIM).copy(eventId = RaceConfig.RICHMOND_EVENT_ID, isCompleted = true, title = "Swim"))
+
+        repository.reviseRaceWeek(today = LocalDate.of(2026, 10, 27))
+
+        val all = dao.getAll()
+        assertTrue(all.any { it.date == LocalDate.of(2026, 10, 26) && it.type == SessionType.STRENGTH }, "Monday has gone by: left as it was")
+        assertEquals(1, all.count { it.date == LocalDate.of(2026, 10, 27) }, "her logged run stays, nothing added")
+        assertEquals(1, all.count { it.date == LocalDate.of(2026, 10, 28) }, "her logged swim stays, nothing added")
+        assertTrue(all.any { it.title == "Swim technique class" })
+        assertFalse(repository.reviseRaceWeek(today = LocalDate.of(2026, 11, 1)), "nothing after race week")
+    }
+
 }
 
 private class FakeSessionDao : SessionDao {
