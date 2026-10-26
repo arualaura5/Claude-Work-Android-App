@@ -478,7 +478,7 @@ class PlanRepositoryTest {
     }
 
     @Test
-    fun `race week as she set it: rest Monday and Saturday, runs Tuesday and Friday, swims midweek`() = runBlocking {
+    fun `race week as she set it, rest Monday and Saturday, runs Tuesday and Friday, swims midweek`() = runBlocking {
         val dao = FakeSessionDao()
         val meta = FakePlanMetaDao(
             PlanMetaEntity(raceDate = RaceConfig.RICHMOND_RACE_DATE, startDate = LocalDate.of(2026, 8, 17), raceDistanceKm = 21.1, peakLongRunKm = 15.0, planVersion = 4),
