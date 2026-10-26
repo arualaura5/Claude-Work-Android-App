@@ -169,6 +169,25 @@ class PlanRepository(
         }
     }
 
+    /**
+     * Race week as she set it (see [RichmondBlock.raceWeek]), once, from [today] on. Kept: anything
+     * done, anything she skipped or added herself, and the race. Replaced: planned sessions still
+     * untouched and the coach's one-day changes. A day she already logged something on gets nothing
+     * new. Only on the Richmond plan, and only until race week is over.
+     */
+    suspend fun reviseRaceWeek(today: LocalDate = LocalDate.now()): Boolean {
+        val meta = planMetaDao.get() ?: return false
+        if (meta.raceDate != RaceConfig.RICHMOND_RACE_DATE || today.isAfter(RichmondBlock.RACE_WEEK_TO)) return false
+        val from = maxOf(today, RichmondBlock.RACE_WEEK_FROM)
+        runInTransaction {
+            val week = sessionDao.getAll().filter { !it.date.isBefore(from) && !it.date.isAfter(RichmondBlock.RACE_WEEK_TO) }
+            week.filter { it.type != SessionType.RACE && it.isReplacedByNewPlan() }.forEach { sessionDao.delete(it) }
+            val logged = week.filter { it.isCompleted }.map { it.date }.toSet()
+            sessionDao.insertAll(RichmondBlock.raceWeek().filter { !it.date.isBefore(from) && it.date !in logged })
+        }
+        return true
+    }
+
     fun observeSessions(): Flow<List<SessionEntity>> = sessionDao.observeAll()
 
     /**

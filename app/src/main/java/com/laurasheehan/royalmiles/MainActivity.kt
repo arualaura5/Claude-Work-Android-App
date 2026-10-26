@@ -125,6 +125,18 @@ class MainActivity : ComponentActivity() {
                         }.isSuccess
                         if (kept) repository.switchToRichmond()
                     }
+                    // Race week as she set it, once, after the same safety copy.
+                    val revisions = app.getSharedPreferences("plan_revisions", MODE_PRIVATE)
+                    if (!revisions.getBoolean(com.laurasheehan.royalmiles.data.RichmondBlock.RACE_WEEK_REVISION, false)) {
+                        val kept = runCatching {
+                            com.laurasheehan.royalmiles.data.backup.LogBackup(app)
+                                .keepSafetyCopy(com.laurasheehan.royalmiles.data.backup.SafetyCopies.BEFORE_PLAN_CHANGE)
+                        }.isSuccess
+                        if (kept) {
+                            repository.reviseRaceWeek()
+                            revisions.edit().putBoolean(com.laurasheehan.royalmiles.data.RichmondBlock.RACE_WEEK_REVISION, true).apply()
+                        }
+                    }
                 }
                 RoyalMilesRoot(repository, athleteProfileRepository, coachRepository)
             }

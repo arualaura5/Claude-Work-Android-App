@@ -65,6 +65,26 @@ object RichmondBlock {
             notes = "Start easy: heart rate under 157 for the first 10 km, run-walk if planned. Fuel as rehearsed. From 15 km, if you feel good, let it rise and finish strong."),
     )
 
+    /**
+     * Race week as Laura set it on 26 October 2026: Monday rest, Tuesday run, Wednesday an easy
+     * swim (or yoga), Thursday her swim technique class, Friday a short run, Saturday rest, Sunday
+     * the race. Days with nothing listed are rest. The race itself is left as it is.
+     */
+    const val RACE_WEEK_REVISION = "race-week-2026-10-26"
+    val RACE_WEEK_FROM: LocalDate = LocalDate.of(2026, 10, 26)
+    val RACE_WEEK_TO: LocalDate = LocalDate.of(2026, 10, 31)
+
+    fun raceWeek(): List<SessionEntity> = listOf(
+        session(day(10, 27), SessionType.EASY_RUN, "Easy run + strides", TrainingPhase.TAPER, 5, km = 4.5,
+            notes = "4-5 km easy, then 4 × 20 s strides: quick and relaxed, full recovery between. $EASY"),
+        session(day(10, 28), SessionType.SWIM, "Easy swim", TrainingPhase.TAPER, 5, minutes = 30,
+            notes = "Easy and relaxed, nothing hard. Yoga instead is fine: gentle, no deep stretching of the legs."),
+        session(day(10, 29), SessionType.SWIM, "Swim technique class", TrainingPhase.TAPER, 5, minutes = 60,
+            notes = "Technique and drills. Keep the effort easy: no hard sets this week."),
+        session(day(10, 30), SessionType.EASY_RUN, "Shakeout + strides", TrainingPhase.TAPER, 5, km = 3.0,
+            notes = "2-3 km very easy, then 3 × 20 s strides to wake the legs up. Done in under 25 minutes."),
+    )
+
     private fun session(
         date: LocalDate,
         type: SessionType,
