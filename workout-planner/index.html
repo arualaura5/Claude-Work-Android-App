@@ -7,6 +7,7 @@
 /* Layout: setup column (time, focus, kit) beside a numbered circuit card list; the timer takes over the full screen when started. */
 :root{
   --bg:#ECEFEA; --surface:#FAFBF8; --ink:#16201B; --muted:#56635C; --line:#D0D8D2; --chip:#DFE6E0; --far:#A3B1A9;
+  --top:#0E7458; --legs:#1F2B25; --legs-far:#93A39A; --skin:#D49A76; --skin-far:#B57D5C; --feet:var(--legs); --feet-far:var(--legs-far); --hair:#3A2A22; --shadow:rgba(22,32,27,.12); --prop:var(--rest);
   --work:#0E7458; --rest:#B87406; --break:#3B5899; --on-phase:#FFFFFF;
   --phase:var(--work);
   --f-display:"Big Shoulders Display","Arial Narrow","Roboto Condensed",Impact,sans-serif;
@@ -14,9 +15,11 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0F1412; --surface:#171E1B; --ink:#E4EBE6; --muted:#97A59E; --line:#2A3631; --chip:#212B27; --far:#4E5F57;
+  --top:#3CCB9E; --legs:#7C8F86; --legs-far:#3D4B45; --skin:#D49A76; --skin-far:#8E6248; --hair:#8A6A55; --shadow:rgba(0,0,0,.35);
   --work:#3CCB9E; --rest:#F2AE3D; --break:#8EA8EC; --on-phase:#0C1210; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0F1412; --surface:#171E1B; --ink:#E4EBE6; --muted:#97A59E; --line:#2A3631; --chip:#212B27; --far:#4E5F57;
+  --top:#3CCB9E; --legs:#7C8F86; --legs-far:#3D4B45; --skin:#D49A76; --skin-far:#8E6248; --hair:#8A6A55; --shadow:rgba(0,0,0,.35);
   --work:#3CCB9E; --rest:#F2AE3D; --break:#8EA8EC; --on-phase:#0C1210; color-scheme:dark}
 
 *{box-sizing:border-box}
@@ -92,13 +95,32 @@ ol.list{list-style:none;margin:0;padding:0;display:grid;gap:8px;counter-reset:ex
 .figbig{display:block;width:100%;aspect-ratio:120/110;background:var(--chip);border-radius:6px}
 .fig{display:block;width:100%;height:100%;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .fig .gnd{stroke:var(--line);stroke-width:2.5}
+.fig .shd{fill:var(--shadow)}
 .fig .sup{stroke:var(--muted);stroke-width:3}
-.fig .far{stroke:var(--far);stroke-width:5}
-.fig .near{stroke:var(--ink);stroke-width:5}
-.fig .body{stroke:var(--ink);stroke-width:6}
-.fig .hd{fill:var(--ink)}
-.fig .pf{fill:var(--rest)}
-.fig .ps{stroke:var(--rest);stroke-width:3.2}
+.fig .lg{stroke:var(--legs)}
+.fig .far .lg{stroke:var(--legs-far)}
+.fig .th{stroke-width:calc(10px*var(--k,1))}
+.fig .sh{stroke-width:calc(8.4px*var(--k,1))}
+.fig .ft{stroke:var(--feet);stroke-width:calc(5.5px*var(--k,1))}
+.fig .far .ft{stroke:var(--feet-far)}
+.fig .sk{stroke:var(--skin)}
+.fig .far .sk{stroke:var(--skin-far)}
+.fig .ua{stroke-width:calc(6.4px*var(--k,1))}
+.fig .fa{stroke-width:calc(5.4px*var(--k,1))}
+.fig .neck{stroke-width:calc(5.5px*var(--k,1))}
+.fig .hand{fill:var(--skin)}
+.fig .far .hand{fill:var(--skin-far)}
+.fig .torso{fill:var(--top);stroke:var(--top);stroke-width:2.5}
+.fig .hips{fill:var(--legs);stroke:var(--legs);stroke-width:2.5}
+.fig .hair{fill:var(--hair)}
+.fig .face{fill:var(--skin)}
+.fig .eye{fill:var(--hair)}
+.fig.fv .far .lg{stroke:var(--legs)}
+.fig.fv .far .sk{stroke:var(--skin)}
+.fig.fv .far .hand{fill:var(--skin)}
+.fig.fv .far .ft{stroke:var(--feet)}
+.fig .pf{fill:var(--prop)}
+.fig .ps{stroke:var(--prop);stroke-width:3.2}
 .body p{margin:0;max-width:65ch}
 .cues{margin:0;padding:0;list-style:none;display:grid;gap:4px}
 .cues li{padding-left:22px;position:relative}
@@ -543,6 +565,75 @@ function placed(p){
   for(const key of ['A','B','L','M']) k[key]=k[key].map(sh);
   return k;
 }
+/* ---------- Character renderer ----------
+   Draws a posed skeleton as a small character: tapered limbs, a shaped torso
+   (top plus leggings), hands, feet, and a head with hair, bun and eyes. */
+const NS='http://www.w3.org/2000/svg';
+const easeIO=x=>(1-Math.cos(Math.PI*Math.max(0,Math.min(1,x))))/2;
+function createFig(o={}){
+  const svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('viewBox','-60 0 120 110'); svg.setAttribute('class','fig'); svg.setAttribute('aria-hidden','true');
+  svg.innerHTML=`<ellipse class="shd" cy="${G+1.2}" ry="3.2"/>`+
+    (o.mat?`<rect class="mat" x="-57" y="${G-.6}" width="114" height="4.6" rx="2.3"/>`:`<path class="gnd" d="M-56,${G+1.5}H56"/>`)+
+    `<path class="sup"/>`+
+    `<g class="fleg far"><path class="lg th"/><path class="lg sh"/><path class="ft"/></g>`+
+    `<g class="farm far"><path class="sk ua"/><path class="sk fa"/><circle class="hand"/></g>`+
+    `<g class="trunk"><path class="sk neck"/><path class="torso"/><path class="hips"/></g>`+
+    `<g class="nleg"><path class="lg th"/><path class="lg sh"/><path class="ft"/></g>`+
+    `<g class="headg"><circle class="hair"/><circle class="hair"/><circle class="face"/><circle class="eye"/><circle class="eye"/></g>`+
+    `<g class="narm"><path class="sk ua"/><path class="sk fa"/><circle class="hand"/></g>`+
+    `<path class="pf"/><path class="ps"/>`;
+  const q=c=>svg.querySelector('.'+c), kids=c=>[...q(c).children];
+  return {svg,front:null,shd:q('shd'),sup:q('sup'),pf:q('pf'),ps:q('ps'),
+    fleg:kids('fleg'),farm:kids('farm'),nleg:kids('nleg'),narm:kids('narm'),trunk:kids('trunk'),head:kids('headg'),
+    grp:{fleg:q('fleg'),farm:q('farm'),nleg:q('nleg'),narm:q('narm'),trunk:q('trunk'),headg:q('headg')}};
+}
+// Side view: far arm behind the body, near leg in front of it. Front view: legs behind, both arms in front.
+function setView(f,front){
+  f.front=front; const s=f.svg,g=f.grp;
+  s.classList.toggle('fv',front);
+  if(front){s.insertBefore(g.nleg,g.trunk);s.insertBefore(g.farm,g.narm);s.insertBefore(g.headg,f.pf)}
+  else{s.insertBefore(g.farm,g.trunk);s.insertBefore(g.headg,g.narm);s.insertBefore(g.nleg,g.headg)}
+}
+const lerpFit=(a,b,e)=>({s:a.s+(b.s-a.s)*e,ox:a.ox+(b.ox-a.ox)*e});
+function drawChar(f,pose,fit,front,P){
+  if(f.front!==front) setView(f,front);
+  const k=placed(pose), s=fit.s, X=q=>(q[0]+fit.ox)*s, Y=q=>G-(G-q[1])*s;
+  const pt=q=>X(q).toFixed(1)+','+Y(q).toFixed(1), seg=(a,b)=>`M${pt(a)}L${pt(b)}`, at=(el,q,r)=>{el.setAttribute('cx',X(q).toFixed(1));el.setAttribute('cy',Y(q).toFixed(1));el.setAttribute('r',(r*s).toFixed(2))};
+  f.svg.style.setProperty('--k',s.toFixed(3));
+  const leg=(els,L)=>{els[0].setAttribute('d',seg(L[0],L[1]));els[1].setAttribute('d',seg(L[1],L[2]));els[2].setAttribute('d',seg(L[2],L[3]))};
+  const arm=(els,A)=>{els[0].setAttribute('d',seg(A[0],A[1]));els[1].setAttribute('d',seg(A[1],A[2]));at(els[2],A[2],3.3)};
+  leg(f.fleg,k.M); leg(f.nleg,k.L); arm(f.farm,k.B); arm(f.narm,k.A);
+  // Torso outline: half-widths [facing side, back side] at hip, waist, chest, shoulder.
+  const H=k.hip,N=k.neck,len=Math.hypot(N[0]-H[0],N[1]-H[1])||1,ux=(N[0]-H[0])/len,uy=(N[1]-H[1])/len,px=-uy,py=ux;
+  const U=[0,.48,.8,1], W=front?[[7,7],[5.6,5.6],[7.4,7.4],[8.4,8.4]]:[[6.2,6],[5,4.6],[6.8,5],[4.6,4.2]];
+  const w=(u,sg)=>{let i=0;while(i<U.length-2&&u>U[i+1])i++;const t=(u-U[i])/(U[i+1]-U[i]);const c=sg>0?0:1;return W[i][c]+(W[i+1][c]-W[i][c])*t};
+  const P2=(u,sg)=>[H[0]+ux*len*u+px*w(u,sg)*sg,H[1]+uy*len*u+py*w(u,sg)*sg];
+  const outline=us=>'M'+[...us.map(u=>P2(u,1)),...us.slice().reverse().map(u=>P2(u,-1))].map(pt).join('L')+'Z';
+  f.trunk[1].setAttribute('d',outline([0,.2,.48,.65,.8,.92,1]));
+  f.trunk[2].setAttribute('d',outline([0,.14,.28]));
+  const Hc=k.head, hv=[(Hc[0]-N[0])/LEN.nk,(Hc[1]-N[1])/LEN.nk], fv=front?[0,0]:[-hv[1],hv[0]], pv=[-hv[1],hv[0]];
+  const off=(a,b,c)=>[Hc[0]+fv[0]*a+hv[0]*b+pv[0]*c,Hc[1]+fv[1]*a+hv[1]*b+pv[1]*c];
+  f.trunk[0].setAttribute('d',seg(N,[N[0]+hv[0]*5,N[1]+hv[1]*5]));
+  const [hair,bun,face,e1,e2]=f.head;
+  at(hair,off(-1.5,.7,0),8.6); at(bun,front?off(0,8.6,0):off(-3.8,7.4,0),3.7); at(face,off(1,-.6,0),7.2);
+  if(front){at(e1,off(0,-.6,2.8),1.15);at(e2,off(0,-.6,-2.8),1.15)} else {at(e1,off(4.9,.5,0),1.15);e2.setAttribute('r','0')}
+  f.shd.setAttribute('cx',X(H).toFixed(1)); f.shd.setAttribute('rx',(24*s).toFixed(1));
+  // Supports and weights.
+  const kind=P&&P.A.prop; let sd='';
+  if(kind==='wall'){const x=X([H[0]-9]);sd=`M${x.toFixed(1)},${G}V${G-84}`}
+  else if(kind==='wallR'){const x=X([H[0]+6]);sd=`M${x.toFixed(1)},${G}V${G-84}`}
+  else if(kind==='chair'&&P.chair){const x=X(P.chair),y=Y(P.chair)+3;sd=`M${(x-18).toFixed(1)},${y.toFixed(1)}h22M${(x-16).toFixed(1)},${y.toFixed(1)}V${G}M${(x+2).toFixed(1)},${y.toFixed(1)}V${G}`}
+  f.sup.setAttribute('d',sd);
+  let dF='',dS='';
+  if(f.prop&&P&&P.A.hold){
+    const hands=P.A.hold==='both'?[k.A[2],k.B[2]]:P.A.hold==='near'?[k.A[2]]:[[(k.A[2][0]+k.B[2][0])/2,(k.A[2][1]+k.B[2][1])/2]];
+    for(const h of hands){const x=X(h),y=Y(h);
+      if(f.prop==='kb'){dF+=`M${x-5},${y+7}a5,5 0 1 0 10,0a5,5 0 1 0 -10,0`;dS+=`M${x-3.5},${y+4}Q${x},${y-3} ${x+3.5},${y+4}`}
+      else dS+=`M${x-5.5},${y-3.5}v7M${x+5.5},${y-3.5}v7M${x-5.5},${y}h11`;}
+  }
+  f.pf.setAttribute('d',dF); f.ps.setAttribute('d',dS);
+}
 const ANIM_CACHE={};
 function prepAnim(id){
   if(ANIM_CACHE[id]) return ANIM_CACHE[id];
@@ -550,10 +641,14 @@ function prepAnim(id){
   const frames=A.f.map(f=>resolvePose(f,A.front));
   let x0=1e9,x1=-1e9,y0=1e9;
   frames.forEach(f=>{const k=placed(f);
-    for(const q of [k.hip,k.neck,...k.A,...k.B,...k.L,...k.M]){x0=Math.min(x0,q[0]-3);x1=Math.max(x1,q[0]+3);y0=Math.min(y0,q[1]-3)}
-    x0=Math.min(x0,k.head[0]-LEN.hr);x1=Math.max(x1,k.head[0]+LEN.hr);y0=Math.min(y0,k.head[1]-LEN.hr)});
-  const s=Math.min(1,110/(x1-x0),(G-6)/(G-y0));
-  return ANIM_CACHE[id]={A,frames,s,ox:-(x0+x1)/2};
+    for(const q of [k.hip,k.neck,...k.A,...k.B,...k.L,...k.M]){x0=Math.min(x0,q[0]-7);x1=Math.max(x1,q[0]+7);y0=Math.min(y0,q[1]-7)}
+    x0=Math.min(x0,k.head[0]-10);x1=Math.max(x1,k.head[0]+10);y0=Math.min(y0,k.head[1]-12)});
+  const s=Math.min(1,112/(x1-x0),(G-4)/(G-y0));
+  return ANIM_CACHE[id]={A,frames,front:!!A.front,fit:{s,ox:-(x0+x1)/2},chair:A.prop==='chair'?placed(frames[0]).A[2]:null};
+}
+function animPose(P,time){
+  const fr=P.frames,n=fr.length,ph=((time/P.A.c)%1)*n,i=Math.floor(ph)%n;
+  return lerpPose(fr[i],fr[(i+1)%n],easeIO(ph-Math.floor(ph)));
 }
 function propKind(e,kit){
   if(!e.eq.length) return null;
@@ -563,40 +658,15 @@ function propKind(e,kit){
 const FIGS=new Set();
 function makeFig(id,kit){
   const P=prepAnim(id); if(!P) return document.createElement('span');
-  const NS='http://www.w3.org/2000/svg', svg=document.createElementNS(NS,'svg');
-  svg.setAttribute('viewBox','-60 0 120 110'); svg.setAttribute('class','fig'); svg.setAttribute('aria-hidden','true');
-  svg.innerHTML=`<path class="gnd" d="M-56,${G+1.5}H56"/><path class="sup"/><path class="far"/><path class="far"/><path class="body"/><path class="near"/><path class="near"/><circle class="hd" r="${LEN.hr*P.s}"/><path class="pf"/><path class="ps"/>`;
-  const [gnd,sup,fl,fa,torso,nl,na,hd,pf,ps]=svg.children;
-  if(P.A.front){fl.setAttribute('class','near');fa.setAttribute('class','near')}
-  const f={svg,P,fl,fa,torso,nl,na,hd,pf,ps,prop:propKind(byId[id]||{eq:[]},kit),off:Math.random()*0};
-  const X=q=>((q[0]+P.ox)*P.s), Y=q=>(G-(G-q[1])*P.s);
-  f.pt=q=>X(q).toFixed(1)+','+Y(q).toFixed(1); f.X=X; f.Y=Y;
-  if(P.A.prop){const k=placed(P.frames[0]);
-    if(P.A.prop==='wall'){const x=X([k.hip[0]-9,0]);sup.setAttribute('d',`M${x.toFixed(1)},${G}V${G-84}`)}
-    if(P.A.prop==='chair'){const h=k.A[2],x=X(h),y=Y(h)+3;sup.setAttribute('d',`M${(x-18).toFixed(1)},${y.toFixed(1)}h22M${(x-16).toFixed(1)},${y.toFixed(1)}V${G}M${(x+2).toFixed(1)},${y.toFixed(1)}V${G}`)}}
-  drawFig(f,0); FIGS.add(f);
-  return svg;
-}
-function drawFig(f,time){
-  const P=f.P,fr=P.frames,n=fr.length,ph=((time/P.A.c)%1)*n,i=Math.floor(ph)%n,e=(1-Math.cos(Math.PI*(ph-Math.floor(ph))))/2;
-  const k=placed(lerpPose(fr[i],fr[(i+1)%n],e)), pl=a=>'M'+a.map(f.pt).join('L');
-  f.fl.setAttribute('d',pl(k.M)); f.fa.setAttribute('d',pl(k.B));
-  f.nl.setAttribute('d',pl(k.L)); f.na.setAttribute('d',pl(k.A));
-  f.torso.setAttribute('d',`${pl([k.hpA,k.hpB])}${pl([k.hip,k.neck])}${pl([k.shA,k.shB])}`);
-  f.hd.setAttribute('cx',f.X(k.head).toFixed(1)); f.hd.setAttribute('cy',f.Y(k.head).toFixed(1));
-  if(!f.prop||!P.A.hold) return;
-  const hands=P.A.hold==='both'?[k.A[2],k.B[2]]:P.A.hold==='near'?[k.A[2]]:[[(k.A[2][0]+k.B[2][0])/2,(k.A[2][1]+k.B[2][1])/2]];
-  let dF='',dS='';
-  for(const h of hands){const x=f.X(h),y=f.Y(h);
-    if(f.prop==='kb'){dF+=`M${x-5},${y+7}a5,5 0 1 0 10,0a5,5 0 1 0 -10,0`;dS+=`M${x-3.5},${y+4}Q${x},${y-3} ${x+3.5},${y+4}`}
-    else dS+=`M${x-5.5},${y-3.5}v7M${x+5.5},${y-3.5}v7M${x-5.5},${y}h11`;}
-  f.pf.setAttribute('d',dF); f.ps.setAttribute('d',dS);
+  const f=createFig(); f.P=P; f.prop=propKind(byId[id]||{eq:[]},kit);
+  drawChar(f,animPose(P,0),P.fit,P.front,P); FIGS.add(f);
+  return f.svg;
 }
 function figLoop(now){
   for(const f of FIGS){
     if(!f.svg.isConnected){FIGS.delete(f);continue}
     if(!f.svg.getClientRects().length) continue;
-    drawFig(f,now/1000);
+    drawChar(f,animPose(f.P,now/1000),f.P.fit,f.P.front,f.P);
   }
   requestAnimationFrame(figLoop);
 }

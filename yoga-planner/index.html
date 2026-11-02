@@ -7,6 +7,7 @@
 /* Layout: setup column (time, focus, level, props) beside the sequence grouped by class phase; the timer takes over the screen with a breath pacer. */
 :root{
   --bg:#F0EFF5; --surface:#FBFAFD; --ink:#24213A; --muted:#615C77; --line:#D9D5E3; --chip:#E6E3EE; --far:#B2ACC5;
+  --top:#5546AE; --legs:#2E2A45; --legs-far:#8D87A6; --skin:#D49A76; --skin-far:#B57D5C; --feet:var(--skin); --feet-far:var(--skin-far); --hair:#2B2238; --mat:#DCD5EE; --shadow:rgba(36,33,58,.12);
   --hold:#5546AE; --move:#2F7D6D; --rest:#A9566F; --on-phase:#FFFFFF;
   --phase:var(--hold);
   --f-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
@@ -14,9 +15,11 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#14121C; --surface:#1D1A28; --ink:#ECEAF4; --muted:#A39EB9; --line:#312D42; --chip:#262236; --far:#504A68;
+  --top:#A99CF5; --legs:#6F67A3; --legs-far:#433D5C; --skin:#D49A76; --skin-far:#8E6248; --hair:#6B5A8C; --mat:#302B46; --shadow:rgba(0,0,0,.35);
   --hold:#A99CF5; --move:#6CC7B2; --rest:#E59AB1; --on-phase:#14121C; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#14121C; --surface:#1D1A28; --ink:#ECEAF4; --muted:#A39EB9; --line:#312D42; --chip:#262236; --far:#504A68;
+  --top:#A99CF5; --legs:#6F67A3; --legs-far:#433D5C; --skin:#D49A76; --skin-far:#8E6248; --hair:#6B5A8C; --mat:#302B46; --shadow:rgba(0,0,0,.35);
   --hold:#A99CF5; --move:#6CC7B2; --rest:#E59AB1; --on-phase:#14121C; color-scheme:dark}
 
 *{box-sizing:border-box}
@@ -102,11 +105,31 @@ ol.list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .figbig{display:block;width:100%;aspect-ratio:120/110;background:var(--chip);border-radius:12px}
 .fig{display:block;width:100%;height:100%;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .fig .gnd{stroke:var(--line);stroke-width:2.5}
+.fig .mat{fill:var(--mat)}
+.fig .shd{fill:var(--shadow)}
 .fig .sup{stroke:var(--muted);stroke-width:3}
-.fig .far{stroke:var(--far);stroke-width:5}
-.fig .near{stroke:var(--ink);stroke-width:5}
-.fig .body{stroke:var(--ink);stroke-width:6}
-.fig .hd{fill:var(--ink)}
+.fig .lg{stroke:var(--legs)}
+.fig .far .lg{stroke:var(--legs-far)}
+.fig .th{stroke-width:calc(10px*var(--k,1))}
+.fig .sh{stroke-width:calc(8.4px*var(--k,1))}
+.fig .ft{stroke:var(--feet);stroke-width:calc(5px*var(--k,1))}
+.fig .far .ft{stroke:var(--feet-far)}
+.fig .sk{stroke:var(--skin)}
+.fig .far .sk{stroke:var(--skin-far)}
+.fig .ua{stroke-width:calc(6.4px*var(--k,1))}
+.fig .fa{stroke-width:calc(5.4px*var(--k,1))}
+.fig .neck{stroke-width:calc(5.5px*var(--k,1))}
+.fig .hand{fill:var(--skin)}
+.fig .far .hand{fill:var(--skin-far)}
+.fig .torso{fill:var(--top);stroke:var(--top);stroke-width:2.5}
+.fig .hips{fill:var(--legs);stroke:var(--legs);stroke-width:2.5}
+.fig .hair{fill:var(--hair)}
+.fig .face{fill:var(--skin)}
+.fig .eye{fill:var(--hair)}
+.fig.fv .far .lg{stroke:var(--legs)}
+.fig.fv .far .sk{stroke:var(--skin)}
+.fig.fv .far .hand{fill:var(--skin)}
+.fig.fv .far .ft{stroke:var(--feet)}
 .mirror .fig{transform:scaleX(-1)}
 
 /* Timer */
@@ -411,46 +434,127 @@ function placed(p){
   for(const key of ['A','B','L','M']) k[key]=k[key].map(sh);
   return k;
 }
+/* ---------- Character renderer ----------
+   Draws a posed skeleton as a small character: tapered limbs, a shaped torso
+   (top plus leggings), hands, feet, and a head with hair, bun and eyes. */
+const NS='http://www.w3.org/2000/svg';
+const easeIO=x=>(1-Math.cos(Math.PI*Math.max(0,Math.min(1,x))))/2;
+function createFig(o={}){
+  const svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('viewBox','-60 0 120 110'); svg.setAttribute('class','fig'); svg.setAttribute('aria-hidden','true');
+  svg.innerHTML=`<ellipse class="shd" cy="${G+1.2}" ry="3.2"/>`+
+    (o.mat?`<rect class="mat" x="-57" y="${G-.6}" width="114" height="4.6" rx="2.3"/>`:`<path class="gnd" d="M-56,${G+1.5}H56"/>`)+
+    `<path class="sup"/>`+
+    `<g class="fleg far"><path class="lg th"/><path class="lg sh"/><path class="ft"/></g>`+
+    `<g class="farm far"><path class="sk ua"/><path class="sk fa"/><circle class="hand"/></g>`+
+    `<g class="trunk"><path class="sk neck"/><path class="torso"/><path class="hips"/></g>`+
+    `<g class="nleg"><path class="lg th"/><path class="lg sh"/><path class="ft"/></g>`+
+    `<g class="headg"><circle class="hair"/><circle class="hair"/><circle class="face"/><circle class="eye"/><circle class="eye"/></g>`+
+    `<g class="narm"><path class="sk ua"/><path class="sk fa"/><circle class="hand"/></g>`+
+    `<path class="pf"/><path class="ps"/>`;
+  const q=c=>svg.querySelector('.'+c), kids=c=>[...q(c).children];
+  return {svg,front:null,shd:q('shd'),sup:q('sup'),pf:q('pf'),ps:q('ps'),
+    fleg:kids('fleg'),farm:kids('farm'),nleg:kids('nleg'),narm:kids('narm'),trunk:kids('trunk'),head:kids('headg'),
+    grp:{fleg:q('fleg'),farm:q('farm'),nleg:q('nleg'),narm:q('narm'),trunk:q('trunk'),headg:q('headg')}};
+}
+// Side view: far arm behind the body, near leg in front of it. Front view: legs behind, both arms in front.
+function setView(f,front){
+  f.front=front; const s=f.svg,g=f.grp;
+  s.classList.toggle('fv',front);
+  if(front){s.insertBefore(g.nleg,g.trunk);s.insertBefore(g.farm,g.narm);s.insertBefore(g.headg,f.pf)}
+  else{s.insertBefore(g.farm,g.trunk);s.insertBefore(g.headg,g.narm);s.insertBefore(g.nleg,g.headg)}
+}
+const lerpFit=(a,b,e)=>({s:a.s+(b.s-a.s)*e,ox:a.ox+(b.ox-a.ox)*e});
+function drawChar(f,pose,fit,front,P){
+  if(f.front!==front) setView(f,front);
+  const k=placed(pose), s=fit.s, X=q=>(q[0]+fit.ox)*s, Y=q=>G-(G-q[1])*s;
+  const pt=q=>X(q).toFixed(1)+','+Y(q).toFixed(1), seg=(a,b)=>`M${pt(a)}L${pt(b)}`, at=(el,q,r)=>{el.setAttribute('cx',X(q).toFixed(1));el.setAttribute('cy',Y(q).toFixed(1));el.setAttribute('r',(r*s).toFixed(2))};
+  f.svg.style.setProperty('--k',s.toFixed(3));
+  const leg=(els,L)=>{els[0].setAttribute('d',seg(L[0],L[1]));els[1].setAttribute('d',seg(L[1],L[2]));els[2].setAttribute('d',seg(L[2],L[3]))};
+  const arm=(els,A)=>{els[0].setAttribute('d',seg(A[0],A[1]));els[1].setAttribute('d',seg(A[1],A[2]));at(els[2],A[2],3.3)};
+  leg(f.fleg,k.M); leg(f.nleg,k.L); arm(f.farm,k.B); arm(f.narm,k.A);
+  // Torso outline: half-widths [facing side, back side] at hip, waist, chest, shoulder.
+  const H=k.hip,N=k.neck,len=Math.hypot(N[0]-H[0],N[1]-H[1])||1,ux=(N[0]-H[0])/len,uy=(N[1]-H[1])/len,px=-uy,py=ux;
+  const U=[0,.48,.8,1], W=front?[[7,7],[5.6,5.6],[7.4,7.4],[8.4,8.4]]:[[6.2,6],[5,4.6],[6.8,5],[4.6,4.2]];
+  const w=(u,sg)=>{let i=0;while(i<U.length-2&&u>U[i+1])i++;const t=(u-U[i])/(U[i+1]-U[i]);const c=sg>0?0:1;return W[i][c]+(W[i+1][c]-W[i][c])*t};
+  const P2=(u,sg)=>[H[0]+ux*len*u+px*w(u,sg)*sg,H[1]+uy*len*u+py*w(u,sg)*sg];
+  const outline=us=>'M'+[...us.map(u=>P2(u,1)),...us.slice().reverse().map(u=>P2(u,-1))].map(pt).join('L')+'Z';
+  f.trunk[1].setAttribute('d',outline([0,.2,.48,.65,.8,.92,1]));
+  f.trunk[2].setAttribute('d',outline([0,.14,.28]));
+  const Hc=k.head, hv=[(Hc[0]-N[0])/LEN.nk,(Hc[1]-N[1])/LEN.nk], fv=front?[0,0]:[-hv[1],hv[0]], pv=[-hv[1],hv[0]];
+  const off=(a,b,c)=>[Hc[0]+fv[0]*a+hv[0]*b+pv[0]*c,Hc[1]+fv[1]*a+hv[1]*b+pv[1]*c];
+  f.trunk[0].setAttribute('d',seg(N,[N[0]+hv[0]*5,N[1]+hv[1]*5]));
+  const [hair,bun,face,e1,e2]=f.head;
+  at(hair,off(-1.5,.7,0),8.6); at(bun,front?off(0,8.6,0):off(-3.8,7.4,0),3.7); at(face,off(1,-.6,0),7.2);
+  if(front){at(e1,off(0,-.6,2.8),1.15);at(e2,off(0,-.6,-2.8),1.15)} else {at(e1,off(4.9,.5,0),1.15);e2.setAttribute('r','0')}
+  f.shd.setAttribute('cx',X(H).toFixed(1)); f.shd.setAttribute('rx',(24*s).toFixed(1));
+  // Supports and weights.
+  const kind=P&&P.A.prop; let sd='';
+  if(kind==='wall'){const x=X([H[0]-9]);sd=`M${x.toFixed(1)},${G}V${G-84}`}
+  else if(kind==='wallR'){const x=X([H[0]+6]);sd=`M${x.toFixed(1)},${G}V${G-84}`}
+  else if(kind==='chair'&&P.chair){const x=X(P.chair),y=Y(P.chair)+3;sd=`M${(x-18).toFixed(1)},${y.toFixed(1)}h22M${(x-16).toFixed(1)},${y.toFixed(1)}V${G}M${(x+2).toFixed(1)},${y.toFixed(1)}V${G}`}
+  f.sup.setAttribute('d',sd);
+  let dF='',dS='';
+  if(f.prop&&P&&P.A.hold){
+    const hands=P.A.hold==='both'?[k.A[2],k.B[2]]:P.A.hold==='near'?[k.A[2]]:[[(k.A[2][0]+k.B[2][0])/2,(k.A[2][1]+k.B[2][1])/2]];
+    for(const h of hands){const x=X(h),y=Y(h);
+      if(f.prop==='kb'){dF+=`M${x-5},${y+7}a5,5 0 1 0 10,0a5,5 0 1 0 -10,0`;dS+=`M${x-3.5},${y+4}Q${x},${y-3} ${x+3.5},${y+4}`}
+      else dS+=`M${x-5.5},${y-3.5}v7M${x+5.5},${y-3.5}v7M${x-5.5},${y}h11`;}
+  }
+  f.pf.setAttribute('d',dF); f.ps.setAttribute('d',dS);
+}
+// Where each pose starts from, so the loop shows how you get into it.
+const FROMS={
+ standS:{a:[2,6],b:[-2,4]},
+ standF:{a:[6,3],b:[-6,-3]},
+ table:{t:90,h:110,l:[0,-90],m:[0,-90],fa:-90,fb:-90,ha:30,hb:30},
+ seatF:{l:[78,-78],m:[-78,78],fa:-90,fb:90,tA:[16,2],tB:[-16,2]},
+ longsit:{l:[90,90],m:[90,90],fa:170,fb:170,ha:-6,hb:-6},
+ back:{t:-90,h:-108,a:[90,90],b:[90,90],l:[90,90],m:[92,92],fa:160,fb:160},
+ belly:{t:90,h:95,a:[-90,-90],b:[-90,-90],l:[-90,-90],m:[-90,-90],fa:-90,fb:-90},
+};
+const FROM_OF={child:'table',downdog:'table',fold:'standS',lowlunge:'standS',crescent:'standS',warrior1:'standS',warrior2:'standF',triangle:'standF',sideangle:'standF',chair:'standS',goddess:'standF',plank:'table',tree:'standF',warrior3:'standS',dancer:'standS',cobra:'belly',sphinx:'belly',locust:'belly',boat:'longsit',seatedfold:'longsit',pigeon:'table',butterfly:'seatF',bridge:'back',supinetwist:'back',happybaby:'back',kneeschest:'back',legsup:'back'};
+const BREATH=6;
 const ANIM_CACHE={};
 function prepAnim(id){
   if(ANIM_CACHE[id]) return ANIM_CACHE[id];
   const A=ANIM[id]; if(!A) return null;
-  const raw=A.f.length===1?[A.f[0],breathFrame(A.f[0],A.front)]:A.f;
-  const frames=raw.map(f=>resolvePose(f,A.front));
+  const R=f=>resolvePose(f,A.front), flow=A.f.length>1;
+  let keys,main,br,from;
+  if(flow){keys=A.f.map(f=>({pose:R(f),hold:0,move:(A.c||7)/A.f.length}));main=br=from=keys[0].pose}
+  else{
+    main=R(A.f[0]); br=R(breathFrame(A.f[0],A.front)); from=FROM_OF[id]?R(FROMS[FROM_OF[id]]):null;
+    keys=from?[{pose:from,hold:1.1,move:1.9},{pose:main,br,hold:BREATH,move:1.9}]:[{pose:main,br,hold:BREATH,move:0}];
+    from=from||main;
+  }
   let x0=1e9,x1=-1e9,y0=1e9;
-  frames.forEach(f=>{const k=placed(f);
-    for(const q of [k.hip,k.neck,...k.A,...k.B,...k.L,...k.M]){x0=Math.min(x0,q[0]-3);x1=Math.max(x1,q[0]+3);y0=Math.min(y0,q[1]-3)}
-    x0=Math.min(x0,k.head[0]-LEN.hr);x1=Math.max(x1,k.head[0]+LEN.hr);y0=Math.min(y0,k.head[1]-LEN.hr)});
-  const s=Math.min(1,110/(x1-x0),(G-6)/(G-y0));
-  return ANIM_CACHE[id]={A,frames,s,ox:-(x0+x1)/2,c:A.c||7};
+  for(const p of [...keys.map(k=>k.pose),br]){const k=placed(p);
+    for(const q of [k.hip,k.neck,...k.A,...k.B,...k.L,...k.M]){x0=Math.min(x0,q[0]-6);x1=Math.max(x1,q[0]+6);y0=Math.min(y0,q[1]-6)}
+    x0=Math.min(x0,k.head[0]-10);x1=Math.max(x1,k.head[0]+10);y0=Math.min(y0,k.head[1]-12)}
+  const s=Math.min(1,112/(x1-x0),(G-4)/(G-y0));
+  return ANIM_CACHE[id]={A,keys,main,br,from,flow,front:!!A.front,fit:{s,ox:-(x0+x1)/2},total:keys.reduce((a,k)=>a+k.hold+k.move,0)};
+}
+function animPose(P,time){
+  let tt=((time%P.total)+P.total)%P.total;
+  for(let i=0;i<P.keys.length;i++){const k=P.keys[i];
+    if(tt<k.hold) return k.br?lerpPose(k.pose,k.br,(1-Math.cos(2*Math.PI*tt/BREATH))/2):k.pose;
+    tt-=k.hold;
+    if(tt<k.move) return lerpPose(k.pose,P.keys[(i+1)%P.keys.length].pose,easeIO(tt/k.move));
+    tt-=k.move;}
+  return P.keys[0].pose;
 }
 const FIGS=new Set();
 function makeFig(id){
   const P=prepAnim(id); if(!P) return document.createElement('span');
-  const NS='http://www.w3.org/2000/svg', svg=document.createElementNS(NS,'svg');
-  svg.setAttribute('viewBox','-60 0 120 110'); svg.setAttribute('class','fig'); svg.setAttribute('aria-hidden','true');
-  svg.innerHTML=`<path class="gnd" d="M-56,${G+1.5}H56"/><path class="sup"/><path class="far"/><path class="far"/><path class="body"/><path class="near"/><path class="near"/><circle class="hd" r="${LEN.hr*P.s}"/>`;
-  const [,sup,fl,fa,torso,nl,na,hd]=svg.children;
-  if(P.A.front){fl.setAttribute('class','near');fa.setAttribute('class','near')}
-  const X=q=>((q[0]+P.ox)*P.s), Y=q=>(G-(G-q[1])*P.s);
-  const f={svg,P,fl,fa,torso,nl,na,hd,X,Y,pt:q=>X(q).toFixed(1)+','+Y(q).toFixed(1)};
-  if(P.A.prop==='wallR'){const k=placed(P.frames[0]);const x=X([k.hip[0]+6,0]);sup.setAttribute('d',`M${x.toFixed(1)},${G}V${G-84}`)}
-  drawFig(f,0); FIGS.add(f);
-  return svg;
-}
-function drawFig(f,time){
-  const P=f.P,fr=P.frames,n=fr.length,ph=((time/P.c)%1)*n,i=Math.floor(ph)%n,e=(1-Math.cos(Math.PI*(ph-Math.floor(ph))))/2;
-  const k=placed(lerpPose(fr[i],fr[(i+1)%n],e)), pl=a=>'M'+a.map(f.pt).join('L');
-  f.fl.setAttribute('d',pl(k.M)); f.fa.setAttribute('d',pl(k.B));
-  f.nl.setAttribute('d',pl(k.L)); f.na.setAttribute('d',pl(k.A));
-  f.torso.setAttribute('d',`${pl([k.hpA,k.hpB])}${pl([k.hip,k.neck])}${pl([k.shA,k.shB])}`);
-  f.hd.setAttribute('cx',f.X(k.head).toFixed(1)); f.hd.setAttribute('cy',f.Y(k.head).toFixed(1));
+  const f=createFig({mat:1}); f.P=P; f.t0=Math.random()*2;
+  drawChar(f,animPose(P,0),P.fit,P.front,P); FIGS.add(f);
+  return f.svg;
 }
 function figLoop(now){
   for(const f of FIGS){
     if(!f.svg.isConnected){FIGS.delete(f);continue}
     if(!f.svg.getClientRects().length) continue;
-    drawFig(f,now/1000);
+    drawChar(f,animPose(f.P,now/1000+f.t0),f.P.fit,f.P.front,f.P);
   }
   requestAnimationFrame(figLoop);
 }
@@ -608,7 +712,7 @@ function startTimer(){
   wake();
   $('timer').hidden=false; document.body.style.overflow='hidden';
   $('tMain').hidden=false; $('tFoot').hidden=false; $('tDone').hidden=true; resetEnd();
-  $('tFig').dataset.key='';
+  T.fig=createFig({mat:1}); $('tFig').replaceChildren(T.fig.svg);
   enter(0); loop();
 }
 function enter(i){
@@ -642,9 +746,9 @@ function paint(full){
   // Breath pacer: 4 seconds in, 6 seconds out, during holds and final rest.
   if(g.type==='hold'||g.type==='rest'){
     const c=el%10, inh=c<4, k=inh?(1-Math.cos(Math.PI*c/4))/2:(1+Math.cos(Math.PI*(c-4)/6))/2;
-    $('breath').setAttribute('r',(48+30*k).toFixed(1));
+    $('breath').setAttribute('r',(48+30*k).toFixed(1)); figFrame(g,el,k);
     $('tBr').textContent=g.type==='rest'?'Breathe naturally':(inh?'Inhale':'Exhale');
-  } else {$('breath').setAttribute('r','48');$('tBr').textContent=g.type==='settle'?'Get comfortable':'Transition'}
+  } else {$('breath').setAttribute('r','48');$('tBr').textContent=g.type==='settle'?'Get comfortable':'Transition';figFrame(g,el,0)}
   if(sec!==T.lastSec){
     T.lastSec=sec; $('tSec').textContent=mmss(sec);
     const done=T.segs.slice(0,T.idx).reduce((a,b)=>a+b.dur,0)+el, all=T.segs.reduce((a,b)=>a+b.dur,0);
@@ -662,9 +766,25 @@ function paint(full){
   $('tCues').innerHTML=p.cues.map(c=>`<li>${esc(c)}</li>`).join('');
   const mods=Object.entries(p.mod||{}).filter(([k])=>readSettings().props.includes(k)).map(([,v])=>v).join(' ');
   $('tHow').textContent=p.how+(mods?' '+mods:'');
-  const key=p.id+(g.side==='left'?'L':'');
-  if($('tFig').dataset.key!==key){$('tFig').dataset.key=key;$('tFig').classList.toggle('mirror',g.side==='left');$('tFig').replaceChildren(makeFig(p.id))}
   setPlayIcon();
+}
+// The timer figure moves from the last pose into the next one during each transition,
+// and breathes with the pacer while you hold.
+function segPose(i){const g=T.segs[i];return g?{P:prepAnim(g.id),mir:g.side==='left'}:null}
+function figFrame(g,el,k){
+  if(!T.fig) return;
+  const cur=segPose(T.idx), P=cur.P, start=x=>x.flow?x.keys[0].pose:x.main;
+  let pose,fit=P.fit,front=P.front,mir=cur.mir,src=P;
+  if(g.type==='settle') pose=lerpPose(P.from,start(P),easeIO((el-(g.dur-4.5))/3.5));
+  else if(g.type==='hold'||g.type==='rest') pose=P.flow?animPose(P,el):lerpPose(P.main,P.br,k);
+  else{
+    const prev=segPose(T.idx-1), Q=prev.P, e=Math.min(1,el/Math.min(g.dur*.85,4.5));
+    if(Q.front===P.front&&prev.mir===cur.mir&&!P.flow&&!Q.flow&&Q!==P){pose=lerpPose(Q.main,P.main,easeIO(e));fit=lerpFit(Q.fit,P.fit,easeIO(e))}
+    else if(e<.5){pose=lerpPose(start(Q),Q.from,easeIO(e*2));fit=Q.fit;front=Q.front;mir=prev.mir;src=Q}
+    else pose=lerpPose(P.from,start(P),easeIO(e*2-1));
+  }
+  $('tFig').classList.toggle('mirror',mir);
+  drawChar(T.fig,pose,fit,front,src);
 }
 function setPlayIcon(){
   $('playIcon').innerHTML=T.paused?'<path d="M7 4v16l13-8z"/>':'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
