@@ -1,0 +1,537 @@
+<title>Circuit Builder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: setup column (time, focus, kit) beside a numbered circuit card list; the timer takes over the full screen when started. */
+:root{
+  --bg:#ECEFEA; --surface:#FAFBF8; --ink:#16201B; --muted:#56635C; --line:#D0D8D2; --chip:#DFE6E0;
+  --work:#0E7458; --rest:#B87406; --break:#3B5899; --on-phase:#FFFFFF;
+  --phase:var(--work);
+  --f-display:"Big Shoulders Display","Arial Narrow","Roboto Condensed",Impact,sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1412; --surface:#171E1B; --ink:#E4EBE6; --muted:#97A59E; --line:#2A3631; --chip:#212B27;
+  --work:#3CCB9E; --rest:#F2AE3D; --break:#8EA8EC; --on-phase:#0C1210; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1412; --surface:#171E1B; --ink:#E4EBE6; --muted:#97A59E; --line:#2A3631; --chip:#212B27;
+  --work:#3CCB9E; --rest:#F2AE3D; --break:#8EA8EC; --on-phase:#0C1210; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--work);outline-offset:2px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:28px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:3px solid var(--ink);padding-bottom:12px}
+h1{font-family:var(--f-display);font-weight:900;font-size:clamp(2.6rem,7vw,4.2rem);line-height:.9;margin:0;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+h1 span{color:var(--work)}
+.tag{font-size:.95rem;color:var(--muted);max-width:38ch;margin:0}
+.grid{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:32px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+h2{font-family:var(--f-display);font-weight:800;font-size:1.5rem;text-transform:uppercase;letter-spacing:.03em;margin:0}
+.label{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.setup{display:grid;gap:22px}
+fieldset{border:0;margin:0;padding:0;display:grid;gap:10px;min-width:0}
+legend{padding:0;margin-bottom:10px}
+.nums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.num{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:grid;gap:2px}
+.num label{font-size:.78rem;color:var(--muted);font-weight:700}
+.num .row{display:flex;align-items:baseline;gap:6px}
+.num input{width:100%;min-width:0;border:0;background:transparent;font-family:var(--f-display);font-weight:800;font-size:2rem;line-height:1.1;padding:0;font-variant-numeric:tabular-nums}
+.num input:focus{outline:none}
+.num:focus-within{border-color:var(--work);box-shadow:0 0 0 2px var(--work)}
+.num .unit{color:var(--muted);font-size:.85rem}
+.ratio{font-size:.85rem;color:var(--muted)}
+.ratio b{color:var(--ink);font-variant-numeric:tabular-nums}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.check{position:relative}
+.check input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.check span{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1.5px solid var(--line);border-radius:999px;background:var(--surface);font-weight:700;font-size:.95rem;cursor:pointer;user-select:none}
+.check span::before{content:"";width:16px;height:16px;border:2px solid var(--muted);border-radius:4px;flex:none}
+.check input:checked + span{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.check input:checked + span::before{border-color:var(--bg);background:var(--bg);
+  -webkit-mask:none;box-shadow:inset 0 0 0 2px var(--ink)}
+.check input:focus-visible + span{outline:3px solid var(--work);outline-offset:2px}
+.hint{font-size:.85rem;color:var(--muted);margin:0}
+.btn{appearance:none;border:0;border-radius:6px;padding:12px 18px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary{background:var(--work);color:var(--on-phase);font-family:var(--f-display);font-size:1.35rem;letter-spacing:.04em;text-transform:uppercase;padding:12px 22px}
+.btn.ghost{background:transparent;border:1.5px solid var(--line)}
+.btn.ghost:hover{border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+
+.plan{display:grid;gap:14px;min-width:0}
+.planhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px}
+.summary{display:flex;flex-wrap:wrap;gap:0;border:1.5px solid var(--ink);border-radius:6px;overflow:hidden;background:var(--surface)}
+.summary div{flex:1 1 90px;padding:8px 12px;border-right:1px solid var(--line)}
+.summary div:last-child{border-right:0}
+.summary b{display:block;font-family:var(--f-display);font-weight:800;font-size:1.7rem;line-height:1.05;font-variant-numeric:tabular-nums}
+ol.list{list-style:none;margin:0;padding:0;display:grid;gap:8px;counter-reset:ex}
+.ex{background:var(--surface);border:1px solid var(--line);border-radius:6px;counter-increment:ex}
+.ex summary{list-style:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;cursor:pointer}
+.ex summary::-webkit-details-marker{display:none}
+.ex summary::before{content:counter(ex,decimal-leading-zero);font-family:var(--f-display);font-weight:900;font-size:1.6rem;color:var(--work);font-variant-numeric:tabular-nums;width:2ch}
+.ex .nm{font-weight:700;font-size:1.05rem;line-height:1.25}
+.ex .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.pill{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;background:var(--chip);color:var(--muted);padding:2px 8px;border-radius:999px}
+.pill.kit{background:transparent;border:1px solid var(--line)}
+.ex .side{display:flex;gap:6px;align-items:center}
+.icon{appearance:none;border:1.5px solid var(--line);background:transparent;border-radius:6px;width:38px;height:38px;display:inline-grid;place-items:center;cursor:pointer;color:var(--muted)}
+.icon:hover{border-color:var(--ink);color:var(--ink)}
+.icon svg{width:18px;height:18px}
+.chev{transition:transform .2s}
+.ex[open] .chev{transform:rotate(180deg)}
+.body{padding:0 14px 14px 14px;display:grid;gap:10px;border-top:1px dashed var(--line);margin:0 12px;padding-inline:0;padding-top:12px}
+.body p{margin:0;max-width:65ch}
+.cues{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.cues li{padding-left:22px;position:relative}
+.cues li::before{content:"";position:absolute;left:4px;top:.6em;width:8px;height:8px;border-radius:2px;background:var(--work)}
+.empty{padding:24px;border:1.5px dashed var(--line);border-radius:6px;color:var(--muted)}
+
+/* Timer overlay */
+.timer{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;
+  padding-top:max(14px,env(safe-area-inset-top,0px));padding-bottom:max(14px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-y:auto}
+.timer[data-phase="work"]{--phase:var(--work)}
+.timer[data-phase="rest"],.timer[data-phase="prep"]{--phase:var(--rest)}
+.timer[data-phase="break"]{--phase:var(--break)}
+.timer[data-phase="done"]{--phase:var(--work)}
+.tbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.phase{font-family:var(--f-display);font-weight:900;font-size:1.6rem;text-transform:uppercase;letter-spacing:.06em;background:var(--phase);color:var(--on-phase);padding:2px 14px;border-radius:4px}
+.count{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
+.tmain{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:center;max-width:1000px;width:100%;margin:0 auto;padding-block:16px}
+@media (max-width:760px){.tmain{grid-template-columns:minmax(0,1fr);gap:14px;align-content:start}}
+.ring{position:relative;width:min(78vw,340px,48vh);aspect-ratio:1;max-width:100%;margin:0 auto}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .trk{fill:none;stroke:var(--line);stroke-width:10}
+.ring .arc{fill:none;stroke:var(--phase);stroke-width:10;stroke-linecap:round;transition:stroke .3s}
+.ring .t{position:absolute;inset:0;display:grid;place-items:center;align-content:center;text-align:center}
+.ring .sec{font-family:var(--f-display);font-weight:900;font-size:clamp(4.5rem,18vw,8.5rem);line-height:.9;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ring .of{color:var(--muted);font-size:.9rem;font-weight:700}
+.now{display:grid;gap:10px;min-width:0}
+.now .lead{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--phase)}
+.now h3{font-family:var(--f-display);font-weight:900;font-size:clamp(2.2rem,6vw,3.4rem);line-height:.95;margin:0;text-transform:uppercase;text-wrap:balance}
+.now .switch{font-weight:700;color:var(--phase)}
+.now .cues li{font-size:1.05rem}
+.now details{border-top:1px solid var(--line);padding-top:8px}
+.now details summary{cursor:pointer;font-weight:700;color:var(--muted)}
+.now details p{margin:6px 0 0;max-width:60ch}
+.prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;max-width:1000px;width:100%;margin:0 auto 14px}
+.prog i{display:block;height:100%;width:0;background:var(--phase);transition:width .3s linear}
+.controls{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.cbtn{appearance:none;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;width:58px;height:58px;display:grid;place-items:center;cursor:pointer}
+.cbtn svg{width:24px;height:24px}
+.cbtn.big{width:76px;height:76px;background:var(--phase);border-color:var(--phase);color:var(--on-phase)}
+.cbtn.big svg{width:32px;height:32px}
+.cbtn[aria-pressed="false"]{opacity:.55}
+.done{display:grid;gap:18px;justify-items:center;text-align:center;margin:auto;max-width:520px}
+.done h3{font-family:var(--f-display);font-weight:900;font-size:clamp(3rem,10vw,5rem);line-height:.9;margin:0;text-transform:uppercase;color:var(--work)}
+.done .summary{width:100%}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Circuit<br><span>Builder</span></h1>
+    <p class="tag">Set your time and intervals, tick what you want to train and what kit you have. Get a circuit with form cues, then run it on the timer.</p>
+  </header>
+
+  <div class="grid">
+    <form class="setup" id="setup" autocomplete="off">
+      <fieldset>
+        <legend class="label">Time &amp; intervals</legend>
+        <div class="nums">
+          <div class="num"><label for="total">Total time</label><div class="row"><input id="total" type="number" inputmode="numeric" min="5" max="120" step="1" value="20"><span class="unit">min</span></div></div>
+          <div class="num"><label for="count">Exercises per round</label><div class="row"><input id="count" type="number" inputmode="numeric" min="2" max="12" step="1" value="6"><span class="unit">moves</span></div></div>
+          <div class="num"><label for="work">Work interval</label><div class="row"><input id="work" type="number" inputmode="numeric" min="5" max="300" step="5" value="40"><span class="unit">sec</span></div></div>
+          <div class="num"><label for="rest">Rest interval</label><div class="row"><input id="rest" type="number" inputmode="numeric" min="0" max="300" step="5" value="20"><span class="unit">sec</span></div></div>
+          <div class="num"><label for="roundRest">Rest between rounds</label><div class="row"><input id="roundRest" type="number" inputmode="numeric" min="0" max="600" step="15" value="60"><span class="unit">sec</span></div></div>
+          <div class="num"><label for="prep">Get-ready countdown</label><div class="row"><input id="prep" type="number" inputmode="numeric" min="0" max="60" step="5" value="10"><span class="unit">sec</span></div></div>
+        </div>
+        <p class="ratio" id="ratio"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend class="label">What are you training?</legend>
+        <div class="checks" id="focus">
+          <label class="check"><input type="checkbox" id="f-legs" value="legs"><span>Legs</span></label>
+          <label class="check"><input type="checkbox" id="f-upper" value="upper"><span>Upper body</span></label>
+          <label class="check"><input type="checkbox" id="f-lower" value="lower"><span>Lower body</span></label>
+          <label class="check"><input type="checkbox" id="f-core" value="core"><span>Core</span></label>
+          <label class="check"><input type="checkbox" id="f-full" value="full" checked><span>Full body</span></label>
+        </div>
+        <p class="hint">Tick more than one and the circuit alternates between them.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend class="label">Equipment available</legend>
+        <div class="checks" id="kit">
+          <label class="check"><input type="checkbox" id="k-db" value="db"><span>Dumbbells</span></label>
+          <label class="check"><input type="checkbox" id="k-kb" value="kb"><span>Kettlebell</span></label>
+        </div>
+        <p class="hint">Leave both unticked for a bodyweight-only workout.</p>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" class="btn primary" id="gen">Generate circuit</button>
+      </div>
+    </form>
+
+    <section class="plan" aria-labelledby="planTitle">
+      <div class="planhead">
+        <h2 id="planTitle">Your circuit</h2>
+        <div class="actions">
+          <button type="button" class="btn ghost" id="shuffle">Reshuffle</button>
+          <button type="button" class="btn primary" id="start">Start timer</button>
+        </div>
+      </div>
+      <div class="summary" id="summary"></div>
+      <p class="hint">Tap a move to see how to do it. The swap button replaces just that move.</p>
+      <ol class="list" id="list"></ol>
+    </section>
+  </div>
+</div>
+
+<section class="timer" id="timer" hidden aria-live="polite">
+  <div class="tbar">
+    <span class="phase" id="tPhase">Get ready</span>
+    <span class="count" id="tCount"></span>
+    <div class="confirm" id="endWrap">
+      <button type="button" class="btn ghost" id="endBtn">End workout</button>
+    </div>
+  </div>
+  <div class="tmain" id="tMain">
+    <div class="ring">
+      <svg viewBox="0 0 200 200" aria-hidden="true"><circle class="trk" cx="100" cy="100" r="90"/><circle class="arc" id="arc" cx="100" cy="100" r="90" stroke-dasharray="565.49" stroke-dashoffset="0"/></svg>
+      <div class="t"><div class="sec" id="tSec">10</div><div class="of" id="tOf"></div></div>
+    </div>
+    <div class="now">
+      <div class="lead" id="tLead">First up</div>
+      <h3 id="tName">—</h3>
+      <div class="switch" id="tSwitch" hidden>Switch sides at halfway</div>
+      <ul class="cues" id="tCues"></ul>
+      <details id="tHowWrap"><summary>How to do it</summary><p id="tHow"></p></details>
+    </div>
+  </div>
+  <div class="done" id="tDone" hidden>
+    <h3>Done!</h3>
+    <p id="doneMsg"></p>
+    <div class="summary" id="doneStats"></div>
+    <div class="actions" style="justify-content:center">
+      <button type="button" class="btn primary" id="again">Run it again</button>
+      <button type="button" class="btn ghost" id="closeDone">Back to planner</button>
+    </div>
+  </div>
+  <div id="tFoot">
+    <div class="prog"><i id="tProg"></i></div>
+    <div class="controls">
+      <button type="button" class="cbtn" id="cSound" aria-pressed="true" aria-label="Sound on or off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></button>
+      <button type="button" class="cbtn" id="cBack" aria-label="Previous interval"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button type="button" class="cbtn big" id="cPlay" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor" id="playIcon"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+      <button type="button" class="cbtn" id="cSkip" aria-label="Skip interval"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---------- Exercise library ----------
+   eq: [] = bodyweight; otherwise any one of the listed kit is enough.
+   t: focus areas. side: true = do one side, then switch at halfway. */
+const EX = [
+ // Bodyweight — legs / lower
+ {id:'squat',n:'Bodyweight Squat',eq:[],t:['legs','lower'],how:'Stand with feet about shoulder-width apart, toes turned out slightly. Push your hips back and bend your knees to lower until your thighs are around parallel to the floor, then drive through your whole foot to stand tall.',cues:['Chest up, eyes forward','Knees track in line with your toes','Weight through heels and mid-foot','Squeeze your glutes at the top']},
+ {id:'revlunge',n:'Reverse Lunge',eq:[],t:['legs','lower'],how:'From standing, take a big step back with one foot and lower until both knees are bent about 90°, back knee hovering just off the floor. Push through the front heel to return to standing. Alternate legs.',cues:['Long step back, not a short one','Front knee stays over the ankle','Torso upright, core braced','Drive up through the front heel']},
+ {id:'jumpsquat',n:'Jump Squat',eq:[],t:['legs','lower','full'],how:'Squat down as for a bodyweight squat, then explode upward into a jump. Land softly on the balls of your feet, roll through to the heels and sink straight into the next squat.',cues:['Swing your arms to help drive up','Land quietly with soft knees','Knees stay out, not caving in','Drop to a step-back squat if your knees complain']},
+ {id:'bridge',n:'Glute Bridge',eq:[],t:['lower'],how:'Lie on your back, knees bent, feet flat and hip-width apart close to your bottom. Press through your heels to lift your hips until your body makes a straight line from shoulders to knees. Pause, then lower with control.',cues:['Tuck your ribs down, don’t arch the low back','Push through heels, not toes','Squeeze glutes hard for a second at the top','Lower slowly']},
+ {id:'slbridge',n:'Single-Leg Glute Bridge',eq:[],t:['lower','legs'],side:true,how:'Set up like a glute bridge, then straighten one leg out in line with the other thigh. Drive through the planted heel to lift your hips, keeping them level. Switch legs halfway through the interval.',cues:['Keep hips level, no tilting','Planted foot close to your bottom','Pause and squeeze at the top','Arms flat on the floor for balance']},
+ {id:'wallsit',n:'Wall Sit',eq:[],t:['legs'],how:'Lean your back flat against a wall and slide down until your knees are bent around 90°, feet a little in front of you. Hold the position for the whole interval.',cues:['Knees over ankles, not past toes','Whole back pressed into the wall','Breathe steadily, don’t hold your breath','Go higher up the wall if it’s too much']},
+ {id:'latlunge',n:'Lateral Lunge',eq:[],t:['legs','lower'],how:'Stand with feet together. Take a wide step out to one side, sit your hips back and bend that knee while keeping the other leg straight. Push off the bent leg to return. Alternate sides.',cues:['Sit back like reaching for a chair','Bent knee tracks over the toes','Both feet stay flat','Chest proud, back flat']},
+ {id:'calf',n:'Calf Raise',eq:[],t:['legs'],how:'Stand tall, feet hip-width apart, holding a wall or chair lightly for balance if needed. Rise up onto the balls of your feet as high as you can, pause, then lower slowly all the way down.',cues:['Full height at the top','Slow 2–3 second lower','Weight over the big toe, not rolling out','Knees straight but not locked']},
+ {id:'skater',n:'Skater Jumps',eq:[],t:['legs','lower','full'],how:'Leap sideways from one foot to the other, landing softly on the outside leg and swinging the trailing leg behind you. Bound straight back the other way.',cues:['Land soft and balanced before the next jump','Hips back, slight forward lean','Swing arms across for momentum','Make it a step instead of a jump to lower intensity']},
+ // Bodyweight — upper
+ {id:'pushup',n:'Push-Up',eq:[],t:['upper'],how:'Hands slightly wider than your shoulders, body in a straight line from head to heels. Lower your chest toward the floor by bending your elbows, then press back up. Drop to your knees to make it easier.',cues:['Elbows angled back about 45°, not flared out','Squeeze glutes so hips don’t sag','Chest leads, not your chin','Full range: chest close to the floor']},
+ {id:'pike',n:'Pike Push-Up',eq:[],t:['upper'],how:'Start in a downward-dog shape: hands and feet on the floor, hips high. Bend your elbows to lower the top of your head toward the floor just in front of your hands, then press back up. Works the shoulders.',cues:['Hips stay high throughout','Head moves forward of the hands, making a triangle','Elbows track back, not out','Walk feet closer to make it harder']},
+ {id:'dip',n:'Chair Tricep Dip',eq:[],t:['upper'],how:'Sit on the edge of a sturdy chair or step, hands beside your hips, fingers forward. Slide your bottom off the edge and bend your elbows to lower your body, then press back up.',cues:['Shoulders down, away from your ears','Elbows point straight back','Keep your back close to the chair','Bend knees more to make it easier']},
+ {id:'inchworm',n:'Inchworm',eq:[],t:['upper','full','core'],how:'From standing, hinge forward and place your hands on the floor. Walk your hands out to a high plank, pause, then walk them back to your feet and stand up.',cues:['Bend your knees as much as you need','Solid plank at the front, no sagging hips','Move slowly and with control','Add a push-up at the front for extra work']},
+ {id:'taps',n:'Plank Shoulder Taps',eq:[],t:['core','upper'],how:'Hold a high plank on your hands. Lift one hand to tap the opposite shoulder, put it back down, then switch. Keep alternating.',cues:['Feet wide for stability','Hips stay still, no rocking side to side','Push the floor away','Slow taps beat fast sloppy ones']},
+ // Bodyweight — core
+ {id:'plank',n:'Forearm Plank',eq:[],t:['core'],how:'Forearms on the floor with elbows under shoulders, legs straight behind you. Hold your body in one straight line for the whole interval.',cues:['Squeeze glutes and quads','Pull belly button toward your spine','Neck long, look at the floor','Drop knees down if your back starts to sag']},
+ {id:'sideplank',n:'Side Plank',eq:[],t:['core'],side:true,how:'Lie on one side, forearm on the floor under your shoulder, feet stacked. Lift your hips so your body forms a straight line, and hold. Switch sides halfway.',cues:['Hips high, don’t let them drop','Shoulder stacked over the elbow','Bottom knee down to make it easier','Breathe steadily']},
+ {id:'deadbug',n:'Dead Bug',eq:[],t:['core'],how:'Lie on your back with arms pointing to the ceiling and knees bent at 90° above your hips. Slowly lower one arm overhead and the opposite leg toward the floor, then return. Alternate sides.',cues:['Low back stays pressed into the floor','Move slowly, exhale as you extend','Only go as low as you can keep your back flat','Opposite arm and leg move together']},
+ {id:'bicycle',n:'Bicycle Crunch',eq:[],t:['core'],how:'Lie on your back, hands lightly behind your head, legs raised. Bring one elbow toward the opposite knee while extending the other leg, then switch in a pedalling motion.',cues:['Rotate from your ribs, not just the elbow','Don’t pull on your neck','Fully extend the straight leg','Controlled pace, not a race']},
+ {id:'hollow',n:'Hollow Hold',eq:[],t:['core'],how:'Lie on your back, press your low back into the floor, then lift your shoulders and legs off the floor, arms reaching past your ears or by your sides. Hold the banana shape.',cues:['Low back glued to the floor','Bend knees or bring arms in to make it easier','Point your toes','Ribs down']},
+ {id:'climbers',n:'Mountain Climbers',eq:[],t:['core','full'],how:'From a high plank, drive one knee toward your chest, then switch legs quickly as if running in place.',cues:['Shoulders over wrists','Hips level with your shoulders, not piked up','Drive knees to chest','Slow it down to a march if you need to']},
+ {id:'superman',n:'Superman Hold',eq:[],t:['core','lower'],how:'Lie face down, arms stretched overhead. Lift your arms, chest and legs a few centimetres off the floor and hold, or pulse up and down.',cues:['Look at the floor, neck long','Squeeze glutes to lift the legs','Small, controlled lift','Reach long through fingers and toes']},
+ // Bodyweight — full body / cardio
+ {id:'burpee',n:'Burpee',eq:[],t:['full'],how:'From standing, squat and place your hands on the floor, jump or step your feet back to a plank, then jump or step them back in and stand up with a small jump and arms overhead.',cues:['Hands flat, shoulder-width','Strong plank, no sagging hips','Step instead of jump to lower impact','Land softly']},
+ {id:'jacks',n:'Jumping Jacks',eq:[],t:['full'],how:'Jump your feet out wide while raising your arms overhead, then jump back to feet together with arms by your sides.',cues:['Stay light on the balls of your feet','Soft knees on landing','Full arm swing overhead','Step side to side for no-impact']},
+ {id:'highknees',n:'High Knees',eq:[],t:['full','legs'],how:'Run on the spot, driving your knees up to hip height with each step and pumping your arms.',cues:['Knees to hip height','Stay tall, don’t lean back','Quick light feet','March it if you need to recover']},
+ {id:'bear',n:'Bear Crawl',eq:[],t:['full','core'],how:'On hands and toes with knees hovering a few centimetres off the floor. Crawl forward by moving opposite hand and foot together, then crawl back. In a small space, crawl a few steps forward and back.',cues:['Knees just off the floor','Back flat like a table','Opposite hand and foot move together','Small steps, stay low']},
+ // Dumbbell / kettlebell — legs / lower
+ {id:'goblet',n:'Goblet Squat',eq:['db','kb'],t:['legs','lower'],how:'Hold one dumbbell vertically or a kettlebell by the horns at your chest. Feet shoulder-width, toes slightly out. Squat down between your knees, then stand up through your whole foot.',cues:['Weight tight to your chest','Elbows point down, inside the knees','Chest up, back flat','Push knees out as you stand']},
+ {id:'rdl',n:'Romanian Deadlift',eq:['db','kb'],t:['lower','legs'],how:'Hold the weight(s) in front of your thighs. With a soft bend in the knees, push your hips back and slide the weight down your legs until you feel a stretch in the hamstrings, then drive your hips forward to stand.',cues:['Hips go back, not down','Back flat, shoulders back','Weight stays close to your legs','Squeeze glutes to finish']},
+ {id:'wlunge',n:'Weighted Reverse Lunge',eq:['db','kb'],t:['legs','lower'],how:'Hold dumbbells by your sides or a kettlebell at your chest. Step back into a lunge until both knees are bent about 90°, then drive through the front heel to stand. Alternate legs.',cues:['Long step back','Front knee over the ankle','Torso stays tall','Control the way down']},
+ {id:'sumo',n:'Sumo Squat',eq:['db','kb'],t:['legs','lower'],how:'Stand with feet wide and toes turned out, holding one weight hanging between your legs. Squat straight down, then stand back up squeezing your glutes and inner thighs.',cues:['Knees push out over the toes','Chest up, weight hangs straight down','Sit between your heels','Squeeze at the top']},
+ {id:'deadlift',n:'Kettlebell Deadlift',eq:['kb'],t:['lower','legs'],how:'Stand with the kettlebell between your feet. Hinge at the hips with a slight knee bend, grab the handle with both hands, brace, then stand up tall by driving your hips forward. Lower it back with the same hinge.',cues:['Flat back, chest proud','Push the floor away','Bell stays close to your body','Lock out with glutes, don’t lean back']},
+ // Dumbbell / kettlebell — upper
+ {id:'floorpress',n:'Dumbbell Floor Press',eq:['db'],t:['upper'],how:'Lie on your back, knees bent, a dumbbell in each hand with upper arms on the floor at about 45° to your body. Press the weights up over your chest, then lower until your elbows lightly touch the floor.',cues:['Elbows at 45°, not flared wide','Wrists stacked over elbows','Pause lightly at the bottom','Don’t bounce elbows off the floor']},
+ {id:'row',n:'Bent-Over Row',eq:['db','kb'],t:['upper'],how:'Hold the weight(s), hinge forward at the hips with a flat back until your torso is around 45°. Pull the weight toward your lower ribs, squeezing your shoulder blades together, then lower with control.',cues:['Flat back, neck in line','Pull elbows back toward your hips','Squeeze shoulder blades together','No jerking or swinging']},
+ {id:'press',n:'Overhead Press',eq:['db','kb'],t:['upper'],how:'Stand tall holding the weight(s) at shoulder height. Brace your core and press straight overhead until your arms are straight, then lower back to your shoulders.',cues:['Ribs down, glutes squeezed','Don’t lean back','Biceps finish beside your ears','Lower slowly']},
+ {id:'curl',n:'Bicep Curl',eq:['db'],t:['upper'],how:'Stand with a dumbbell in each hand, palms facing forward. Curl the weights up toward your shoulders by bending at the elbow, then lower slowly.',cues:['Elbows pinned to your sides','No swinging the body','Squeeze at the top','Slow 2-second lower']},
+ {id:'lateral',n:'Lateral Raise',eq:['db'],t:['upper'],how:'Stand holding light dumbbells by your sides. With a slight bend in the elbows, raise your arms out to the sides until they reach shoulder height, then lower slowly.',cues:['Lead with the elbows','Stop at shoulder height','Shoulders down, away from ears','Go light, this is a small muscle']},
+ {id:'halo',n:'Kettlebell Halo',eq:['kb'],t:['upper','core'],how:'Hold the kettlebell upside down by the horns at chest height. Circle it slowly around your head, close to your neck, then reverse direction each lap.',cues:['Brace your core so your torso stays still','Keep the bell close to your head','Slow, smooth circles','Alternate directions']},
+ {id:'kbrow',n:'Single-Arm Row',eq:['kb','db'],t:['upper'],side:true,how:'Stagger your stance and rest one hand on your knee or a bench, hinged forward with a flat back. Row the weight toward your hip with the other arm, then lower. Switch arms halfway.',cues:['Pull toward your hip, not your chest','Don’t twist your torso open','Shoulder blade back and down','Full stretch at the bottom']},
+ // Dumbbell / kettlebell — core
+ {id:'twist',n:'Weighted Russian Twist',eq:['db','kb'],t:['core'],how:'Sit with knees bent and lean back slightly holding one weight at your chest. Rotate your torso to bring the weight beside one hip, then the other.',cues:['Rotate the ribs, not just the arms','Long spine, no hunching','Feet down for balance, lifted to make it harder','Controlled side to side']},
+ {id:'chop',n:'Woodchop',eq:['db','kb'],t:['core','full'],side:true,how:'Hold one weight with both hands beside one hip. Rotate and lift it diagonally across your body to above the opposite shoulder, pivoting your back foot, then return with control. Switch sides halfway.',cues:['Power comes from hips and core','Pivot the back foot','Arms stay fairly straight','Control the way back down']},
+ {id:'suitcase',n:'Suitcase March',eq:['db','kb'],t:['core'],side:true,how:'Hold one weight at your side like a suitcase. March on the spot, lifting knees to hip height, without leaning toward the weight. Switch hands halfway.',cues:['Stand perfectly tall, no leaning','Shoulders level','Slow, high knees','Brace like someone might push you']},
+ // Dumbbell / kettlebell — full body
+ {id:'swing',n:'Kettlebell Swing',eq:['kb'],t:['full','lower'],how:'Stand with feet slightly wider than hips, bell in both hands. Hike it back between your legs by hinging at the hips, then snap your hips forward to float the bell to chest height. Let it fall back into the next hinge.',cues:['It’s a hip hinge, not a squat','Snap the hips, arms just guide it','Stand tall and squeeze glutes at the top','Bell floats to chest height, no higher']},
+ {id:'thruster',n:'Thruster',eq:['db','kb'],t:['full'],how:'Hold the weight(s) at shoulder height. Squat down, then drive up hard and use that momentum to press the weight overhead in one smooth movement. Lower to the shoulders as you sink into the next squat.',cues:['Squat depth first, then press','Use the leg drive to power the press','Core tight overhead','Breathe out on the press']},
+ {id:'renegade',n:'Renegade Row',eq:['db'],t:['full','upper','core'],how:'Get into a high plank holding a dumbbell in each hand. Row one dumbbell to your hip while balancing on the other, set it down, then row the other side.',cues:['Feet wide for balance','Hips square to the floor','Pull elbow back toward your hip','Drop to knees to make it easier']},
+ {id:'cleanpress',n:'Clean & Press',eq:['kb','db'],t:['full','upper'],side:true,how:'With the weight on the floor or hanging in front of you, hinge and pull it up explosively to the front of your shoulder (the clean), then press it overhead. Lower back down. Switch arms halfway.',cues:['Power from the hips, not the arm','Catch it softly at the shoulder','Press straight up, biceps by your ear','Brace your core throughout']},
+ {id:'highpull',n:'Sumo Deadlift High Pull',eq:['kb'],t:['full','upper'],how:'Stand wide with the kettlebell between your feet. Deadlift it up, and as your hips drive forward pull the handle up to your chin with elbows high. Lower with control.',cues:['Legs and hips start it','Elbows go high and wide','Bell stays close to your body','Don’t shrug, keep neck relaxed']},
+ {id:'manmaker',n:'Squat to Curl & Press',eq:['db'],t:['full','upper','legs'],how:'Holding dumbbells by your sides, squat down. As you stand, curl the weights to your shoulders, then press them overhead. Reverse the movement back down.',cues:['Sit into a proper squat','Smooth curl into the press','Ribs down overhead','Control each step']},
+];
+
+const FOCUS_LABEL={legs:'Legs',upper:'Upper',lower:'Lower',core:'Core',full:'Full body'};
+const $=id=>document.getElementById(id);
+const byId=Object.fromEntries(EX.map(e=>[e.id,e]));
+const STORE='circuit-builder-v1';
+
+/* ---------- Settings ---------- */
+function readSettings(){
+  const n=(id,lo,hi,d)=>{const v=parseInt($(id).value,10);return Number.isFinite(v)?Math.min(hi,Math.max(lo,v)):d};
+  return {
+    total:n('total',1,180,20), count:n('count',1,15,6), work:n('work',5,600,40),
+    rest:n('rest',0,600,20), roundRest:n('roundRest',0,900,60), prep:n('prep',0,120,10),
+    focus:[...document.querySelectorAll('#focus input:checked')].map(i=>i.value),
+    kit:[...document.querySelectorAll('#kit input:checked')].map(i=>i.value),
+  };
+}
+function save(){try{localStorage.setItem(STORE,JSON.stringify({s:readSettings(),plan}))}catch(e){}}
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem(STORE)||'null'); if(!d) return null;
+    const s=d.s; ['total','count','work','rest','roundRest','prep'].forEach(k=>{if(s[k]!=null)$(k).value=s[k]});
+    document.querySelectorAll('#focus input').forEach(i=>i.checked=s.focus.includes(i.value));
+    document.querySelectorAll('#kit input').forEach(i=>i.checked=s.kit.includes(i.value));
+    return Array.isArray(d.plan)?d.plan.filter(id=>byId[id]):null;
+  }catch(e){return null}
+}
+
+/* ---------- Generator ---------- */
+const usable=(e,kit)=>e.eq.length===0||e.eq.some(k=>kit.includes(k));
+function pool(s){
+  const focus=s.focus.length?s.focus:['full'];
+  return EX.filter(e=>usable(e,s.kit)&&e.t.some(t=>focus.includes(t)));
+}
+function pick(s,exclude,slotFocus){
+  const kit=s.kit.length>0;
+  let cands=pool(s).filter(e=>!exclude.has(e.id));
+  if(slotFocus){const f=cands.filter(e=>e.t.includes(slotFocus)); if(f.length) cands=f;}
+  if(!cands.length) cands=pool(s);
+  if(!cands.length) return null;
+  // Weighted toward kit moves when kit is available, so the dumbbells/kettlebell actually get used.
+  let best=null,bs=-1;
+  for(const e of cands){const sc=Math.random()+(kit&&e.eq.length?0.45:0); if(sc>bs){bs=sc;best=e}}
+  return best;
+}
+function generate(){
+  const s=readSettings(); const focus=s.focus.length?s.focus:['full'];
+  const used=new Set(); const out=[];
+  const order=[...focus].sort(()=>Math.random()-.5);
+  for(let i=0;i<s.count;i++){
+    const e=pick(s,used,order[i%order.length]); if(!e) break;
+    used.add(e.id); out.push(e.id);
+  }
+  return out;
+}
+
+/* ---------- Timeline ---------- */
+function rounds(s,n){
+  const circuit=n*s.work+Math.max(0,n-1)*s.rest;
+  if(!circuit) return 1;
+  return Math.max(1,Math.floor((s.total*60+s.roundRest)/(circuit+s.roundRest)));
+}
+function timeline(s,ids){
+  const n=ids.length, R=rounds(s,n), segs=[];
+  if(s.prep>0) segs.push({type:'prep',dur:s.prep,ex:ids[0],r:1,i:0});
+  for(let r=1;r<=R;r++){
+    ids.forEach((id,i)=>{
+      segs.push({type:'work',dur:s.work,ex:id,r,i});
+      const lastInRound=i===n-1, last=lastInRound&&r===R;
+      if(last) return;
+      if(lastInRound){ if(s.roundRest>0) segs.push({type:'break',dur:s.roundRest,ex:ids[0],r:r+1,i:0}); }
+      else if(s.rest>0) segs.push({type:'rest',dur:s.rest,ex:ids[i+1],r,i:i+1});
+    });
+  }
+  return {segs,R};
+}
+const mmss=sec=>{sec=Math.round(sec);const m=Math.floor(sec/60),s=sec%60;return m+':'+String(s).padStart(2,'0')};
+
+/* ---------- Planner render ---------- */
+let plan=[];
+const swapSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a2 2 0 0 1 2-2h16"/><path d="M7 21l-4-4 4-4"/><path d="M21 13v2a2 2 0 0 1-2 2H3"/></svg>';
+const chevSvg='<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>';
+function kitLabel(e,kit){
+  if(!e.eq.length) return 'Bodyweight';
+  const have=e.eq.filter(k=>kit.includes(k));
+  const names={db:'Dumbbell',kb:'Kettlebell'};
+  return (have.length?have:e.eq).map(k=>names[k]).join(' or ');
+}
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderSummary(){
+  const s=readSettings(), n=plan.length;
+  const w=s.work, r=s.rest;
+  $('ratio').innerHTML=`Work : rest ratio <b>${w}:${r}</b>${r?` &middot; about ${(w/r).toFixed(1).replace('.0','')} to 1`:' &middot; no rest between moves'}`;
+  if(!n){$('summary').innerHTML='';return}
+  const {segs,R}=timeline(s,plan);
+  const total=segs.reduce((a,b)=>a+b.dur,0)-(s.prep||0);
+  const work=segs.filter(x=>x.type==='work').length*s.work;
+  $('summary').innerHTML=`<div><span class="label">Rounds</span><b>${R}</b></div><div><span class="label">Moves</span><b>${n}</b></div><div><span class="label">Work time</span><b>${mmss(work)}</b></div><div><span class="label">Total</span><b>${mmss(total)}</b></div>`;
+}
+function render(){
+  const s=readSettings(), list=$('list');
+  renderSummary();
+  $('start').disabled=$('shuffle').disabled=!plan.length;
+  if(!plan.length){list.innerHTML='<li class="empty">No moves match those choices. Tick another focus area or add equipment.</li>';return}
+  list.innerHTML=plan.map((id,idx)=>{const e=byId[id];return `<li><details class="ex" data-idx="${idx}">
+    <summary><div><div class="nm">${esc(e.n)}</div><div class="meta">${e.t.map(t=>`<span class="pill">${FOCUS_LABEL[t]}</span>`).join('')}<span class="pill kit">${kitLabel(e,s.kit)}</span>${e.side?'<span class="pill kit">Switch sides</span>':''}</div></div>
+    <div class="side"><button type="button" class="icon swap" aria-label="Swap ${esc(e.n)} for another move" title="Swap this move">${swapSvg}</button><span class="icon" aria-hidden="true">${chevSvg}</span></div></summary>
+    <div class="body"><span class="label">How to do it</span><p>${esc(e.how)}</p><span class="label">Form cues</span><ul class="cues">${e.cues.map(c=>`<li>${esc(c)}</li>`).join('')}</ul></div>
+  </details></li>`}).join('');
+}
+$('list').addEventListener('click',ev=>{
+  const b=ev.target.closest('.swap'); if(!b) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const idx=+b.closest('.ex').dataset.idx, s=readSettings();
+  const cur=byId[plan[idx]];
+  const focus=(s.focus.length?s.focus:['full']).find(f=>cur.t.includes(f));
+  const e=pick(s,new Set(plan),focus);
+  if(e){plan[idx]=e.id;render();save()}
+});
+$('setup').addEventListener('submit',ev=>{ev.preventDefault();plan=generate();render();save()});
+$('shuffle').addEventListener('click',()=>{plan=generate();render();save()});
+$('setup').addEventListener('input',ev=>{
+  if(ev.target.type==='checkbox'){plan=generate();render()} else renderSummary();
+  save();
+});
+
+/* ---------- Timer ---------- */
+const T={segs:[],idx:0,end:0,left:0,paused:false,raf:0,lastSec:-1,halfDone:false,sound:true,ctx:null,wake:null,R:1,startedAt:0,workDone:0};
+const C=2*Math.PI*90;
+function beep(freq=880,ms=140,vol=.25){
+  if(!T.sound||!T.ctx) return;
+  try{const o=T.ctx.createOscillator(),g=T.ctx.createGain();o.type='sine';o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,T.ctx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,T.ctx.currentTime+ms/1000);
+    o.connect(g).connect(T.ctx.destination);o.start();o.stop(T.ctx.currentTime+ms/1000+.02)}catch(e){}
+}
+async function wake(){try{T.wake=await navigator.wakeLock?.request('screen')}catch(e){}}
+function startTimer(){
+  const s=readSettings(); if(!plan.length) return;
+  const tl=timeline(s,plan); T.segs=tl.segs; T.R=tl.R; T.idx=0; T.paused=false; T.workDone=0; T.startedAt=performance.now();
+  try{T.ctx=T.ctx||new (window.AudioContext||window.webkitAudioContext)(); T.ctx.resume&&T.ctx.resume()}catch(e){}
+  wake();
+  $('timer').hidden=false; document.body.style.overflow='hidden';
+  $('tMain').hidden=false; $('tFoot').hidden=false; $('tDone').hidden=true; resetEnd();
+  enter(0);
+  loop();
+}
+function enter(i){
+  T.idx=i; const g=T.segs[i]; T.end=performance.now()+g.dur*1000; T.left=g.dur*1000; T.lastSec=-1; T.halfDone=false;
+  if(g.type==='work') beep(1046,380,.35); else beep(523,380,.3);
+  paint(true);
+}
+function next(){
+  const g=T.segs[T.idx]; if(g&&g.type==='work') T.workDone++;
+  if(T.idx+1>=T.segs.length) return finish();
+  enter(T.idx+1);
+}
+function finish(){
+  cancelAnimationFrame(T.raf); beep(1046,200,.35); setTimeout(()=>beep(1318,200,.35),220); setTimeout(()=>beep(1568,500,.35),440);
+  const s=readSettings(); $('timer').dataset.phase='done';
+  $('tMain').hidden=true; $('tFoot').hidden=true; $('tDone').hidden=false; $('endWrap').hidden=true;
+  $('tPhase').textContent='Complete'; $('tCount').textContent='';
+  const el=(performance.now()-T.startedAt)/1000;
+  $('doneMsg').textContent=`${T.R} round${T.R>1?'s':''} of ${plan.length} moves, finished.`;
+  $('doneStats').innerHTML=`<div><span class="label">Intervals</span><b>${T.workDone}</b></div><div><span class="label">Work time</span><b>${mmss(T.workDone*s.work)}</b></div><div><span class="label">Elapsed</span><b>${mmss(el)}</b></div>`;
+  try{T.wake&&T.wake.release()}catch(e){}
+}
+function remaining(){return T.paused?T.left:Math.max(0,T.end-performance.now())}
+function loop(){
+  const rem=remaining();
+  if(!T.paused&&rem<=0){next(); if($('tDone').hidden===false) return;}
+  paint(false);
+  T.raf=requestAnimationFrame(loop);
+}
+function paint(full){
+  const g=T.segs[T.idx]; if(!g) return;
+  const rem=remaining(), sec=Math.ceil(rem/1000);
+  $('arc').setAttribute('stroke-dashoffset',(C*(1-rem/(g.dur*1000))).toFixed(1));
+  if(sec!==T.lastSec){
+    T.lastSec=sec; $('tSec').textContent=sec>=60?mmss(sec):sec;
+    if(!T.paused&&sec<=3&&sec>0&&g.dur>4&&!full) beep(660,120,.25);
+    const done=T.segs.slice(0,T.idx).reduce((a,b)=>a+b.dur,0)+(g.dur-rem/1000);
+    const all=T.segs.reduce((a,b)=>a+b.dur,0);
+    $('tProg').style.width=(100*done/all).toFixed(2)+'%';
+  }
+  const e=byId[g.ex];
+  if(g.type==='work'&&e.side&&!T.halfDone&&rem<=g.dur*500){T.halfDone=true;beep(880,120);setTimeout(()=>beep(880,120),180)}
+  if(!full) return;
+  const labels={prep:'Get ready',work:'Work',rest:'Rest',break:'Round break'};
+  $('timer').dataset.phase=g.type; $('tPhase').textContent=labels[g.type];
+  $('tCount').textContent=`Round ${g.r}/${T.R} · Move ${g.i+1}/${plan.length}`;
+  $('tOf').textContent=g.type==='work'?`of ${g.dur}s`:g.type==='break'?'until next round':'';
+  $('tLead').textContent=g.type==='work'?'Now':g.type==='break'?`Round ${g.r} starts with`:g.type==='prep'?'First up':'Next up';
+  $('tName').textContent=e.n;
+  $('tSwitch').hidden=!e.side;
+  $('tCues').innerHTML=e.cues.map(c=>`<li>${esc(c)}</li>`).join('');
+  $('tHow').textContent=e.how;
+  setPlayIcon();
+}
+function setPlayIcon(){
+  $('playIcon').innerHTML=T.paused?'<path d="M7 4v16l13-8z"/>':'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+  $('cPlay').setAttribute('aria-label',T.paused?'Resume':'Pause');
+}
+function togglePause(){
+  if(T.paused){T.end=performance.now()+T.left;T.paused=false}else{T.left=remaining();T.paused=true}
+  setPlayIcon();
+}
+$('cPlay').addEventListener('click',togglePause);
+$('cSkip').addEventListener('click',()=>{const p=T.paused;next();if(p){T.left=T.segs[T.idx].dur*1000;T.paused=true;setPlayIcon();paint(true)}});
+$('cBack').addEventListener('click',()=>{
+  const g=T.segs[T.idx]; const elapsed=g.dur-remaining()/1000;
+  const i=(elapsed<2&&T.idx>0)?T.idx-1:T.idx; if(i<T.idx&&T.segs[i].type==='work') T.workDone=Math.max(0,T.workDone-1);
+  const p=T.paused; enter(i); if(p){T.paused=true;T.left=T.segs[i].dur*1000;setPlayIcon()}
+});
+$('cSound').addEventListener('click',()=>{T.sound=!T.sound;$('cSound').setAttribute('aria-pressed',String(T.sound))});
+function closeTimer(){cancelAnimationFrame(T.raf);$('timer').hidden=true;document.body.style.overflow='';try{T.wake&&T.wake.release()}catch(e){}}
+function resetEnd(){$('endWrap').hidden=false;$('endWrap').innerHTML='<button type="button" class="btn ghost" id="endBtn">End workout</button>'}
+$('endWrap').addEventListener('click',ev=>{
+  const id=ev.target.closest('button')?.id;
+  if(id==='endBtn'){$('endWrap').innerHTML='<span class="hint">End now?</span><button type="button" class="btn ghost" id="endNo">Keep going</button><button type="button" class="btn primary" id="endYes" style="font-size:1rem;padding:10px 14px">End</button>'}
+  else if(id==='endNo') resetEnd();
+  else if(id==='endYes') closeTimer();
+});
+$('start').addEventListener('click',startTimer);
+$('again').addEventListener('click',startTimer);
+$('closeDone').addEventListener('click',closeTimer);
+document.addEventListener('keydown',ev=>{
+  if($('timer').hidden||!$('tDone').hidden) return;
+  if(ev.code==='Space'){ev.preventDefault();togglePause()}
+  else if(ev.key==='ArrowRight') $('cSkip').click();
+  else if(ev.key==='ArrowLeft') $('cBack').click();
+});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!$('timer').hidden&&$('tDone').hidden) wake()});
+
+/* ---------- Boot ---------- */
+const saved=load();
+plan=saved&&saved.length?saved:generate();
+render();
+</script>
