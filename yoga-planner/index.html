@@ -1,0 +1,709 @@
+<title>Yoga Flow Builder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: setup column (time, focus, level, props) beside the sequence grouped by class phase; the timer takes over the screen with a breath pacer. */
+:root{
+  --bg:#F0EFF5; --surface:#FBFAFD; --ink:#24213A; --muted:#615C77; --line:#D9D5E3; --chip:#E6E3EE; --far:#B2ACC5;
+  --hold:#5546AE; --move:#2F7D6D; --rest:#A9566F; --on-phase:#FFFFFF;
+  --phase:var(--hold);
+  --f-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14121C; --surface:#1D1A28; --ink:#ECEAF4; --muted:#A39EB9; --line:#312D42; --chip:#262236; --far:#504A68;
+  --hold:#A99CF5; --move:#6CC7B2; --rest:#E59AB1; --on-phase:#14121C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14121C; --surface:#1D1A28; --ink:#ECEAF4; --muted:#A39EB9; --line:#312D42; --chip:#262236; --far:#504A68;
+  --hold:#A99CF5; --move:#6CC7B2; --rest:#E59AB1; --on-phase:#14121C; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--hold);outline-offset:2px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:28px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(2.4rem,6.5vw,3.8rem);line-height:.95;margin:0;letter-spacing:-.02em;text-wrap:balance}
+h1 span{color:var(--hold)}
+.tag{font-size:.95rem;color:var(--muted);max-width:40ch;margin:0}
+.grid{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:32px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+h2{font-family:var(--f-display);font-weight:800;font-size:1.5rem;letter-spacing:-.01em;margin:0}
+.label{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.setup{display:grid;gap:22px}
+fieldset{border:0;margin:0;padding:0;display:grid;gap:10px;min-width:0}
+legend{padding:0;margin-bottom:10px}
+.nums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.num{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px;display:grid;gap:2px}
+.num label{font-size:.78rem;color:var(--muted);font-weight:700}
+.num .row{display:flex;align-items:baseline;gap:6px}
+.num input{width:100%;min-width:0;border:0;background:transparent;font-family:var(--f-display);font-weight:700;font-size:1.9rem;line-height:1.1;padding:0;font-variant-numeric:tabular-nums}
+.num input:focus{outline:none}
+.num:focus-within{border-color:var(--hold);box-shadow:0 0 0 2px var(--hold)}
+.num .unit{color:var(--muted);font-size:.85rem}
+.note{font-size:.88rem;color:var(--muted);margin:0}
+.note b{color:var(--ink);font-variant-numeric:tabular-nums}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.check{position:relative}
+.check input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.check span{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1.5px solid var(--line);border-radius:999px;background:var(--surface);font-weight:700;font-size:.95rem;cursor:pointer;user-select:none}
+.check span::before{content:"";width:14px;height:14px;border:2px solid var(--muted);border-radius:50%;flex:none}
+.check input[type="checkbox"] + span::before{border-radius:4px}
+.check input:checked + span{border-color:var(--hold);background:var(--hold);color:var(--on-phase)}
+.check input:checked + span::before{border-color:var(--on-phase);background:var(--on-phase);box-shadow:inset 0 0 0 2px var(--hold)}
+.check input:focus-visible + span{outline:3px solid var(--hold);outline-offset:2px}
+.btn{appearance:none;border:0;border-radius:999px;padding:11px 18px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary{background:var(--hold);color:var(--on-phase);font-family:var(--f-display);font-size:1.1rem;padding:12px 22px}
+.btn.ghost{background:transparent;border:1.5px solid var(--line)}
+.btn.ghost:hover{border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+
+.plan{display:grid;gap:14px;min-width:0}
+.planhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px}
+.summary{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.summary div{flex:1 1 90px;padding:8px 14px;border-right:1px solid var(--line)}
+.summary div:last-child{border-right:0}
+.summary b{display:block;font-family:var(--f-display);font-weight:700;font-size:1.6rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.seq{display:grid;gap:18px;counter-reset:pose}
+.phasegrp{display:grid;gap:8px}
+.phasegrp h3{margin:0;font-family:var(--f-display);font-weight:700;font-size:1rem;color:var(--hold);display:flex;align-items:baseline;gap:8px}
+.phasegrp h3 small{font-family:var(--f-body);font-weight:400;color:var(--muted);font-size:.85rem}
+ol.list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.ex{background:var(--surface);border:1px solid var(--line);border-radius:12px;counter-increment:pose}
+.ex summary{list-style:none;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;cursor:pointer}
+.ex summary::-webkit-details-marker{display:none}
+.ex summary::before{content:counter(pose);font-family:var(--f-display);font-weight:700;font-size:1.15rem;color:var(--muted);font-variant-numeric:tabular-nums;width:2ch;text-align:right}
+.ex .nm{font-weight:700;font-size:1.05rem;line-height:1.25}
+.ex .sk{font-style:italic;color:var(--muted);font-size:.9rem}
+.ex .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.pill{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;background:var(--chip);color:var(--muted);padding:2px 8px;border-radius:999px}
+.pill.out{background:transparent;border:1px solid var(--line)}
+.ex .side{display:flex;gap:6px;align-items:center}
+.icon{appearance:none;border:1.5px solid var(--line);background:transparent;border-radius:50%;width:38px;height:38px;display:inline-grid;place-items:center;cursor:pointer;color:var(--muted)}
+.icon:hover{border-color:var(--ink);color:var(--ink)}
+.icon svg{width:18px;height:18px}
+.chev{transition:transform .2s}
+.ex[open] .chev{transform:rotate(180deg)}
+.body{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:16px;align-items:start;border-top:1px dashed var(--line);margin:0 12px;padding-block:12px 14px}
+.body .txt{display:grid;gap:10px;min-width:0}
+.body p{margin:0;max-width:65ch}
+.mod{background:var(--chip);border-radius:8px;padding:8px 12px;font-size:.92rem}
+@media (max-width:560px){.body{grid-template-columns:minmax(0,1fr)}.body .figbig{max-width:220px}}
+.cues{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.cues li{padding-left:22px;position:relative}
+.cues li::before{content:"";position:absolute;left:4px;top:.55em;width:8px;height:8px;border-radius:50%;background:var(--hold)}
+.empty{padding:24px;border:1.5px dashed var(--line);border-radius:12px;color:var(--muted)}
+.thumb{width:50px;height:46px;display:block;background:var(--chip);border-radius:10px}
+.figbig{display:block;width:100%;aspect-ratio:120/110;background:var(--chip);border-radius:12px}
+.fig{display:block;width:100%;height:100%;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.fig .gnd{stroke:var(--line);stroke-width:2.5}
+.fig .sup{stroke:var(--muted);stroke-width:3}
+.fig .far{stroke:var(--far);stroke-width:5}
+.fig .near{stroke:var(--ink);stroke-width:5}
+.fig .body{stroke:var(--ink);stroke-width:6}
+.fig .hd{fill:var(--ink)}
+.mirror .fig{transform:scaleX(-1)}
+
+/* Timer */
+.timer{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;
+  padding-top:max(14px,env(safe-area-inset-top,0px));padding-bottom:max(14px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-y:auto}
+.timer[data-phase="hold"]{--phase:var(--hold)}
+.timer[data-phase="move"],.timer[data-phase="settle"]{--phase:var(--move)}
+.timer[data-phase="rest"],.timer[data-phase="done"]{--phase:var(--rest)}
+.tbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.phase{font-family:var(--f-display);font-weight:700;font-size:1.2rem;background:var(--phase);color:var(--on-phase);padding:3px 14px;border-radius:999px}
+.count{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
+.tmain{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:center;max-width:1000px;width:100%;margin:0 auto;padding-block:16px}
+@media (max-width:760px){.tmain{grid-template-columns:minmax(0,1fr);gap:14px;align-content:start}}
+.visual{display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;min-width:0}
+.ring{position:relative;width:min(46vw,300px,42vh);aspect-ratio:1;max-width:100%}
+.ring svg{width:100%;height:100%}
+.ring .trk{fill:none;stroke:var(--line);stroke-width:6}
+.ring .arc{fill:none;stroke:var(--phase);stroke-width:6;stroke-linecap:round;transition:stroke .4s}
+.ring .breath{fill:var(--phase);opacity:.13;transition:fill .4s}
+.ring .t{position:absolute;inset:0;display:grid;place-items:center;align-content:center;text-align:center}
+.ring .sec{font-family:var(--f-display);font-weight:700;font-size:clamp(2.8rem,11vw,5.5rem);line-height:1;font-variant-numeric:tabular-nums}
+.ring .br{color:var(--phase);font-weight:700;font-size:.95rem;min-height:1.4em}
+.tfig{width:min(42vw,240px,40vh);aspect-ratio:120/110;background:var(--surface);border:1px solid var(--line);border-radius:16px}
+.now{display:grid;gap:10px;min-width:0}
+.now .lead{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--phase)}
+.now h3{font-family:var(--f-display);font-weight:800;font-size:clamp(2rem,5.5vw,3rem);line-height:1;margin:0;letter-spacing:-.02em;text-wrap:balance}
+.now .sk{font-style:italic;color:var(--muted);margin-top:-4px}
+.now .sideTag{font-weight:700;color:var(--phase)}
+.now .cues li{font-size:1.05rem}
+.now details{border-top:1px solid var(--line);padding-top:8px}
+.now details summary{cursor:pointer;font-weight:700;color:var(--muted)}
+.now details p{margin:6px 0 0;max-width:60ch}
+.prog{height:5px;background:var(--line);border-radius:3px;overflow:hidden;max-width:1000px;width:100%;margin:0 auto 14px}
+.prog i{display:block;height:100%;width:0;background:var(--phase);transition:width .3s linear}
+.controls{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.cbtn{appearance:none;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;width:58px;height:58px;display:grid;place-items:center;cursor:pointer}
+.cbtn svg{width:24px;height:24px}
+.cbtn.big{width:76px;height:76px;background:var(--phase);border-color:var(--phase);color:var(--on-phase)}
+.cbtn.big svg{width:32px;height:32px}
+.cbtn[aria-pressed="false"]{opacity:.55}
+.done{display:grid;gap:18px;justify-items:center;text-align:center;margin:auto;max-width:520px}
+.done h3{font-family:var(--f-display);font-weight:800;font-size:clamp(2.6rem,9vw,4.4rem);line-height:1;margin:0;color:var(--hold);letter-spacing:-.02em}
+.done .summary{width:100%}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Yoga Flow<br><span>Builder</span></h1>
+    <p class="tag">Choose your time, hold length and what you want to work on. You get a full sequence from centering to rest, with how-to notes for every pose and a timer that paces your breath.</p>
+  </header>
+
+  <div class="grid">
+    <form class="setup" id="setup" autocomplete="off">
+      <fieldset>
+        <legend class="label">Time</legend>
+        <div class="nums">
+          <div class="num"><label for="total">Total practice</label><div class="row"><input id="total" type="number" inputmode="numeric" min="10" max="120" step="5" value="30"><span class="unit">min</span></div></div>
+          <div class="num"><label for="hold">Hold each pose</label><div class="row"><input id="hold" type="number" inputmode="numeric" min="15" max="300" step="5" value="45"><span class="unit">sec</span></div></div>
+          <div class="num"><label for="trans">Time to move between</label><div class="row"><input id="trans" type="number" inputmode="numeric" min="3" max="60" step="1" value="8"><span class="unit">sec</span></div></div>
+          <div class="num"><label for="sava">Final rest</label><div class="row"><input id="sava" type="number" inputmode="numeric" min="0" max="20" step="1" value="3"><span class="unit">min</span></div></div>
+        </div>
+        <p class="note" id="holdNote"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend class="label">What do you want to work on?</legend>
+        <div class="checks" id="focus">
+          <label class="check"><input type="checkbox" id="f-hips" value="hips" checked><span>Hips</span></label>
+          <label class="check"><input type="checkbox" id="f-ham" value="hamstrings"><span>Hamstrings</span></label>
+          <label class="check"><input type="checkbox" id="f-spine" value="spine" checked><span>Back &amp; spine</span></label>
+          <label class="check"><input type="checkbox" id="f-sh" value="shoulders"><span>Shoulders</span></label>
+          <label class="check"><input type="checkbox" id="f-core" value="core"><span>Core</span></label>
+          <label class="check"><input type="checkbox" id="f-bal" value="balance"><span>Balance</span></label>
+          <label class="check"><input type="checkbox" id="f-calm" value="calm"><span>Calm &amp; unwind</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="label">Level</legend>
+        <div class="checks" id="level">
+          <label class="check"><input type="radio" name="lvl" id="l1" value="1"><span>Gentle</span></label>
+          <label class="check"><input type="radio" name="lvl" id="l2" value="2" checked><span>Steady</span></label>
+          <label class="check"><input type="radio" name="lvl" id="l3" value="3"><span>Strong</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="label">Props you have</legend>
+        <div class="checks" id="props">
+          <label class="check"><input type="checkbox" id="p-block" value="block"><span>Block</span></label>
+          <label class="check"><input type="checkbox" id="p-strap" value="strap"><span>Strap</span></label>
+          <label class="check"><input type="checkbox" id="p-wall" value="wall"><span>Wall space</span></label>
+        </div>
+        <p class="note">Props add easier variations to the pose notes. A mat is all you need.</p>
+      </fieldset>
+
+      <div class="actions"><button type="submit" class="btn primary">Build my flow</button></div>
+    </form>
+
+    <section class="plan" aria-labelledby="planTitle">
+      <div class="planhead">
+        <h2 id="planTitle">Your flow</h2>
+        <div class="actions">
+          <button type="button" class="btn ghost" id="shuffle">Reshuffle</button>
+          <button type="button" class="btn primary" id="start">Start practice</button>
+        </div>
+      </div>
+      <div class="summary" id="summary"></div>
+      <p class="note">Tap a pose for how to get into it. The swap button picks a different pose for that part of the class.</p>
+      <div class="seq" id="seq"></div>
+    </section>
+  </div>
+</div>
+
+<section class="timer" id="timer" hidden aria-live="polite">
+  <div class="tbar">
+    <span class="phase" id="tPhase">Settle in</span>
+    <span class="count" id="tCount"></span>
+    <div class="confirm" id="endWrap"></div>
+  </div>
+  <div class="tmain" id="tMain">
+    <div class="visual">
+      <div class="ring">
+        <svg viewBox="0 0 200 200" aria-hidden="true"><circle class="breath" id="breath" cx="100" cy="100" r="60"/><circle class="trk" cx="100" cy="100" r="92"/><circle class="arc" id="arc" cx="100" cy="100" r="92" stroke-dasharray="578.05" stroke-dashoffset="0" transform="rotate(-90 100 100)"/></svg>
+        <div class="t"><div class="sec" id="tSec">10</div><div class="br" id="tBr"></div></div>
+      </div>
+      <div class="tfig" id="tFig"></div>
+    </div>
+    <div class="now">
+      <div class="lead" id="tLead">First pose</div>
+      <h3 id="tName">—</h3>
+      <div class="sk" id="tSk"></div>
+      <div class="sideTag" id="tSide" hidden></div>
+      <ul class="cues" id="tCues"></ul>
+      <details id="tHowWrap"><summary>How to get into it</summary><p id="tHow"></p></details>
+    </div>
+  </div>
+  <div class="done" id="tDone" hidden>
+    <h3>Practice complete</h3>
+    <p id="doneMsg"></p>
+    <div class="summary" id="doneStats"></div>
+    <div class="actions" style="justify-content:center">
+      <button type="button" class="btn primary" id="again">Practice again</button>
+      <button type="button" class="btn ghost" id="closeDone">Back to builder</button>
+    </div>
+  </div>
+  <div id="tFoot">
+    <div class="prog"><i id="tProg"></i></div>
+    <div class="controls">
+      <button type="button" class="cbtn" id="cSound" aria-pressed="true" aria-label="Bell on or off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button>
+      <button type="button" class="cbtn" id="cBack" aria-label="Previous step"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button type="button" class="cbtn big" id="cPlay" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor" id="playIcon"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+      <button type="button" class="cbtn" id="cSkip" aria-label="Skip step"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---------- Pose library ----------
+   ph: parts of class the pose can sit in. t: focus. lvl: 1 gentle, 2 steady, 3 strong.
+   sides: hold on the right, then the left. flow: a moving sequence, held for two hold-lengths.
+   ord: order within a phase (prone before seated before supine). needs: a prop the pose cannot do without. */
+const POSES=[
+ {id:'easyseat',n:'Easy Seat',sk:'Sukhasana',ph:['center'],t:['calm','hips'],lvl:1,ord:1,how:'Sit cross-legged with your hands resting on your knees. Lengthen up through the crown of your head and let your shoulders soften. Close your eyes or lower your gaze and slow your breath.',cues:['Sit on the front edge of your sit bones','Crown of the head reaches up','Shoulders soft, away from your ears','Breathe slowly through the nose'],mod:{block:'Sit on a block so your knees can drop below your hips.'}},
+ {id:'mountain',n:'Mountain',sk:'Tadasana',ph:['center'],t:['balance','calm'],lvl:1,ord:2,how:'Stand with feet hip-width apart and parallel, arms by your sides. Spread your toes, press evenly through both feet and stack your hips over your ankles and shoulders over your hips.',cues:['Weight even across both feet','Gently lift the kneecaps','Tailbone heavy, ribs soft','Palms turned slightly forward']},
+ {id:'child',n:'Child’s Pose',sk:'Balasana',ph:['center','cool'],t:['calm','hips','spine'],lvl:1,ord:5,how:'Kneel with big toes touching and knees together or apart. Sit your hips back toward your heels and fold forward, resting your forehead on the mat with arms stretched forward or by your sides.',cues:['Hips sink toward your heels','Let your forehead rest heavy','Breathe into the back of your ribs','Widen the knees to make space for your belly'],mod:{block:'Rest your forehead on a block if it doesn’t reach the floor.'}},
+ {id:'catcow',n:'Cat–Cow',sk:'Marjaryasana–Bitilasana',ph:['warm'],t:['spine','core'],lvl:1,ord:1,flow:1,how:'Start on hands and knees, wrists under shoulders and knees under hips. Inhale to drop your belly and lift your chest and gaze (cow). Exhale to round your spine and tuck your chin (cat). Move with your breath.',cues:['Inhale: belly down, chest forward','Exhale: round up, chin to chest','Move one vertebra at a time','Press the floor away with your hands']},
+ {id:'sunsal',n:'Sun Salutation A',sk:'Surya Namaskar A',ph:['warm'],t:['spine','hamstrings','shoulders','core'],lvl:2,ord:0,flow:1,how:'From standing, inhale arms up, exhale fold forward, inhale lift halfway, exhale step back to plank and lower down. Inhale into cobra or upward dog, exhale to downward dog. Step forward, fold, inhale rise up, exhale hands to heart. Repeat at your own pace.',cues:['One breath per movement','Lower with control, elbows hugging in','Bend your knees in the folds as needed','Keep the flow smooth rather than fast']},
+ {id:'downdog',n:'Downward Dog',sk:'Adho Mukha Svanasana',ph:['warm','stand'],t:['hamstrings','shoulders'],lvl:1,ord:4,how:'From hands and knees, tuck your toes and lift your hips up and back to make an upside-down V. Press the floor away and lengthen your spine. Knees can stay bent.',cues:['Spread your fingers wide','Hips reach up and back','Bend knees to keep the back long','Heels reach toward the floor, no need to touch']},
+ {id:'fold',n:'Standing Forward Fold',sk:'Uttanasana',ph:['warm','stand'],t:['hamstrings','spine','calm'],lvl:1,ord:3,how:'From standing, hinge at the hips and fold forward. Let your head hang heavy and bring your hands to the floor, shins or opposite elbows.',cues:['Hinge from the hips, not the waist','Soft bend in the knees','Let the head and neck relax','Shift weight slightly toward the toes'],mod:{block:'Rest your hands on blocks to bring the floor closer.'}},
+ {id:'lowlunge',n:'Low Lunge',sk:'Anjaneyasana',ph:['warm','stand'],t:['hips'],lvl:1,ord:5,sides:1,how:'Step one foot forward between your hands and lower the back knee to the mat. Lift your torso and reach your arms overhead, letting your hips sink forward.',cues:['Front knee over the ankle','Back knee padded and comfortable','Draw the low belly in and up','Sink the hips forward to open the front of the back hip'],mod:{block:'Keep your hands on blocks either side of the front foot.'}},
+ {id:'crescent',n:'High Lunge',sk:'Ashta Chandrasana',ph:['stand'],t:['hips','balance','core'],lvl:2,ord:2,sides:1,how:'From a lunge, keep the back heel lifted and back leg straight. Bend the front knee toward 90° and reach your arms up beside your ears.',cues:['Back leg strong and straight','Hips square to the front','Front knee tracks over the second toe','Ribs knit in as you reach up']},
+ {id:'warrior1',n:'Warrior I',sk:'Virabhadrasana I',ph:['stand'],t:['hips','shoulders'],lvl:1,ord:3,sides:1,how:'Step one foot back and turn the back foot out about 45°, heel down. Bend the front knee and reach your arms overhead with your hips facing forward.',cues:['Back heel grounded, foot angled','Front knee over the ankle','Hips turn toward the front','Shoulders soft as the arms rise']},
+ {id:'warrior2',n:'Warrior II',sk:'Virabhadrasana II',ph:['stand'],t:['hips','shoulders','core'],lvl:1,ord:4,sides:1,how:'Stand with feet wide. Turn your front foot forward and back foot parallel to the short edge of the mat. Bend the front knee over the ankle and reach your arms out long at shoulder height, gazing past the front hand.',cues:['Front knee tracks over the little-toe side','Torso stacked over the hips','Arms reach in opposite directions','Shoulders relaxed down']},
+ {id:'triangle',n:'Triangle',sk:'Trikonasana',ph:['stand'],t:['hamstrings','spine','balance'],lvl:1,ord:5,sides:1,how:'From a wide stance with the front foot turned forward, straighten both legs. Reach forward over the front leg, then tip your torso and bring the lower hand to your shin as the top arm reaches up.',cues:['Both sides of the waist stay long','Top shoulder stacks over the bottom','Microbend the front knee','Gaze up, forward or down, whatever suits your neck'],mod:{block:'Rest the lower hand on a block outside the front foot.'}},
+ {id:'sideangle',n:'Extended Side Angle',sk:'Utthita Parsvakonasana',ph:['stand'],t:['hips','spine','core'],lvl:2,ord:6,sides:1,how:'From Warrior II, rest your front forearm on your front thigh and reach the top arm over your ear, making one long line from your back heel to your fingertips.',cues:['Front knee stays over the ankle','Press the forearm lightly, don’t slump','Roll the top ribs open toward the ceiling','Back foot pressing firmly down'],mod:{block:'Bring the lower hand to a block inside the front foot.'}},
+ {id:'chair',n:'Chair',sk:'Utkatasana',ph:['stand'],t:['core','balance'],lvl:2,ord:1,how:'Stand with feet together or hip-width apart. Bend your knees and sit your hips back as if into a chair, reaching your arms up alongside your ears.',cues:['Weight in the heels','Knees behind the toes','Draw the belly in','Long line from hips to fingertips']},
+ {id:'goddess',n:'Goddess',sk:'Utkata Konasana',ph:['stand'],t:['hips','core'],lvl:2,ord:7,how:'Step your feet wide and turn your toes out. Bend your knees deeply and lower your hips, arms bent at 90° with palms forward.',cues:['Knees track over the toes','Tailbone points down','Chest lifted and open','Elbows at shoulder height']},
+ {id:'plank',n:'Plank',sk:'Phalakasana',ph:['stand'],t:['core','shoulders'],lvl:2,ord:8,how:'From hands and knees, step your feet back to make a straight line from head to heels. Hands under shoulders, press the floor away.',cues:['Hands under shoulders','Heels reach back, crown reaches forward','Belly lifted, no sagging','Drop knees to make it gentler']},
+ {id:'tree',n:'Tree',sk:'Vrksasana',ph:['balance'],t:['balance','hips'],lvl:1,ord:1,sides:1,how:'Stand on one leg and place the other foot on your inner calf or inner thigh (not on the knee). Bring your hands to your heart or reach them overhead. Fix your gaze on a still point.',cues:['Foot presses into leg, leg presses back','Standing hip stays level','Soft gaze on one point','Wobbling is part of it'],mod:{wall:'Rest one hand on a wall for balance.'}},
+ {id:'warrior3',n:'Warrior III',sk:'Virabhadrasana III',ph:['balance'],t:['balance','core','hamstrings'],lvl:3,ord:2,sides:1,how:'From standing, shift onto one leg and tip your torso forward as the back leg lifts, until body and back leg are parallel to the floor. Reach your arms forward or rest them on your hips.',cues:['Hips level, toes of the lifted leg point down','Long line from heel to crown','Soft bend in the standing knee','Arms back by your sides for an easier version'],mod:{wall:'Reach your hands to a wall at hip height.',block:'Rest your fingertips on blocks under your shoulders.'}},
+ {id:'dancer',n:'Dancer',sk:'Natarajasana',ph:['balance'],t:['balance','shoulders','spine'],lvl:3,ord:3,sides:1,how:'Stand on one leg and hold the inside of the other ankle behind you. Kick your foot into your hand as you tip forward, reaching the free arm ahead.',cues:['Kick the foot back into the hand','Hips stay square','Standing leg strong, not locked','Lift through the chest'],mod:{strap:'Loop a strap around the lifted foot and hold it overhead.',wall:'Reach your free hand to a wall.'}},
+ {id:'cobra',n:'Cobra',sk:'Bhujangasana',ph:['floor'],t:['spine','shoulders'],lvl:2,ord:1,how:'Lie face down with your hands under your shoulders. Press the tops of the feet down and lift your chest, keeping the elbows slightly bent and hugging in.',cues:['Lift with your back, not just your arms','Elbows bent and close to your body','Shoulders draw back and down','Neck long, gaze forward']},
+ {id:'sphinx',n:'Sphinx',sk:'Salamba Bhujangasana',ph:['floor'],t:['spine','calm'],lvl:1,ord:0,how:'Lie face down and prop yourself on your forearms, elbows under your shoulders. Let your belly soften toward the floor as your chest lifts.',cues:['Elbows under shoulders','Press forearms down, lift the chest','Legs relaxed','Long breaths into the belly']},
+ {id:'locust',n:'Locust',sk:'Salabhasana',ph:['floor'],t:['spine','core'],lvl:2,ord:2,how:'Lie face down with arms by your sides. On an inhale, lift your chest, arms and legs off the floor. Keep the back of the neck long.',cues:['Gaze down and slightly forward','Reach back through the fingertips','Legs active, toes pointing back','Lower slowly on an exhale']},
+ {id:'boat',n:'Boat',sk:'Navasana',ph:['floor'],t:['core','balance'],lvl:3,ord:4,how:'Sit with knees bent and feet on the floor. Lean back with a straight spine and lift your feet, shins parallel to the floor or legs straight. Reach your arms forward.',cues:['Chest lifted, spine long','Lean back only as far as you can stay straight','Hold behind the thighs to make it easier','Breathe steadily']},
+ {id:'seatedfold',n:'Seated Forward Fold',sk:'Paschimottanasana',ph:['floor'],t:['hamstrings','spine','calm'],lvl:1,ord:6,how:'Sit with legs straight out in front. Inhale to lengthen your spine, exhale to fold forward from the hips, holding your shins, ankles or feet.',cues:['Lead with the chest, not the head','Bend the knees as much as you need','Flex the feet','Let each exhale take you a little deeper'],mod:{strap:'Loop a strap around the soles of your feet and hold it with both hands.',block:'Sit on a block to tip the pelvis forward.'}},
+ {id:'pigeon',n:'Pigeon',sk:'Eka Pada Rajakapotasana',ph:['floor'],t:['hips','calm'],lvl:2,ord:5,sides:1,how:'From all fours, bring one knee forward behind the same wrist and angle the shin across the mat. Slide the other leg straight back. Square the hips and stay upright or fold forward over the front leg.',cues:['Back leg straight behind the hip','Flex the front foot to protect the knee','Hips level, not tipping to one side','Fold forward to soften'],mod:{block:'Slide a block under the hip of the front leg so you can relax.'}},
+ {id:'butterfly',n:'Butterfly',sk:'Baddha Konasana',ph:['floor'],t:['hips','calm'],lvl:1,ord:7,how:'Sit up tall, bring the soles of your feet together and let your knees fall open. Hold your feet or ankles and lengthen up, folding forward if it feels good.',cues:['Sit tall on your sit bones','Let gravity drop the knees','Don’t press the knees down','Fold from the hips if you go forward'],mod:{block:'Put blocks under your knees for support.'}},
+ {id:'bridge',n:'Bridge',sk:'Setu Bandha Sarvangasana',ph:['floor'],t:['spine','hips','core'],lvl:1,ord:8,how:'Lie on your back with knees bent and feet hip-width apart near your hips. Press into your feet and lift your hips. Arms stay by your sides or clasp under your back.',cues:['Knees point straight ahead','Press through the heels','Chin away from the chest','Lower down one vertebra at a time'],mod:{block:'Rest your sacrum on a block for a supported version.'}},
+ {id:'supinetwist',n:'Supine Twist',sk:'Supta Matsyendrasana',ph:['cool'],t:['spine','calm'],lvl:1,ord:2,sides:1,how:'Lying on your back, hug one knee in and let it fall across your body to the opposite side. Stretch the arm on the same side out and gaze away from the knee if your neck allows.',cues:['Both shoulders heavy on the floor','Let the knee fall, don’t force it','Breathe into the twist','Gaze in the opposite direction'],mod:{block:'Rest the bent knee on a block.'}},
+ {id:'happybaby',n:'Happy Baby',sk:'Ananda Balasana',ph:['cool'],t:['hips','calm'],lvl:1,ord:3,how:'Lying on your back, bend your knees toward your armpits and hold the outsides of your feet with the soles facing the ceiling. Rock gently side to side if it feels good.',cues:['Ankles stacked over knees','Low back stays on the floor','Gently pull the knees toward the floor','Hold the shins if the feet are far away'],mod:{strap:'Loop a strap around each foot if you can’t reach them.'}},
+ {id:'kneeschest',n:'Knees to Chest',sk:'Apanasana',ph:['cool'],t:['spine','calm'],lvl:1,ord:1,how:'Lying on your back, hug both knees into your chest. Rock gently or make small circles to massage your low back.',cues:['Shoulders relaxed on the floor','Hug gently, don’t strain','Let your low back release','Slow breaths']},
+ {id:'legsup',n:'Legs Up the Wall',sk:'Viparita Karani',ph:['cool'],t:['calm','hamstrings'],lvl:1,ord:4,needs:'wall',how:'Sit sideways next to a wall, then swing your legs up as you lie back so your legs rest up the wall and your back is on the floor. Arms rest by your sides.',cues:['Hips close to the wall','Legs relaxed, not locked','Arms heavy, palms up','Let your breath slow right down']},
+ {id:'savasana',n:'Final Rest',sk:'Savasana',ph:['final'],t:['calm'],lvl:1,ord:9,how:'Lie on your back with legs extended and arms a little away from your sides, palms up. Close your eyes, let go of any effort and let your breath be natural.',cues:['Let the whole body be heavy','Release your jaw and your forehead','No need to control the breath','Stay still until the bell']},
+];
+const byId=Object.fromEntries(POSES.map(p=>[p.id,p]));
+const PHASES=[['center','Centering','Arrive and slow your breath'],['warm','Warm-up','Wake up the spine'],['stand','Standing','Build heat and strength'],['balance','Balance','Find steadiness'],['floor','Floor','Open and lengthen'],['cool','Cool-down','Slow down'],['final','Rest','Let it all settle']];
+const FOCUS_LABEL={hips:'Hips',hamstrings:'Hamstrings',spine:'Spine',shoulders:'Shoulders',core:'Core',balance:'Balance',calm:'Calm'};
+
+/* ---------- Stick-figure poses ----------
+   Angles in degrees from straight down; positive swings the way the figure faces.
+   t torso, h head, a/b near/far arm, l/m near/far leg, fa/fb feet, ha/hb plant a hand, tA/tB place a hand.
+   A single frame becomes a gentle breathing loop. */
+const PLANK={t:108,l:[-72,-72],m:[-72,-72],fa:18,fb:18,ha:28,hb:28};
+const PLANKLOW={t:96,h:92,l:[-84,-84],m:[-84,-84],fa:6,fb:6,ha:28,hb:28};
+const DOG={t:52,h:52,a:[52,52],b:[52,52],l:[-12,-12],m:[-12,-12],fa:78,fb:78};
+const FOLD={t:32,h:22,ha:12,hb:12};
+const UPARMS={t:182,h:192,a:[178,178],b:[176,178]};
+const MTN={a:[2,6],b:[-2,4]};
+const ANIM={
+ easyseat:{f:[{l:[80,-100],m:[75,-105],fa:-90,fb:-90,tA:[17,0],tB:[16,1]}]},
+ mountain:{front:1,f:[{a:[6,3],b:[-6,-3]}]},
+ child:{f:[{t:62,h:105,l:[45,-90],m:[43,-90],fa:-90,fb:-90,a:[88,90],b:[88,90]}]},
+ catcow:{c:6,f:[{t:95,h:140,l:[0,-90],m:[0,-90],fa:-90,fb:-90,ha:30,hb:30},{t:86,h:25,l:[0,-90],m:[0,-90],fa:-90,fb:-90,ha:30,hb:30}]},
+ sunsal:{c:18,f:[MTN,UPARMS,FOLD,{t:100,h:110,tA:[4,24],tB:[4,24]},{...PLANK,x:-20},{...PLANKLOW,x:-20},{t:135,h:150,l:[-90,-90],m:[-90,-90],fa:-90,fb:-90,ha:22,hb:22,x:-14},{...DOG,x:-38},FOLD,UPARMS]},
+ downdog:{f:[DOG]},
+ fold:{f:[FOLD]},
+ lowlunge:{f:[{t:178,l:[88,-32],m:[-32,-90],fb:-90,a:[172,178],b:[170,178]}]},
+ crescent:{f:[{t:178,l:[80,-15],m:[-40,-40],fb:30,a:[172,178],b:[170,178]}]},
+ warrior1:{f:[{t:176,l:[80,-15],m:[-42,-42],fb:55,a:[174,180],b:[172,180]}]},
+ warrior2:{front:1,f:[{l:[80,0],m:[-52,-52],a:[90,90],b:[-90,-90]}]},
+ triangle:{front:1,f:[{t:125,h:140,l:[30,30],m:[-30,-30],a:[8,8],b:[-178,-178]}]},
+ sideangle:{front:1,f:[{t:125,h:135,l:[80,0],m:[-52,-52],tA:[20,-4],ea:'d',b:[128,128]}]},
+ chair:{f:[{t:155,l:[62,-18],m:[60,-18],a:[155,160],b:[153,160]}]},
+ goddess:{front:1,f:[{l:[72,-5],m:[-72,5],a:[90,180],b:[-90,-180]}]},
+ plank:{f:[PLANK]},
+ tree:{front:1,f:[{m:[0,0],l:[50,-120],fa:-60,tA:[1,-56],tB:[-1,-56]}]},
+ warrior3:{f:[{t:90,h:92,l:[0,0],m:[-90,-90],fb:0,a:[90,90],b:[90,90]}]},
+ dancer:{f:[{t:130,h:140,l:[0,0],m:[-30,-160],fb:-160,a:[140,145],tB:[-16,0]}]},
+ cobra:{f:[{t:135,h:150,l:[-90,-90],m:[-90,-90],fa:-90,fb:-90,ha:20,hb:20}]},
+ sphinx:{f:[{t:120,h:122,l:[-90,-90],m:[-90,-90],fa:-90,fb:-90,a:[0,90],b:[0,90]}]},
+ locust:{f:[{t:100,h:110,a:[-100,-100],b:[-100,-100],l:[-100,-100],m:[-98,-98],fa:-100,fb:-98}]},
+ boat:{f:[{t:-150,h:-160,l:[140,140],m:[138,138],fa:140,fb:140,a:[90,90],b:[90,90]}]},
+ seatedfold:{f:[{t:105,h:95,l:[90,90],m:[90,90],fa:180,fb:180,a:[88,90],b:[88,90]}]},
+ pigeon:{f:[{t:175,l:[90,-90],m:[-90,-90],fa:-90,fb:-90,ha:10,hb:10}]},
+ butterfly:{front:1,f:[{l:[80,-80],m:[-80,80],fa:-90,fb:90,tA:[5,4],tB:[-5,4]}]},
+ bridge:{f:[{t:-70,h:-110,l:[115,-20],m:[112,-22],a:[90,90],b:[90,90]}]},
+ supinetwist:{f:[{t:-90,h:-100,l:[120,10],m:[90,90],fa:100,fb:150,a:[-120,-120],b:[90,90]}]},
+ happybaby:{f:[{t:-90,h:-125,l:[-160,180],m:[-155,180],fa:90,fb:90,tA:[-7,-36],tB:[-6,-36]}]},
+ kneeschest:{f:[{t:-90,h:-125,l:[-150,100],m:[-148,104],fa:90,fb:90,tA:[-4,-16],tB:[-4,-16]}]},
+ legsup:{prop:'wallR',f:[{t:-90,h:-115,l:[180,180],m:[179,179],fa:90,fb:90,a:[90,90],b:[90,90]}]},
+ savasana:{f:[{t:-90,h:-108,a:[80,88],b:[84,90],l:[90,90],m:[92,92],fa:150,fb:150}]},
+};
+
+const LEN={t:30,u:15,f:14,th:19,sh:19,nk:9,hr:7,ft:5}, D=Math.PI/180, G=104;
+const V=(deg,l)=>[Math.sin(deg*D)*l,Math.cos(deg*D)*l];
+const add=(p,v)=>[p[0]+v[0],p[1]+v[1]];
+function skel(p){
+  const F=p.front, hip=[p.x,0], tv=V(p.t,1), neck=add(hip,V(p.t,LEN.t)), head=add(neck,V(p.h,LEN.nk));
+  const px=[-tv[1],tv[0]]; // sideways across the body, used for shoulders and hips in front view
+  const off=(o,w,dn)=>[o[0]+px[0]*w-tv[0]*dn,o[1]+px[1]*w-tv[1]*dn];
+  const shA=F?off(neck,6,2):neck, shB=F?off(neck,-6,2):neck, hpA=F?off(hip,4,0):hip, hpB=F?off(hip,-4,0):hip;
+  const arm=(s,a)=>{const e=add(s,V(a[0],LEN.u));return [s,e,add(e,V(a[1],LEN.f))]};
+  const leg=(h,l,fa)=>{const k=add(h,V(l[0],LEN.th)),an=add(k,V(l[1],LEN.sh));return [h,k,an,add(an,V(fa,LEN.ft))]};
+  return {hip,neck,head,shA,shB,hpA,hpB,A:arm(shA,p.a),B:arm(shB,p.b),L:leg(hpA,p.l,p.fa),M:leg(hpB,p.m,p.fb)};
+}
+function surf(k,arms){
+  let m=k.head[1]+LEN.hr;
+  const pts=[k.hip,k.neck,...k.L,...k.M]; if(arms) pts.push(k.A[1],k.A[2],k.B[1],k.B[2]);
+  for(const q of pts) m=Math.max(m,q[1]+2.5);
+  return m;
+}
+function ik(s,t,bend){
+  const u=LEN.u,f=LEN.f,dx=t[0]-s[0],dy=t[1]-s[1];
+  const d=Math.min(Math.max(Math.hypot(dx,dy),Math.abs(u-f)+.01),u+f-.01);
+  const base=Math.atan2(dx,dy), al=Math.acos(Math.max(-1,Math.min(1,(u*u+d*d-f*f)/(2*u*d))));
+  const c=[base+al,base-al].map(a=>({a,e:[s[0]+Math.sin(a)*u,s[1]+Math.cos(a)*u]}));
+  const pick={b:(p,q)=>p.e[0]<q.e[0],f:(p,q)=>p.e[0]>q.e[0],u:(p,q)=>p.e[1]<q.e[1],d:(p,q)=>p.e[1]>q.e[1]}[bend||'b'];
+  const e=pick(c[0],c[1])?c[0]:c[1];
+  return [e.a/D,Math.atan2(t[0]-e.e[0],t[1]-e.e[1])/D];
+}
+function resolvePose(fr,front){
+  const p=Object.assign({t:180,h:null,x:0,y:0,a:[8,10],b:[-6,-2],l:[0,0],m:[0,0],fa:90,fb:front?-90:90,ea:front?'f':'b',eb:'b'},fr);
+  p.front=!!front; if(p.h==null) p.h=p.t;
+  const k=skel(p), gs=surf(k,false)-2.5;
+  const tg=(h,t)=>h!=null?(Array.isArray(h)?[p.x+h[0],gs-h[1]]:[p.x+h,gs]):t?[p.x+t[0],t[1]]:null;
+  const ta=tg(p.ha,p.tA); if(ta) p.a=ik(k.shA,ta,p.ea);
+  const tb=tg(p.hb,p.tB); if(tb) p.b=ik(k.shB,tb,p.eb);
+  return p;
+}
+// A held pose breathes: the chest rises a touch and the head lifts on the inhale.
+function breathFrame(f,front){
+  const g={...f};
+  if(front){ if(!g.tA&&g.a) g.a=[g.a[0]+(g.a[0]>=0?5:-5),g.a[1]]; if(!g.tB&&g.b) g.b=[g.b[0]+(g.b[0]>0?5:-5),g.b[1]]; g.h=(f.h??f.t??180)+3; }
+  else { g.t=(f.t??180)+(Math.abs(Math.abs(f.t??180)-90)<5?1.5:2.5); g.h=(f.h??f.t??180)+4; }
+  return g;
+}
+const lerpA=(a,b,e)=>a+((((b-a)%360)+540)%360-180)*e;
+function lerpPose(p,q,e){
+  const r={front:p.front,x:p.x+(q.x-p.x)*e,y:p.y+(q.y-p.y)*e};
+  for(const k of ['t','h','fa','fb']) r[k]=lerpA(p[k],q[k],e);
+  for(const k of ['a','b','l','m']) r[k]=[lerpA(p[k][0],q[k][0],e),lerpA(p[k][1],q[k][1],e)];
+  return r;
+}
+function placed(p){
+  const k=skel(p), dy=G-surf(k,true)-p.y, sh=q=>[q[0],q[1]+dy];
+  for(const key of ['hip','neck','head','shA','shB','hpA','hpB']) k[key]=sh(k[key]);
+  for(const key of ['A','B','L','M']) k[key]=k[key].map(sh);
+  return k;
+}
+const ANIM_CACHE={};
+function prepAnim(id){
+  if(ANIM_CACHE[id]) return ANIM_CACHE[id];
+  const A=ANIM[id]; if(!A) return null;
+  const raw=A.f.length===1?[A.f[0],breathFrame(A.f[0],A.front)]:A.f;
+  const frames=raw.map(f=>resolvePose(f,A.front));
+  let x0=1e9,x1=-1e9,y0=1e9;
+  frames.forEach(f=>{const k=placed(f);
+    for(const q of [k.hip,k.neck,...k.A,...k.B,...k.L,...k.M]){x0=Math.min(x0,q[0]-3);x1=Math.max(x1,q[0]+3);y0=Math.min(y0,q[1]-3)}
+    x0=Math.min(x0,k.head[0]-LEN.hr);x1=Math.max(x1,k.head[0]+LEN.hr);y0=Math.min(y0,k.head[1]-LEN.hr)});
+  const s=Math.min(1,110/(x1-x0),(G-6)/(G-y0));
+  return ANIM_CACHE[id]={A,frames,s,ox:-(x0+x1)/2,c:A.c||7};
+}
+const FIGS=new Set();
+function makeFig(id){
+  const P=prepAnim(id); if(!P) return document.createElement('span');
+  const NS='http://www.w3.org/2000/svg', svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('viewBox','-60 0 120 110'); svg.setAttribute('class','fig'); svg.setAttribute('aria-hidden','true');
+  svg.innerHTML=`<path class="gnd" d="M-56,${G+1.5}H56"/><path class="sup"/><path class="far"/><path class="far"/><path class="body"/><path class="near"/><path class="near"/><circle class="hd" r="${LEN.hr*P.s}"/>`;
+  const [,sup,fl,fa,torso,nl,na,hd]=svg.children;
+  if(P.A.front){fl.setAttribute('class','near');fa.setAttribute('class','near')}
+  const X=q=>((q[0]+P.ox)*P.s), Y=q=>(G-(G-q[1])*P.s);
+  const f={svg,P,fl,fa,torso,nl,na,hd,X,Y,pt:q=>X(q).toFixed(1)+','+Y(q).toFixed(1)};
+  if(P.A.prop==='wallR'){const k=placed(P.frames[0]);const x=X([k.hip[0]+6,0]);sup.setAttribute('d',`M${x.toFixed(1)},${G}V${G-84}`)}
+  drawFig(f,0); FIGS.add(f);
+  return svg;
+}
+function drawFig(f,time){
+  const P=f.P,fr=P.frames,n=fr.length,ph=((time/P.c)%1)*n,i=Math.floor(ph)%n,e=(1-Math.cos(Math.PI*(ph-Math.floor(ph))))/2;
+  const k=placed(lerpPose(fr[i],fr[(i+1)%n],e)), pl=a=>'M'+a.map(f.pt).join('L');
+  f.fl.setAttribute('d',pl(k.M)); f.fa.setAttribute('d',pl(k.B));
+  f.nl.setAttribute('d',pl(k.L)); f.na.setAttribute('d',pl(k.A));
+  f.torso.setAttribute('d',`${pl([k.hpA,k.hpB])}${pl([k.hip,k.neck])}${pl([k.shA,k.shB])}`);
+  f.hd.setAttribute('cx',f.X(k.head).toFixed(1)); f.hd.setAttribute('cy',f.Y(k.head).toFixed(1));
+}
+function figLoop(now){
+  for(const f of FIGS){
+    if(!f.svg.isConnected){FIGS.delete(f);continue}
+    if(!f.svg.getClientRects().length) continue;
+    drawFig(f,now/1000);
+  }
+  requestAnimationFrame(figLoop);
+}
+requestAnimationFrame(figLoop);
+function mountFigs(root){root.querySelectorAll('[data-fig]').forEach(el=>el.replaceChildren(makeFig(el.dataset.fig)))}
+
+/* ---------- Settings ---------- */
+const $=id=>document.getElementById(id);
+const STORE='yoga-flow-builder-v1';
+function readSettings(){
+  const n=(id,lo,hi,d)=>{const v=parseInt($(id).value,10);return Number.isFinite(v)?Math.min(hi,Math.max(lo,v)):d};
+  return {
+    total:n('total',5,180,30), hold:n('hold',10,600,45), trans:n('trans',2,120,8), sava:n('sava',0,30,3),
+    focus:[...document.querySelectorAll('#focus input:checked')].map(i=>i.value),
+    lvl:+(document.querySelector('#level input:checked')?.value||2),
+    props:[...document.querySelectorAll('#props input:checked')].map(i=>i.value),
+  };
+}
+function save(){try{localStorage.setItem(STORE,JSON.stringify({s:readSettings(),plan}))}catch(e){}}
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem(STORE)||'null'); if(!d) return null;
+    const s=d.s; ['total','hold','trans','sava'].forEach(k=>{if(s[k]!=null)$(k).value=s[k]});
+    document.querySelectorAll('#focus input').forEach(i=>i.checked=s.focus.includes(i.value));
+    document.querySelectorAll('#props input').forEach(i=>i.checked=s.props.includes(i.value));
+    const r=document.querySelector(`#level input[value="${s.lvl}"]`); if(r) r.checked=true;
+    return Array.isArray(d.plan)?d.plan.filter(x=>x&&byId[x.id]):null;
+  }catch(e){return null}
+}
+
+/* ---------- Sequence builder ---------- */
+const holdLen=(p,s)=>p.flow?s.hold*2:s.hold;
+const cost=(p,s)=>s.trans+holdLen(p,s)+(p.sides?s.trans+holdLen(p,s):0);
+const ok=(p,s)=>p.lvl<=s.lvl&&(!p.needs||s.props.includes(p.needs));
+const score=(p,s)=>p.t.filter(t=>s.focus.includes(t)).length+Math.random()*.9;
+function budget(s){return s.total*60-(s.sava>0?s.sava*60+s.trans:0)}
+function shares(s){
+  const calm=s.focus.includes('calm'), bal=s.focus.includes('balance');
+  const sh=calm?{center:.06,warm:.18,stand:.22,balance:.08,floor:.29,cool:.17}:{center:.05,warm:.2,stand:.32,balance:.1,floor:.23,cool:.1};
+  if(bal){sh.balance+=.07;sh.stand-=.04;sh.floor-=.03}
+  if(s.lvl===1){sh.stand-=.06;sh.floor+=.03;sh.cool+=.03}
+  return sh;
+}
+function build(){
+  const s=readSettings(), total=budget(s), sh=shares(s), used=new Set(), out=[];
+  let carry=0, spent=0;
+  for(const [ph] of PHASES){
+    if(ph==='final') continue;
+    let b=total*sh[ph]+carry;
+    const cands=POSES.filter(p=>p.ph.includes(ph)&&ok(p,s)&&!used.has(p.id)).map(p=>({p,sc:score(p,s)})).sort((a,b)=>b.sc-a.sc);
+    const picked=[];
+    for(const {p} of cands){const c=cost(p,s); if(c<=b){picked.push(p);b-=c;used.add(p.id)}}
+    // Every class needs an opening, a warm-up and a way down, if any time is left for them.
+    if(!picked.length&&['center','warm','stand','cool'].includes(ph)){
+      const c=cands.map(x=>x.p).filter(p=>!used.has(p.id)).sort((a,b)=>cost(a,s)-cost(b,s))[0];
+      if(c&&spent+cost(c,s)<=total){picked.push(c);used.add(c.id);b-=cost(c,s)}
+    }
+    picked.forEach(p=>{out.push({id:p.id,ph});spent+=cost(p,s)});
+    carry=Math.max(0,b);
+  }
+  // Fill leftover time with more standing and floor work.
+  for(const ph of ['stand','floor','warm','cool']){
+    for(const p of POSES.filter(p=>p.ph.includes(ph)&&ok(p,s)&&!used.has(p.id))){
+      if(spent+cost(p,s)<=total){out.push({id:p.id,ph});used.add(p.id);spent+=cost(p,s)}
+    }
+  }
+  if(s.sava>0) out.push({id:'savasana',ph:'final'});
+  return order(out);
+}
+function order(list){
+  const rank=Object.fromEntries(PHASES.map(([p],i)=>[p,i]));
+  return list.slice().sort((a,b)=>rank[a.ph]-rank[b.ph]||byId[a.id].ord-byId[b.id].ord);
+}
+
+/* ---------- Timeline ---------- */
+function timeline(s,plan){
+  const segs=[];
+  segs.push({type:'settle',dur:10,id:plan[0]?.id,side:plan[0]&&byId[plan[0].id].sides?'right':null});
+  plan.forEach((x,i)=>{
+    const p=byId[x.id], fin=p.id==='savasana';
+    const h=fin?s.sava*60:holdLen(p,s);
+    if(i>0) segs.push({type:'move',dur:s.trans,id:p.id,side:p.sides?'right':null,idx:i});
+    segs.push({type:fin?'rest':'hold',dur:h,id:p.id,side:p.sides?'right':null,idx:i});
+    if(p.sides){segs.push({type:'move',dur:s.trans,id:p.id,side:'left',sw:1,idx:i});segs.push({type:'hold',dur:h,id:p.id,side:'left',idx:i})}
+  });
+  return segs;
+}
+const mmss=sec=>{sec=Math.round(sec);const m=Math.floor(sec/60),r=sec%60;return m+':'+String(r).padStart(2,'0')};
+
+/* ---------- Render ---------- */
+let plan=[];
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const swapSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a2 2 0 0 1 2-2h16"/><path d="M7 21l-4-4 4-4"/><path d="M21 13v2a2 2 0 0 1-2 2H3"/></svg>';
+const chevSvg='<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>';
+function renderSummary(){
+  const s=readSettings();
+  $('holdNote').innerHTML=`About <b>${Math.max(1,Math.round(s.hold/10))}</b> slow breaths per hold. One-sided poses are held on each side, and flowing sequences like Sun Salutations run for ${mmss(s.hold*2)}.`;
+  if(!plan.length){$('summary').innerHTML='';return}
+  const segs=timeline(s,plan), total=segs.reduce((a,b)=>a+b.dur,0)-10;
+  const holds=segs.filter(x=>x.type==='hold').length;
+  $('summary').innerHTML=`<div><span class="label">Poses</span><b>${plan.length}</b></div><div><span class="label">Holds</span><b>${holds}</b></div><div><span class="label">Practice</span><b>${mmss(total)}</b></div><div><span class="label">Of your</span><b>${mmss(s.total*60)}</b></div>`;
+}
+function render(){
+  const s=readSettings(), seq=$('seq');
+  renderSummary();
+  $('start').disabled=$('shuffle').disabled=!plan.length;
+  if(!plan.length){seq.innerHTML='<p class="empty">Not enough time for a sequence. Add more minutes or shorten the holds.</p>';return}
+  let html='';
+  for(const [ph,label,sub] of PHASES){
+    const items=plan.map((x,i)=>({...x,i})).filter(x=>x.ph===ph); if(!items.length) continue;
+    html+=`<div class="phasegrp"><h3>${label}<small>${sub}</small></h3><ol class="list">`;
+    for(const x of items){const p=byId[x.id];
+      const mods=Object.entries(p.mod||{}).filter(([k])=>s.props.includes(k)).map(([,v])=>`<div class="mod">${esc(v)}</div>`).join('');
+      html+=`<li><details class="ex" data-idx="${x.i}"><summary><span class="thumb" data-fig="${p.id}"></span><div><div class="nm">${esc(p.n)}</div><div class="sk">${esc(p.sk)}</div><div class="meta">${p.t.filter(t=>t!=='calm'||p.t.length===1).slice(0,3).map(t=>`<span class="pill">${FOCUS_LABEL[t]}</span>`).join('')}${p.sides?'<span class="pill out">Both sides</span>':''}${p.flow?'<span class="pill out">Flow</span>':''}</div></div>
+      <div class="side">${p.id==='savasana'?'':`<button type="button" class="icon swap" aria-label="Swap ${esc(p.n)} for another pose" title="Swap this pose">${swapSvg}</button>`}<span class="icon" aria-hidden="true">${chevSvg}</span></div></summary>
+      <div class="body"><span class="figbig" data-fig="${p.id}"></span><div class="txt"><span class="label">How to get into it</span><p>${esc(p.how)}</p>${mods}<span class="label">Alignment cues</span><ul class="cues">${p.cues.map(c=>`<li>${esc(c)}</li>`).join('')}</ul></div></div></details></li>`;
+    }
+    html+='</ol></div>';
+  }
+  seq.innerHTML=html; mountFigs(seq);
+}
+$('seq').addEventListener('click',ev=>{
+  const b=ev.target.closest('.swap'); if(!b) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const i=+b.closest('.ex').dataset.idx, s=readSettings(), cur=plan[i];
+  const inPlan=new Set(plan.map(x=>x.id));
+  const cands=POSES.filter(p=>p.ph.includes(cur.ph)&&ok(p,s)&&!inPlan.has(p.id));
+  if(!cands.length) return;
+  // Prefer a swap that takes about the same time.
+  const c0=cost(byId[cur.id],s);
+  cands.sort((a,b)=>(Math.abs(cost(a,s)-c0)/60-score(a,s))-(Math.abs(cost(b,s)-c0)/60-score(b,s)));
+  plan[i]={id:cands[0].id,ph:cur.ph}; plan=order(plan); render(); save();
+});
+$('setup').addEventListener('submit',ev=>{ev.preventDefault();plan=build();render();save()});
+$('shuffle').addEventListener('click',()=>{plan=build();render();save()});
+$('setup').addEventListener('change',()=>{plan=build();render();save()});
+$('setup').addEventListener('input',ev=>{if(ev.target.type==='number'){renderSummary();save()}});
+
+/* ---------- Timer ---------- */
+const T={segs:[],idx:0,end:0,left:0,paused:false,raf:0,lastSec:-1,sound:true,ctx:null,wake:null,startedAt:0,holds:0,holdTime:0};
+const C=2*Math.PI*92;
+function bell(vol=.22,base=432){
+  if(!T.sound||!T.ctx) return;
+  try{const t0=T.ctx.currentTime;
+    for(const [m,v] of [[1,1],[2.76,.35],[5.4,.12]]){
+      const o=T.ctx.createOscillator(),g=T.ctx.createGain();o.type='sine';o.frequency.value=base*m;
+      g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol*v,t0+.01);g.gain.exponentialRampToValueAtTime(.0001,t0+3.2/m+.4);
+      o.connect(g).connect(T.ctx.destination);o.start(t0);o.stop(t0+4)}}catch(e){}
+}
+async function wake(){try{T.wake=await navigator.wakeLock?.request('screen')}catch(e){}}
+function startTimer(){
+  const s=readSettings(); if(!plan.length) return;
+  T.segs=timeline(s,plan); T.idx=0; T.paused=false; T.holds=0; T.holdTime=0; T.startedAt=performance.now();
+  try{T.ctx=T.ctx||new (window.AudioContext||window.webkitAudioContext)(); T.ctx.resume&&T.ctx.resume()}catch(e){}
+  wake();
+  $('timer').hidden=false; document.body.style.overflow='hidden';
+  $('tMain').hidden=false; $('tFoot').hidden=false; $('tDone').hidden=true; resetEnd();
+  $('tFig').dataset.key='';
+  enter(0); loop();
+}
+function enter(i){
+  T.idx=i; const g=T.segs[i]; T.end=performance.now()+g.dur*1000; T.left=g.dur*1000; T.lastSec=-1;
+  if(g.type==='hold'||g.type==='rest') bell(.22); else if(g.sw) bell(.12,540);
+  paint(true);
+}
+function next(){
+  const g=T.segs[T.idx]; if(g&&g.type==='hold'){T.holds++;T.holdTime+=g.dur}
+  if(T.idx+1>=T.segs.length) return finish();
+  enter(T.idx+1);
+}
+function finish(){
+  cancelAnimationFrame(T.raf); bell(.25); setTimeout(()=>bell(.2),1400); setTimeout(()=>bell(.16),2800);
+  $('timer').dataset.phase='done'; $('tMain').hidden=true; $('tFoot').hidden=true; $('tDone').hidden=false; $('endWrap').innerHTML='';
+  $('tPhase').textContent='Complete'; $('tCount').textContent='';
+  const el=(performance.now()-T.startedAt)/1000;
+  $('doneMsg').textContent=`${plan.length} poses, from centering to final rest. Take a moment before you get up.`;
+  $('doneStats').innerHTML=`<div><span class="label">Holds</span><b>${T.holds}</b></div><div><span class="label">Time in poses</span><b>${mmss(T.holdTime)}</b></div><div><span class="label">Practice</span><b>${mmss(el)}</b></div>`;
+  try{T.wake&&T.wake.release()}catch(e){}
+}
+function remaining(){return T.paused?T.left:Math.max(0,T.end-performance.now())}
+function loop(){
+  if(!T.paused&&remaining()<=0){next(); if(!$('tDone').hidden) return;}
+  paint(false); T.raf=requestAnimationFrame(loop);
+}
+function paint(full){
+  const g=T.segs[T.idx]; if(!g) return;
+  const rem=remaining(), sec=Math.ceil(rem/1000), el=g.dur-rem/1000;
+  $('arc').setAttribute('stroke-dashoffset',(C*(1-rem/(g.dur*1000))).toFixed(1));
+  // Breath pacer: 4 seconds in, 6 seconds out, during holds and final rest.
+  if(g.type==='hold'||g.type==='rest'){
+    const c=el%10, inh=c<4, k=inh?(1-Math.cos(Math.PI*c/4))/2:(1+Math.cos(Math.PI*(c-4)/6))/2;
+    $('breath').setAttribute('r',(48+30*k).toFixed(1));
+    $('tBr').textContent=g.type==='rest'?'Breathe naturally':(inh?'Inhale':'Exhale');
+  } else {$('breath').setAttribute('r','48');$('tBr').textContent=g.type==='settle'?'Get comfortable':'Transition'}
+  if(sec!==T.lastSec){
+    T.lastSec=sec; $('tSec').textContent=mmss(sec);
+    const done=T.segs.slice(0,T.idx).reduce((a,b)=>a+b.dur,0)+el, all=T.segs.reduce((a,b)=>a+b.dur,0);
+    $('tProg').style.width=(100*done/all).toFixed(2)+'%';
+  }
+  if(!full) return;
+  const p=byId[g.id];
+  const labels={settle:'Settle in',move:g.sw?'Switch sides':'Move',hold:'Hold',rest:'Rest'};
+  $('timer').dataset.phase=g.type; $('tPhase').textContent=labels[g.type];
+  const n=(g.idx??0)+1;
+  $('tCount').textContent=`Pose ${n} of ${plan.length}`;
+  $('tLead').textContent=g.type==='settle'?'First pose':g.type==='move'?(g.sw?'Same pose, other side':'Move into'):PHASES.find(x=>x[0]===plan[g.idx]?.ph)?.[1]||'';
+  $('tName').textContent=p.n; $('tSk').textContent=p.sk;
+  $('tSide').hidden=!g.side; $('tSide').textContent=g.side==='left'?'Left side':'Right side';
+  $('tCues').innerHTML=p.cues.map(c=>`<li>${esc(c)}</li>`).join('');
+  const mods=Object.entries(p.mod||{}).filter(([k])=>readSettings().props.includes(k)).map(([,v])=>v).join(' ');
+  $('tHow').textContent=p.how+(mods?' '+mods:'');
+  const key=p.id+(g.side==='left'?'L':'');
+  if($('tFig').dataset.key!==key){$('tFig').dataset.key=key;$('tFig').classList.toggle('mirror',g.side==='left');$('tFig').replaceChildren(makeFig(p.id))}
+  setPlayIcon();
+}
+function setPlayIcon(){
+  $('playIcon').innerHTML=T.paused?'<path d="M7 4v16l13-8z"/>':'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+  $('cPlay').setAttribute('aria-label',T.paused?'Resume':'Pause');
+}
+function togglePause(){
+  if(T.paused){T.end=performance.now()+T.left;T.paused=false}else{T.left=remaining();T.paused=true}
+  setPlayIcon();
+}
+$('cPlay').addEventListener('click',togglePause);
+$('cSkip').addEventListener('click',()=>{const p=T.paused;next();if(p&&$('tDone').hidden){T.left=T.segs[T.idx].dur*1000;T.paused=true;setPlayIcon();paint(true)}});
+$('cBack').addEventListener('click',()=>{
+  const g=T.segs[T.idx], el=g.dur-remaining()/1000;
+  const i=(el<2&&T.idx>0)?T.idx-1:T.idx;
+  if(i<T.idx&&T.segs[i].type==='hold'){T.holds=Math.max(0,T.holds-1);T.holdTime=Math.max(0,T.holdTime-T.segs[i].dur)}
+  const p=T.paused; enter(i); if(p){T.paused=true;T.left=T.segs[i].dur*1000;setPlayIcon()}
+});
+$('cSound').addEventListener('click',()=>{T.sound=!T.sound;$('cSound').setAttribute('aria-pressed',String(T.sound))});
+function closeTimer(){cancelAnimationFrame(T.raf);$('timer').hidden=true;document.body.style.overflow='';try{T.wake&&T.wake.release()}catch(e){}}
+function resetEnd(){$('endWrap').innerHTML='<button type="button" class="btn ghost" id="endBtn">End practice</button>'}
+$('endWrap').addEventListener('click',ev=>{
+  const id=ev.target.closest('button')?.id;
+  if(id==='endBtn') $('endWrap').innerHTML='<span class="note">End now?</span><button type="button" class="btn ghost" id="endNo">Keep going</button><button type="button" class="btn primary" id="endYes" style="font-size:1rem;padding:9px 16px">End</button>';
+  else if(id==='endNo') resetEnd();
+  else if(id==='endYes') closeTimer();
+});
+$('start').addEventListener('click',startTimer);
+$('again').addEventListener('click',startTimer);
+$('closeDone').addEventListener('click',closeTimer);
+document.addEventListener('keydown',ev=>{
+  if($('timer').hidden||!$('tDone').hidden) return;
+  if(ev.code==='Space'){ev.preventDefault();togglePause()}
+  else if(ev.key==='ArrowRight') $('cSkip').click();
+  else if(ev.key==='ArrowLeft') $('cBack').click();
+});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!$('timer').hidden&&$('tDone').hidden) wake()});
+
+/* ---------- Boot ---------- */
+const saved=load();
+plan=saved&&saved.length?order(saved):build();
+render();
+</script>
