@@ -147,13 +147,14 @@ ol.list{list-style:none;margin:0;padding:0;display:grid;gap:8px;counter-reset:ex
         <legend class="label">Time &amp; intervals</legend>
         <div class="nums">
           <div class="num"><label for="total">Total time</label><div class="row"><input id="total" type="number" inputmode="numeric" min="5" max="120" step="1" value="20"><span class="unit">min</span></div></div>
-          <div class="num"><label for="count">Exercises per round</label><div class="row"><input id="count" type="number" inputmode="numeric" min="2" max="12" step="1" value="6"><span class="unit">moves</span></div></div>
+          <div class="num"><label for="count">Exercises per round</label><div class="row"><input id="count" type="number" inputmode="numeric" min="1" max="15" step="1" value="" placeholder="Auto"><span class="unit">moves</span></div></div>
           <div class="num"><label for="work">Work interval</label><div class="row"><input id="work" type="number" inputmode="numeric" min="5" max="300" step="5" value="40"><span class="unit">sec</span></div></div>
           <div class="num"><label for="rest">Rest interval</label><div class="row"><input id="rest" type="number" inputmode="numeric" min="0" max="300" step="5" value="20"><span class="unit">sec</span></div></div>
           <div class="num"><label for="roundRest">Rest between rounds</label><div class="row"><input id="roundRest" type="number" inputmode="numeric" min="0" max="600" step="15" value="60"><span class="unit">sec</span></div></div>
           <div class="num"><label for="prep">Get-ready countdown</label><div class="row"><input id="prep" type="number" inputmode="numeric" min="0" max="60" step="5" value="10"><span class="unit">sec</span></div></div>
         </div>
         <p class="ratio" id="ratio"></p>
+        <p class="ratio" id="autoNote"></p>
       </fieldset>
 
       <fieldset>
@@ -307,18 +308,39 @@ const STORE='circuit-builder-v1';
 /* ---------- Settings ---------- */
 function readSettings(){
   const n=(id,lo,hi,d)=>{const v=parseInt($(id).value,10);return Number.isFinite(v)?Math.min(hi,Math.max(lo,v)):d};
-  return {
-    total:n('total',1,180,20), count:n('count',1,15,6), work:n('work',5,600,40),
+  const countRaw=$('count').value.trim();
+  const s={
+    total:n('total',1,180,20), countRaw, auto:countRaw==='', work:n('work',5,600,40),
     rest:n('rest',0,600,20), roundRest:n('roundRest',0,900,60), prep:n('prep',0,120,10),
     focus:[...document.querySelectorAll('#focus input:checked')].map(i=>i.value),
     kit:[...document.querySelectorAll('#kit input:checked')].map(i=>i.value),
   };
+  s.count=s.auto?autoShape(s).n:n('count',1,15,6);
+  return s;
+}
+/* Work out exercises-per-round from the times: try every sensible combination of
+   moves (3-10) and rounds (2-8), keep the one that fills the most of the total time,
+   with a small nudge toward about 6 moves x 3 rounds when two options are close. */
+function autoShape(s){
+  const T=s.total*60, maxN=Math.min(10,Math.max(3,pool(s).length));
+  const len=(n,R)=>R*(n*s.work+(n-1)*s.rest)+(R-1)*s.roundRest;
+  let best=null;
+  for(let n=3;n<=maxN;n++)for(let R=2;R<=8;R++){
+    const used=len(n,R); if(used>T) continue;
+    const score=used-15*Math.abs(R-3)-10*Math.abs(n-6);
+    if(!best||score>best.score) best={n,R,score};
+  }
+  if(best) return best;
+  // Too short for 2 rounds: one round with as many moves as fit.
+  let n=1; while(n<maxN&&len(n+1,1)<=T) n++;
+  return {n,R:1};
 }
 function save(){try{localStorage.setItem(STORE,JSON.stringify({s:readSettings(),plan}))}catch(e){}}
 function load(){
   try{
     const d=JSON.parse(localStorage.getItem(STORE)||'null'); if(!d) return null;
-    const s=d.s; ['total','count','work','rest','roundRest','prep'].forEach(k=>{if(s[k]!=null)$(k).value=s[k]});
+    const s=d.s; ['total','work','rest','roundRest','prep'].forEach(k=>{if(s[k]!=null)$(k).value=s[k]});
+    $('count').value=s.countRaw||'';
     document.querySelectorAll('#focus input').forEach(i=>i.checked=s.focus.includes(i.value));
     document.querySelectorAll('#kit input').forEach(i=>i.checked=s.kit.includes(i.value));
     return Array.isArray(d.plan)?d.plan.filter(id=>byId[id]):null;
@@ -351,6 +373,14 @@ function generate(){
     used.add(e.id); out.push(e.id);
   }
   return out;
+}
+
+// Keep the current moves when the count changes: trim extras or add new ones.
+function fitPlan(){
+  const s=readSettings(); if(plan.length===s.count) return;
+  if(plan.length>s.count){plan=plan.slice(0,s.count);return}
+  const focus=s.focus.length?s.focus:['full'], used=new Set(plan);
+  while(plan.length<s.count){const e=pick(s,used,focus[plan.length%focus.length]); if(!e) break; used.add(e.id); plan.push(e.id)}
 }
 
 /* ---------- Timeline ---------- */
@@ -390,8 +420,12 @@ function renderSummary(){
   const s=readSettings(), n=plan.length;
   const w=s.work, r=s.rest;
   $('ratio').innerHTML=`Work : rest ratio <b>${w}:${r}</b>${r?` &middot; about ${(w/r).toFixed(1).replace('.0','')} to 1`:' &middot; no rest between moves'}`;
-  if(!n){$('summary').innerHTML='';return}
+  if(!n){$('summary').innerHTML='';$('autoNote').textContent='';return}
   const {segs,R}=timeline(s,plan);
+  const used=segs.reduce((a,b)=>a+b.dur,0)-(s.prep||0);
+  $('autoNote').innerHTML=s.auto
+    ?`Worked out from your times: <b>${n} moves &times; ${R} round${R>1?'s':''}</b> = ${mmss(used)} of your ${mmss(s.total*60)}. Type a number above to choose it yourself.`
+    :`You set ${n} moves, which fits <b>${R} round${R>1?'s':''}</b> (${mmss(used)}). Clear the box to let the app work it out.`;
   const total=segs.reduce((a,b)=>a+b.dur,0)-(s.prep||0);
   const work=segs.filter(x=>x.type==='work').length*s.work;
   $('summary').innerHTML=`<div><span class="label">Rounds</span><b>${R}</b></div><div><span class="label">Moves</span><b>${n}</b></div><div><span class="label">Work time</span><b>${mmss(work)}</b></div><div><span class="label">Total</span><b>${mmss(total)}</b></div>`;
@@ -419,7 +453,7 @@ $('list').addEventListener('click',ev=>{
 $('setup').addEventListener('submit',ev=>{ev.preventDefault();plan=generate();render();save()});
 $('shuffle').addEventListener('click',()=>{plan=generate();render();save()});
 $('setup').addEventListener('input',ev=>{
-  if(ev.target.type==='checkbox'){plan=generate();render()} else renderSummary();
+  if(ev.target.type==='checkbox'){plan=generate();render()} else {fitPlan();render()}
   save();
 });
 
@@ -533,5 +567,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!$('timer
 /* ---------- Boot ---------- */
 const saved=load();
 plan=saved&&saved.length?saved:generate();
+fitPlan();
 render();
 </script>
