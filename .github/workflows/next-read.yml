@@ -1,0 +1,82 @@
+name: Next Read build
+
+# Builds Next Read (next-read/, its own Gradle build) and publishes the APK at a stable link:
+#   https://github.com/arualaura5/Claude-Work-Android-App/releases/download/next-read-latest/next-read.apk
+# Only runs when Next Read itself changes, so Royal Miles and the flashcards are never rebuilt
+# or republished by it, and their workflows never touch this.
+
+on:
+  push:
+    paths:
+      - "next-read/**"
+      - ".github/workflows/next-read.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: next-read-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: next-read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Unit tests
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew :app:testDebugUnitTest --console=plain 2>&1 | tee ../next-read-tests.log
+
+      - name: Build debug APK
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --console=plain 2>&1 | tee ../next-read-build.log
+          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/next-read.apk
+
+      # Compile errors and failing tests become one-line annotations, readable from anywhere.
+      - name: Report what failed
+        if: failure()
+        working-directory: .
+        run: |
+          cat next-read-tests.log next-read-build.log 2>/dev/null | grep -E '^e: ' | head -20 | sed 's/^e: /::error title=Compile error::/' || true
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          for path in glob.glob("next-read/app/build/test-results/testDebugUnitTest/*.xml"):
+              for case in ET.parse(path).getroot().iter("testcase"):
+                  for failure in list(case.iter("failure"))[:1]:
+                      message = (failure.get("message") or failure.text or "").strip().splitlines()[0][:300]
+                      print(f"::error title=Failing test::{case.get('classname')}.{case.get('name')}: {message}")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: next-read-debug
+          path: next-read/app/build/outputs/apk/debug/next-read.apk
+
+      - name: Publish at the stable download link
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: next-read-latest
+          name: Next Read — latest build
+          body: |
+            Rebuilt from every change to Next Read (commit ${{ github.sha }}, branch ${{ github.ref_name }}).
+            Tap next-read.apk below on your phone to install or update. Install over the existing app; never uninstall first.
+          files: next-read/app/build/outputs/apk/debug/next-read.apk
+          prerelease: true
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
